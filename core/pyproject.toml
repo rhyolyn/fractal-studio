@@ -1,0 +1,14 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "fractal-core"
+version = "0.1.0"
+description = "Rust core for Fractal Studio."
+requires-python = ">=3.12"
+
+[tool.maturin]
+bindings = "pyo3"
+module-name = "fractal_core"
+
