@@ -8,6 +8,7 @@ from pathlib import Path
 SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SOURCE_ROOT))
 
+from PySide6.QtGui import QPaintEvent
 from PySide6.QtWidgets import QApplication
 
 _APP: QApplication | None = None
@@ -20,6 +21,46 @@ def _get_app() -> QApplication:
     return QApplication.instance()
 
 
+class QtWindowTestCase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        _get_app()
+
+    def make_window(self):
+        from fractal_studio.main_window import MainWindow
+
+        window = MainWindow()
+        self.addCleanup(window.close)
+        return window
+
+
+class DummyEditorBackend:
+    available = True
+
+    def color_from_face(self, face: int, position: tuple[float, float]) -> tuple[int, int, int]:
+        x, y = position
+        return (face * 10 + int(x * 10), face * 10 + int(y * 10), face * 10)
+
+    def project_color_to_face(self, face: int, color: tuple[int, int, int]) -> tuple[float, float]:
+        return ((color[0] % 10) / 10.0, (color[1] % 10) / 10.0)
+
+    def update_control_point_from_face(
+        self,
+        face: int,
+        color: tuple[int, int, int],
+        position: tuple[float, float],
+    ) -> tuple[int, int, int]:
+        x, y = position
+        return (face * 10 + int(x * 10), face * 10 + int(y * 10), color[2])
+
+    def generate_palette(self, control_points: list[tuple[int, int, int]], palette_size: int) -> list[tuple[int, int, int]]:
+        return control_points[:palette_size]
+
+
+class DummyUnavailableBackend(DummyEditorBackend):
+    available = False
+
+
 class TestCustomResolutionDialog(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -27,109 +68,183 @@ class TestCustomResolutionDialog(unittest.TestCase):
 
     def test_default_values(self) -> None:
         from fractal_studio.main_window import CustomResolutionDialog
+
         dlg = CustomResolutionDialog(1920, 1080)
-        w, h = dlg.values()
-        self.assertEqual(w, 1920)
-        self.assertEqual(h, 1080)
+        self.assertEqual(dlg.values(), (1920, 1080))
 
     def test_custom_values(self) -> None:
         from fractal_studio.main_window import CustomResolutionDialog
+
         dlg = CustomResolutionDialog(3840, 2160)
-        w, h = dlg.values()
-        self.assertEqual(w, 3840)
-        self.assertEqual(h, 2160)
+        self.assertEqual(dlg.values(), (3840, 2160))
 
     def test_spinbox_range(self) -> None:
         from fractal_studio.main_window import CustomResolutionDialog
+
         dlg = CustomResolutionDialog(1920, 1080)
-        # Attempt values below minimum — Qt should clamp to 64
         dlg._width_box.setValue(0)
         dlg._height_box.setValue(-1)
-        w, h = dlg.values()
-        self.assertEqual(w, 64)
-        self.assertEqual(h, 64)
-        # Attempt values above maximum — Qt should clamp to 16384
+        self.assertEqual(dlg.values(), (64, 64))
+
         dlg._width_box.setValue(99999)
         dlg._height_box.setValue(99999)
-        w, h = dlg.values()
-        self.assertEqual(w, 16384)
-        self.assertEqual(h, 16384)
+        self.assertEqual(dlg.values(), (16384, 16384))
 
 
-class TestExportPanel(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        _get_app()
-
-    def _make_window(self):
-        from fractal_studio.main_window import MainWindow
-        return MainWindow()
-
-    def test_export_combo_has_five_items(self) -> None:
-        w = self._make_window()
+class TestExportPanel(QtWindowTestCase):
+    def test_export_combo_has_four_items(self) -> None:
+        w = self.make_window()
         self.assertEqual(w._export_combo.count(), 4)
-        w.close()
 
     def test_export_combo_last_item_is_custom(self) -> None:
-        w = self._make_window()
-        last = w._export_combo.itemText(3)
-        self.assertIn("Custom", last)
-        w.close()
+        w = self.make_window()
+        self.assertIn("Custom", w._export_combo.itemText(3))
 
-    def test_export_combo_default_is_1080_square(self) -> None:
-        w = self._make_window()
+    def test_export_combo_default_is_square(self) -> None:
+        w = self.make_window()
         self.assertEqual(w._export_combo.currentIndex(), 0)
         self.assertIn("1080 × 1080", w._export_combo.itemText(0))
-        w.close()
 
     def test_aspect_ratio_combo_has_three_modes(self) -> None:
-        w = self._make_window()
+        w = self.make_window()
         self.assertEqual(w._aspect_ratio_combo.count(), 3)
-        self.assertEqual(w._aspect_ratio_combo.currentIndex(), 0)
-        self.assertIn("(1:1)", w._aspect_ratio_combo.itemText(0))
-        self.assertIn("(3:4)", w._aspect_ratio_combo.itemText(1))
-        self.assertIn("(4:3)", w._aspect_ratio_combo.itemText(2))
-        w.close()
+        expected_labels = ["(1:1)", "(3:4)", "(4:3)"]
+        for index, suffix in enumerate(expected_labels):
+            with self.subTest(index=index):
+                self.assertIn(suffix, w._aspect_ratio_combo.itemText(index))
 
-    def test_export_presets_follow_square_portrait_landscape(self) -> None:
-        w = self._make_window()
+    def test_export_presets_follow_aspect_ratio(self) -> None:
+        w = self.make_window()
+        scenarios = [
+            (0, "1080 × 1080"),
+            (1, "1080 × 1440"),
+            (2, "1440 × 1080"),
+        ]
 
-        self.assertIn("1080 × 1080", w._export_combo.itemText(0))
+        for index, expected in scenarios:
+            with self.subTest(aspect=index):
+                w._aspect_ratio_combo.setCurrentIndex(index)
+                self.assertIn(expected, w._export_combo.itemText(0))
 
-        w._aspect_ratio_combo.setCurrentIndex(1)
-        self.assertIn("1080 × 1440", w._export_combo.itemText(0))
-
-        w._aspect_ratio_combo.setCurrentIndex(2)
-        self.assertIn("1440 × 1080", w._export_combo.itemText(0))
-
-        w.close()
+    def test_unknown_aspect_ratio_defaults_to_square_presets(self) -> None:
+        w = self.make_window()
+        self.assertEqual(
+            w._build_export_presets_for_mode("unexpected")[0],
+            ("1080 × 1080", 1080, 1080),
+        )
 
     def test_custom_size_row_hidden_by_default(self) -> None:
-        w = self._make_window()
+        w = self.make_window()
         self.assertTrue(w._custom_width_box.parentWidget().isHidden())
-        w.close()
 
     def test_custom_size_row_shown_for_custom_preset(self) -> None:
-        w = self._make_window()
+        w = self.make_window()
         w._export_combo.setCurrentIndex(3)
         self.assertFalse(w._custom_width_box.parentWidget().isHidden())
-        w.close()
 
     def test_export_uses_inline_custom_dimensions(self) -> None:
         from fractal_studio.main_window import MainWindow
-        captured = []
+
+        captured: list[tuple[int, int]] = []
         original = MainWindow._export_render
         try:
             MainWindow._export_render = lambda self, width, height: captured.append((width, height))
-            w = self._make_window()
+            w = self.make_window()
             w._export_combo.setCurrentIndex(3)
             w._custom_width_box.setValue(1234)
             w._custom_height_box.setValue(567)
             w._on_export_clicked()
             self.assertEqual(captured, [(1234, 567)])
-            w.close()
         finally:
             MainWindow._export_render = original
+
+    def test_export_uses_selected_square_preset_dimensions(self) -> None:
+        from fractal_studio.main_window import MainWindow
+
+        captured: list[tuple[int, int]] = []
+        original = MainWindow._export_render
+        try:
+            MainWindow._export_render = lambda self, width, height: captured.append((width, height))
+            w = self.make_window()
+            w._export_combo.setCurrentIndex(0)
+            w._on_export_clicked()
+            self.assertEqual(captured, [(1080, 1080)])
+        finally:
+            MainWindow._export_render = original
+
+
+class TestParamsPanel(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        _get_app()
+
+    def setUp(self) -> None:
+        from fractal_studio.viewport import FractalParamsPanel
+
+        self.panel = FractalParamsPanel()
+        self.panel.show()
+
+    def test_formula_changes_toggle_visibility(self) -> None:
+        emitted: list[str] = []
+        self.panel.formula_changed.connect(emitted.append)
+
+        self.assertEqual(self.panel._formula_combo.itemText(0), "Standard  (z² + c)")
+        self.assertEqual(self.panel._formula_combo.itemText(1), "Multibrot  (zⁿ + c)")
+
+        self.panel._on_formula_changed(1)
+        self.assertEqual(emitted[-1], "multibrot")
+        self.assertTrue(self.panel._power_label.isVisible())
+        self.assertTrue(self.panel._power_spin.isVisible())
+
+        self.panel._on_formula_changed(6)
+        self.assertEqual(emitted[-1], "phoenix")
+        self.assertTrue(self.panel._phoenix_real_spin.isVisible())
+
+        self.panel._on_formula_changed(7)
+        self.assertEqual(emitted[-1], "newton")
+        self.assertFalse(self.panel._mode_combo.isVisible())
+        self.assertTrue(self.panel._power_spin.isVisible())
+        self.assertEqual(self.panel._power_label.text(), "Degree (n):")
+
+    def test_mode_and_coloring_transitions_emit_state(self) -> None:
+        modes: list[bool] = []
+        coloring: list[str] = []
+        traps: list[tuple[float, float]] = []
+
+        self.panel.mode_changed.connect(modes.append)
+        self.panel.coloring_mode_changed.connect(coloring.append)
+        self.panel.trap_point_changed.connect(lambda x, y: traps.append((x, y)))
+
+        self.panel._on_mode_changed("Julia")
+        self.panel._on_coloring_changed(3)
+        self.panel._trap_x_spin.setValue(0.25)
+        self.panel._trap_y_spin.setValue(-0.5)
+
+        self.assertEqual(modes[-1], True)
+        self.assertEqual(coloring[-1], "orbit_trap_point")
+        self.assertEqual(traps[-1], (0.25, -0.5))
+        self.assertTrue(self.panel._julia_real_spin.isVisible())
+        self.assertTrue(self.panel._trap_x_spin.isVisible())
+
+    def test_reset_restores_defaults_and_cycle_off(self) -> None:
+        cycles: list[bool] = []
+        self.panel.cycle_toggled.connect(cycles.append)
+
+        self.panel._cycle_button.setChecked(True)
+        self.panel._formula_combo.setCurrentIndex(5)
+        self.panel._mode_combo.setCurrentIndex(1)
+        self.panel._coloring_combo.setCurrentIndex(3)
+        self.panel.reset()
+
+        self.assertFalse(self.panel._cycle_button.isChecked())
+        self.assertEqual(self.panel._formula_combo.currentIndex(), 0)
+        self.assertEqual(self.panel._mode_combo.currentIndex(), 0)
+        self.assertEqual(self.panel._coloring_combo.currentIndex(), 0)
+        self.assertGreaterEqual(len(cycles), 1)
+
+    def test_set_scale_updates_zoom_spin_without_exploding(self) -> None:
+        self.panel.set_scale(0.03)
+        self.assertGreater(self.panel._zoom_spin.value(), 0.0)
 
 
 class TestThumbnailHelpers(unittest.TestCase):
@@ -140,6 +255,7 @@ class TestThumbnailHelpers(unittest.TestCase):
     def test_encode_decode_round_trip(self) -> None:
         from fractal_studio.main_window import MainWindow
         from PySide6.QtGui import QColor, QPixmap
+
         original = QPixmap(96, 72)
         original.fill(QColor("#ff0000"))
         b64 = MainWindow._encode_pixmap(original)
@@ -150,6 +266,7 @@ class TestThumbnailHelpers(unittest.TestCase):
 
     def test_placeholder_pixmap_correct_size(self) -> None:
         from fractal_studio.main_window import MainWindow
+
         p = MainWindow._placeholder_pixmap()
         self.assertEqual(p.width(), 48)
         self.assertEqual(p.height(), 36)
@@ -157,15 +274,135 @@ class TestThumbnailHelpers(unittest.TestCase):
 
     def test_encode_pixmap_returns_valid_base64(self) -> None:
         from fractal_studio.main_window import MainWindow
-        import base64
         from PySide6.QtGui import QColor, QPixmap
+        import base64
+
         pixmap = QPixmap(200, 150)
         pixmap.fill(QColor("#00ff00"))
         b64 = MainWindow._encode_pixmap(pixmap)
         decoded = base64.b64decode(b64)
         self.assertGreater(len(decoded), 0)
-        # PNG magic bytes
-        self.assertTrue(decoded[:4] == b'\x89PNG')
+        self.assertTrue(decoded[:4] == b"\x89PNG")
+
+
+class TestPalettePreviewWidget(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        _get_app()
+
+    def test_paint_event_handles_empty_palette(self) -> None:
+        from fractal_studio.editor import PalettePreviewWidget
+
+        widget = PalettePreviewWidget("Preview")
+        widget.resize(160, 100)
+        widget.paintEvent(QPaintEvent(widget.rect()))
+
+    def test_paint_event_draws_non_empty_palette(self) -> None:
+        from fractal_studio.editor import PalettePreviewWidget
+
+        widget = PalettePreviewWidget("Preview")
+        widget.resize(160, 100)
+        widget.set_palette([(0, 0, 0), (255, 255, 255), (255, 0, 0), (0, 255, 0)])
+        widget.paintEvent(QPaintEvent(widget.rect()))
+
+
+class TestColorCubeEditor(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        _get_app()
+
+    def _make_editor(self, backend=None):
+        from fractal_studio.editor import ColorCubeEditor
+        from fractal_studio.backend import default_profile
+
+        editor = ColorCubeEditor(backend or DummyEditorBackend(), default_profile())
+        editor.resize(540, 540)
+        editor.show()
+        return editor
+
+    def _point(self, point) -> tuple[int, int]:
+        return (round(point.x()), round(point.y()))
+
+    def _click(self, editor, point) -> None:
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+
+        QTest.mouseClick(editor, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, point)
+
+    def _press(self, editor, point) -> None:
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+
+        QTest.mousePress(editor, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, point)
+
+    def _move(self, editor, point) -> None:
+        from PySide6.QtTest import QTest
+
+        QTest.mouseMove(editor, point)
+
+    def _release(self, editor, point) -> None:
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+
+        QTest.mouseRelease(editor, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, point)
+
+    def test_seed_clear_and_palette_refresh(self) -> None:
+        editor = self._make_editor()
+        changed: list[list[tuple[int, int, int]]] = []
+        editor.palette_changed.connect(changed.append)
+
+        editor.seed_points()
+        self.assertGreaterEqual(len(editor.control_points), 4)
+        editor.clear_points()
+        self.assertEqual(editor.control_points, [])
+        self.assertEqual(changed[-1], [])
+
+    def test_face_pixmap_cache_reuses_same_entry(self) -> None:
+        from PySide6.QtCore import QSize
+
+        editor = self._make_editor()
+        pixmap_a = editor._face_pixmap(1, QSize(12, 12))
+        pixmap_b = editor._face_pixmap(1, QSize(12, 12))
+        self.assertIs(pixmap_a, pixmap_b)
+
+    def test_nearest_point_and_projection_threshold(self) -> None:
+        from PySide6.QtCore import QPointF
+
+        editor = self._make_editor()
+        editor.set_control_points([(10, 10, 10)])
+        projected = editor._projected_point(2, editor.control_points[0])
+        self.assertEqual(editor._nearest_point(2, QPointF(projected.x(), projected.y())), 0)
+        self.assertIsNone(editor._nearest_point(2, QPointF(projected.x() + 200, projected.y() + 200)))
+
+    def test_mouse_press_drag_and_move_updates_point(self) -> None:
+        from PySide6.QtCore import QPoint
+
+        editor = self._make_editor()
+        editor.set_control_points([(10, 10, 10)])
+        projected = editor._projected_point(2, editor.control_points[0])
+
+        start = QPoint(*self._point(projected))
+        end = QPoint(start.x() + 8, start.y() + 8)
+        self._press(editor, start)
+        self.assertIsNotNone(editor._drag_state)
+        self._move(editor, end)
+        self.assertNotEqual(editor.control_points[0], (10, 10, 10))
+        self._release(editor, end)
+        self.assertIsNone(editor._drag_state)
+
+    def test_mouse_press_adds_point_and_hover_status(self) -> None:
+        from PySide6.QtCore import QPoint
+
+        editor = self._make_editor()
+
+        rect = editor._face_rects()[2]
+        pos = QPoint(round(rect.center().x()), round(rect.center().y()))
+        self._click(editor, pos)
+        self.assertEqual(len(editor.control_points), 1)
+
+    def test_paint_event_handles_backend_missing(self) -> None:
+        editor = self._make_editor(backend=DummyUnavailableBackend())
+        editor.paintEvent(QPaintEvent(editor.rect()))
 
 
 class TestViewportSizing(unittest.TestCase):
@@ -189,39 +426,26 @@ class TestViewportSizing(unittest.TestCase):
         from fractal_studio.viewport import FractalViewportWidget
 
         viewport = FractalViewportWidget(load_backend())
-        viewport.set_aspect_ratio_mode("portrait")
-        self.assertEqual(viewport.heightForWidth(600), 800)
-        viewport.set_aspect_ratio_mode("landscape")
-        self.assertEqual(viewport.heightForWidth(600), 450)
+        scenarios = {"portrait": 800, "landscape": 450}
+        for mode, expected in scenarios.items():
+            with self.subTest(mode=mode):
+                viewport.set_aspect_ratio_mode(mode)
+                self.assertEqual(viewport.heightForWidth(600), expected)
 
 
-class TestViewportHints(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        _get_app()
-
+class TestViewportHints(QtWindowTestCase):
     def test_hint_mentions_double_click_recenter(self) -> None:
-        from fractal_studio.main_window import MainWindow
-
-        w = MainWindow()
+        w = self.make_window()
         self.assertIsNotNone(w.viewport_hint_label)
         self.assertIn("double-click", w.viewport_hint_label.text().lower())
         self.assertIn("recenter", w.viewport_hint_label.text().lower())
-        w.close()
 
 
-class TestWorkspaceLayout(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        _get_app()
-
+class TestWorkspaceLayout(QtWindowTestCase):
     def test_viewport_default_min_width_matches_preview_column(self) -> None:
-        from fractal_studio.main_window import MainWindow
-
-        w = MainWindow()
+        w = self.make_window()
         self.assertIsNotNone(w.viewport)
         self.assertEqual(w.viewport.minimumWidth(), 520)
-        w.close()
 
 
 class TestFavoriteThumbnailRow(unittest.TestCase):
@@ -229,15 +453,9 @@ class TestFavoriteThumbnailRow(unittest.TestCase):
     def setUpClass(cls) -> None:
         _get_app()
 
-    def _make_row(self, name="Test Fractal"):
-        from fractal_studio.main_window import FavoriteThumbnailRow
-        from PySide6.QtGui import QColor, QPixmap
-        from PySide6.QtWidgets import QLabel
-        pixmap = QPixmap(48, 36)
-        pixmap.fill(QColor("#ff0000"))
-        hover_panel = QLabel()
+    def _favorite(self, **overrides):
         fav = {
-            "name": name,
+            "name": "Test Fractal",
             "formula": "Mandelbrot",
             "center_x": -0.75,
             "center_y": 0.1,
@@ -253,11 +471,22 @@ class TestFavoriteThumbnailRow(unittest.TestCase):
             "trap_x": 0.0,
             "trap_y": 0.0,
         }
-        selected = []
-        activated = []
+        fav.update(overrides)
+        return fav
+
+    def _make_row(self, fav=None):
+        from fractal_studio.main_window import FavoriteThumbnailRow
+        from PySide6.QtGui import QColor, QPixmap
+        from PySide6.QtWidgets import QLabel
+
+        pixmap = QPixmap(48, 36)
+        pixmap.fill(QColor("#ff0000"))
+        hover_panel = QLabel()
+        selected: list[FavoriteThumbnailRow] = []
+        activated: list[FavoriteThumbnailRow] = []
         row = FavoriteThumbnailRow(
             pixmap,
-            fav,
+            fav or self._favorite(),
             hover_panel,
             lambda r: selected.append(r),
             lambda r: activated.append(r),
@@ -284,26 +513,24 @@ class TestFavoriteThumbnailRow(unittest.TestCase):
         self.assertIn("transparent", row.styleSheet())
 
     def test_click_calls_on_select(self) -> None:
-        from PySide6.QtCore import QPoint
-        from PySide6.QtCore import Qt
+        from PySide6.QtCore import QPoint, Qt
         from PySide6.QtTest import QTest
+
         row, _, selected, _ = self._make_row()
         row.show()
         QTest.mouseClick(row, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, QPoint(10, 10))
         self.assertEqual(len(selected), 1)
         self.assertIs(selected[0], row)
-        row.close()
 
     def test_double_click_calls_activate(self) -> None:
-        from PySide6.QtCore import QPoint
-        from PySide6.QtCore import Qt
+        from PySide6.QtCore import QPoint, Qt
         from PySide6.QtTest import QTest
+
         row, _, _, activated = self._make_row()
         row.show()
         QTest.mouseDClick(row, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, QPoint(10, 10))
         self.assertEqual(len(activated), 1)
         self.assertIs(activated[0], row)
-        row.close()
 
     def test_stats_html_contains_formula(self) -> None:
         row, _, _, _ = self._make_row()
@@ -311,14 +538,29 @@ class TestFavoriteThumbnailRow(unittest.TestCase):
         self.assertIn("Mandelbrot", html)
         self.assertIn("-0.750000", html)
 
+    def test_stats_html_includes_optional_fields(self) -> None:
+        from fractal_studio.main_window import FavoriteThumbnailRow
+        from PySide6.QtGui import QColor, QPixmap
+        from PySide6.QtWidgets import QLabel
 
-class TestFavoritePersistence(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        _get_app()
+        pixmap = QPixmap(48, 36)
+        pixmap.fill(QColor("#ff0000"))
+        scenarios = [
+            ("Julia", self._favorite(is_julia=True, julia_real=-0.8, julia_imag=0.156), "Julia c"),
+            ("Phoenix", self._favorite(formula="Phoenix", phoenix_real=0.5, phoenix_imag=0.25), "Phoenix"),
+            ("Orbit trap", self._favorite(coloring_mode="orbit_trap_point", trap_x=0.5, trap_y=-0.25), "Trap pt"),
+        ]
 
+        for label, fav, expected in scenarios:
+            with self.subTest(label=label):
+                row = FavoriteThumbnailRow(pixmap, fav, QLabel(), lambda _: None)
+                self.assertIn(expected, row._build_stats_html())
+
+
+class TestFavoritePersistence(QtWindowTestCase):
     def setUp(self) -> None:
         import fractal_studio.main_window as mwmod
+
         self._mwmod = mwmod
         self._original_path = mwmod._FAVORITES_PATH
         self._tmpdir = Path(tempfile.mkdtemp(prefix="fs_test_favs_"))
@@ -328,22 +570,11 @@ class TestFavoritePersistence(unittest.TestCase):
         self._mwmod._FAVORITES_PATH = self._original_path
 
     def test_load_favorite_restores_control_points(self) -> None:
-        from fractal_studio.main_window import MainWindow
-        w = MainWindow()
+        w = self.make_window()
         self.assertIsNotNone(w.editor)
 
-        initial_points = [
-            (12, 34, 56),
-            (78, 90, 123),
-            (140, 150, 160),
-            (200, 210, 220),
-        ]
-        replacement_points = [
-            (1, 2, 3),
-            (4, 5, 6),
-            (7, 8, 9),
-            (10, 11, 12),
-        ]
+        initial_points = [(12, 34, 56), (78, 90, 123), (140, 150, 160), (200, 210, 220)]
+        replacement_points = [(1, 2, 3), (4, 5, 6), (7, 8, 9), (10, 11, 12)]
 
         w.editor.set_control_points(initial_points)
         w._save_favorite()
@@ -354,11 +585,9 @@ class TestFavoritePersistence(unittest.TestCase):
         w._load_favorite()
 
         self.assertEqual(w.editor.control_points, initial_points)
-        w.close()
 
     def test_load_favorite_restores_aspect_ratio_mode(self) -> None:
-        from fractal_studio.main_window import MainWindow
-        w = MainWindow()
+        w = self.make_window()
         self.assertIsNotNone(w._aspect_ratio_combo)
 
         w._aspect_ratio_combo.setCurrentIndex(1)
@@ -373,11 +602,9 @@ class TestFavoritePersistence(unittest.TestCase):
         self.assertEqual(w._aspect_ratio_combo.currentIndex(), 1)
         self.assertEqual(w.viewport.aspect_ratio_mode(), "portrait")
         self.assertIn("1080 × 1440", w._export_combo.itemText(0))
-        w.close()
 
     def test_save_after_load_appends_and_preserves_original(self) -> None:
-        from fractal_studio.main_window import MainWindow
-        w = MainWindow()
+        w = self.make_window()
         self.assertIsNotNone(w.viewport)
 
         w._save_favorite()
@@ -399,26 +626,14 @@ class TestFavoritePersistence(unittest.TestCase):
         self.assertIn("id", w._favorites[0])
         self.assertIn("id", w._favorites[1])
         self.assertNotEqual(w._favorites[0]["id"], w._favorites[1]["id"])
-        w.close()
 
     def test_load_restores_saved_palette_instead_of_current_palette(self) -> None:
-        from fractal_studio.main_window import MainWindow
-        w = MainWindow()
+        w = self.make_window()
         self.assertIsNotNone(w.viewport)
         self.assertIsNotNone(w.editor)
 
-        original_points = [
-            (20, 30, 40),
-            (60, 80, 100),
-            (120, 140, 160),
-            (200, 220, 240),
-        ]
-        different_points = [
-            (5, 10, 15),
-            (25, 35, 45),
-            (85, 95, 105),
-            (145, 155, 165),
-        ]
+        original_points = [(20, 30, 40), (60, 80, 100), (120, 140, 160), (200, 220, 240)]
+        different_points = [(5, 10, 15), (25, 35, 45), (85, 95, 105), (145, 155, 165)]
 
         w.editor.set_control_points(original_points)
         expected_palette = list(w.viewport._palette)
@@ -432,7 +647,12 @@ class TestFavoritePersistence(unittest.TestCase):
         w._load_favorite()
 
         self.assertEqual(list(w.viewport._palette), expected_palette)
-        w.close()
+
+    def test_load_favorites_from_disk_returns_empty_for_missing_or_corrupt_file(self) -> None:
+        w = self.make_window()
+        self.assertEqual(w._load_favorites_from_disk(), [])
+        self._mwmod._FAVORITES_PATH.write_text("not json")
+        self.assertEqual(w._load_favorites_from_disk(), [])
 
 
 if __name__ == "__main__":

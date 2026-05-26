@@ -281,11 +281,11 @@ class FractalParamsPanel(QGroupBox):
     _DEFAULT_SCALE = 3.0
     _FORMULAS = [
         ("Standard  (z² + c)",  "standard"),
+        ("Multibrot  (zⁿ + c)", "multibrot"),
         ("Burning Ship",         "burning_ship"),
         ("Tricorn",              "tricorn"),
         ("Celtic",               "celtic"),
         ("Buffalo",              "buffalo"),
-        ("Multibrot  (zⁿ + c)", "multibrot"),
         ("Phoenix",              "phoenix"),
         ("Newton  (zⁿ - 1 = 0)", "newton"),
     ]
