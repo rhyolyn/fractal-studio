@@ -8,8 +8,9 @@ import weakref
 from pathlib import Path
 
 _FAVORITES_PATH = Path.home() / ".fractal_studio" / "favorites.json"
+_SETTINGS_PATH = Path.home() / ".fractal_studio" / "settings.json"
 
-from PySide6.QtCore import QBuffer, QByteArray, QPoint, Qt
+from PySide6.QtCore import QBuffer, QByteArray, QPoint, Qt, Signal
 from PySide6.QtGui import QColor, QImage, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -29,12 +30,15 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSpinBox,
     QSplitter,
+    QToolButton,
+    QRadioButton,
     QVBoxLayout,
     QWidget,
 )
 
 from fractal_studio.backend import BackendProfile, load_backend
 from fractal_studio.editor import ColorCubeEditor, PalettePreviewWidget
+from fractal_studio.theme import ThemeSpec, apply_theme, get_theme
 from fractal_studio.viewport import FractalParamsPanel, FractalViewportWidget
 
 
@@ -117,13 +121,22 @@ class FavoriteThumbnailRow(QWidget):
         self._apply_visual_state()
 
     def _apply_visual_state(self) -> None:
+        theme = getattr(self.window(), "_theme_spec", get_theme("light"))
         if self._selected:
-            self.setStyleSheet("border-radius: 4px; border-left: 4px solid #2f6feb; background-color: rgba(47,111,235,0.08);")
-            self._thumb_label.setStyleSheet("border: 2px solid #2f6feb; border-radius: 3px;")
+            self.setStyleSheet(
+                "border-radius: 4px; "
+                f"border-left: 4px solid {theme.selected_border}; "
+                f"background-color: {theme.selection_bg};"
+            )
+            self._thumb_label.setStyleSheet(f"border: 2px solid {theme.selected_border}; border-radius: 3px;")
             self._name_label.setStyleSheet("font-weight: 600;")
         elif self._hovered:
-            self.setStyleSheet("border-radius: 4px; border-left: 4px solid #94a3b8; background-color: rgba(148,163,184,0.10);")
-            self._thumb_label.setStyleSheet("border: 2px solid #94a3b8; border-radius: 3px;")
+            self.setStyleSheet(
+                "border-radius: 4px; "
+                f"border-left: 4px solid {theme.hover_border}; "
+                f"background-color: {theme.hover_bg};"
+            )
+            self._thumb_label.setStyleSheet(f"border: 2px solid {theme.hover_border}; border-radius: 3px;")
             self._name_label.setStyleSheet("")
         else:
             self.setStyleSheet("border-radius: 4px; border-left: 4px solid transparent; background-color: transparent;")
@@ -165,12 +178,13 @@ class FavoriteThumbnailRow(QWidget):
 
     def _build_stats_html(self) -> str:
         f = self._fav
+        theme = getattr(self.window(), "_theme_spec", get_theme("light"))
 
         def make_row(label: str, value: str) -> str:
             return (
                 f'<tr>'
-                f'<td style="color:#6c7086;padding-right:8px;">{label}</td>'
-                f'<td style="color:#cdd6f4;">{value}</td>'
+                f'<td style="color:{theme.stats_label};padding-right:8px;">{label}</td>'
+                f'<td style="color:{theme.stats_value};">{value}</td>'
                 f'</tr>'
             )
 
@@ -209,6 +223,121 @@ class PlaceholderPanel(QGroupBox):
         self.setLayout(layout)
 
 
+class AppearanceSettingsDialog(QDialog):
+    theme_preview_requested = Signal(str)
+
+    def __init__(self, current_theme: str, parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Settings")
+        self.setObjectName("settingsDialog")
+        self.resize(860, 520)
+        self._initial_theme = current_theme
+        self._selected_theme = current_theme
+
+        root = QWidget()
+        root.setObjectName("settingsRoot")
+        root_layout = QHBoxLayout()
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        sidebar = QFrame()
+        sidebar.setObjectName("settingsSidebar")
+        sidebar.setFixedWidth(220)
+        sidebar_layout = QVBoxLayout()
+        sidebar_layout.setContentsMargins(14, 16, 14, 16)
+        sidebar_layout.setSpacing(8)
+
+        sidebar_title = QLabel("Preferences")
+        sidebar_title.setObjectName("settingsSidebarTitle")
+        sidebar_layout.addWidget(sidebar_title)
+
+        appearance_tab = QPushButton("Appearance")
+        appearance_tab.setObjectName("settingsNavActive")
+        appearance_tab.setEnabled(False)
+        sidebar_layout.addWidget(appearance_tab)
+
+        for label in ("Rendering", "Export", "Behavior", "Advanced"):
+            tab = QPushButton(label)
+            tab.setObjectName("settingsNavDisabled")
+            tab.setEnabled(False)
+            sidebar_layout.addWidget(tab)
+
+        sidebar_layout.addStretch()
+        sidebar.setLayout(sidebar_layout)
+
+        content = QWidget()
+        content_layout = QVBoxLayout()
+        content_layout.setContentsMargins(20, 18, 20, 18)
+        content_layout.setSpacing(14)
+
+        title = QLabel("Appearance")
+        title.setObjectName("settingsHeading")
+        subtitle = QLabel("Choose a UI theme. Select a theme to preview it, then click Apply to keep it.")
+        subtitle.setObjectName("settingsSubtitle")
+
+        section_label = QLabel("Theme")
+        section_label.setObjectName("settingsSectionTitle")
+
+        theme_card = QFrame()
+        theme_card.setObjectName("settingsThemeCard")
+        card_layout = QVBoxLayout()
+        card_layout.setContentsMargins(16, 16, 16, 16)
+        card_layout.setSpacing(10)
+
+        self._light = QRadioButton("Light")
+        self._dark = QRadioButton("Dark")
+        self._sepia = QRadioButton("Sepia")
+        self._buttons = {
+            "light": self._light,
+            "dark": self._dark,
+            "sepia": self._sepia,
+        }
+        self._buttons.get(current_theme, self._light).setChecked(True)
+
+        for key, button in self._buttons.items():
+            button.setObjectName("settingsThemeOption")
+            button.toggled.connect(lambda checked, name=key: self._on_theme_toggled(name, checked))
+            card_layout.addWidget(button)
+
+        theme_card.setLayout(card_layout)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Apply | QDialogButtonBox.StandardButton.Close
+        )
+        buttons.setObjectName("settingsButtons")
+        apply_button = buttons.button(QDialogButtonBox.StandardButton.Apply)
+        close_button = buttons.button(QDialogButtonBox.StandardButton.Close)
+        if apply_button is not None:
+            apply_button.clicked.connect(self.accept)
+        if close_button is not None:
+            close_button.clicked.connect(self.reject)
+
+        content_layout.addWidget(title)
+        content_layout.addWidget(subtitle)
+        content_layout.addWidget(section_label)
+        content_layout.addWidget(theme_card)
+        content_layout.addStretch()
+        content_layout.addWidget(buttons)
+        content.setLayout(content_layout)
+
+        root_layout.addWidget(sidebar)
+        root_layout.addWidget(content, 1)
+        root.setLayout(root_layout)
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(root)
+        self.setLayout(layout)
+
+    def _on_theme_toggled(self, theme_name: str, checked: bool) -> None:
+        if checked:
+            self._selected_theme = theme_name
+            self.theme_preview_requested.emit(theme_name)
+
+    def selected_theme(self) -> str:
+        return self._selected_theme
+
+
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
@@ -236,18 +365,22 @@ class MainWindow(QMainWindow):
         self._selected_row: FavoriteThumbnailRow | None = None
         self._fav_rows: list[FavoriteThumbnailRow] = []
         self._fav_scroll_layout: QVBoxLayout | None = None
+        self._theme_name = "light"
+        self._theme_spec: ThemeSpec = get_theme(self._theme_name)
 
         self.setWindowTitle("Fractal Studio")
         self.resize(1500, 940)
 
+        settings = self._load_settings_from_disk()
+        self._theme_name = settings.get("theme", "light")
+        self._theme_spec = apply_theme(QApplication.instance(), self._theme_name)
+
         self._hover_panel = QLabel(self)
-        self._hover_panel.setStyleSheet(
-            "QLabel { background: #181825; border: 1px solid #45475a; "
-            "border-radius: 6px; padding: 8px 10px; }"
-        )
+        self._hover_panel.setObjectName("hoverPanel")
         self._hover_panel.hide()
 
         self.setCentralWidget(self._build_layout())
+        self._apply_theme_to_dynamic_widgets()
         self.statusBar().showMessage(self._status_message())
 
     def _build_layout(self) -> QWidget:
@@ -280,6 +413,12 @@ class MainWindow(QMainWindow):
         container = QWidget()
         layout = QHBoxLayout()
         layout.addWidget(summary)
+        settings_button = QToolButton()
+        settings_button.setObjectName("settingsButton")
+        settings_button.setText("⚙")
+        settings_button.setToolTip("Settings")
+        settings_button.clicked.connect(self._open_settings)
+        layout.addWidget(settings_button)
         container.setLayout(layout)
         return container
 
@@ -346,7 +485,7 @@ class MainWindow(QMainWindow):
 
         self.viewport_hint_label = QLabel("Scroll to zoom  ·  drag to pan  ·  double-click to recenter")
         self.viewport_hint_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.viewport_hint_label.setStyleSheet("color: gray; font-size: 10px;")
+        self.viewport_hint_label.setObjectName("viewportHint")
 
         layout.addWidget(aspect_row)
         layout.addStretch()
@@ -934,6 +1073,47 @@ class MainWindow(QMainWindow):
         palette = self.backend.generate_palette(self.editor.control_points, self.backend_profile.legacy_palette_size)
         self.backend.export_legacy_map(path, palette)
         self.statusBar().showMessage(f"Exported legacy palette to {path}")
+
+    def _open_settings(self) -> None:
+        original_theme = self._theme_name
+        dlg = AppearanceSettingsDialog(self._theme_name, self)
+        dlg.theme_preview_requested.connect(lambda theme_name: self._apply_theme_name(theme_name, persist=False))
+
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._apply_theme_name(dlg.selected_theme(), persist=True)
+        elif self._theme_name != original_theme:
+            self._apply_theme_name(original_theme, persist=False)
+
+    def _apply_theme_name(self, theme_name: str, persist: bool) -> None:
+        self._theme_name = theme_name
+        self._theme_spec = apply_theme(QApplication.instance(), self._theme_name)
+        self._apply_theme_to_dynamic_widgets()
+        if persist:
+            self._persist_settings()
+
+    def _apply_theme_to_dynamic_widgets(self) -> None:
+        if self._hover_panel is not None:
+            self._hover_panel.style().unpolish(self._hover_panel)
+            self._hover_panel.style().polish(self._hover_panel)
+
+        for row in self._fav_rows:
+            row._apply_visual_state()
+
+    def _persist_settings(self) -> None:
+        _SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "theme": self._theme_name,
+        }
+        _SETTINGS_PATH.write_text(json.dumps(payload, indent=2))
+
+    def _load_settings_from_disk(self) -> dict:
+        try:
+            raw = json.loads(_SETTINGS_PATH.read_text())
+            if isinstance(raw, dict):
+                return raw
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+        return {"theme": "light"}
 
     @staticmethod
     def _encode_pixmap(pixmap: QPixmap) -> str:

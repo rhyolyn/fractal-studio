@@ -247,6 +247,44 @@ class TestParamsPanel(unittest.TestCase):
         self.assertGreater(self.panel._zoom_spin.value(), 0.0)
 
 
+class TestAppearanceSettings(QtWindowTestCase):
+    def setUp(self) -> None:
+        import fractal_studio.main_window as mwmod
+
+        self._mwmod = mwmod
+        self._original_path = mwmod._SETTINGS_PATH
+        self._tmpdir = Path(tempfile.mkdtemp(prefix="fs_test_settings_"))
+        mwmod._SETTINGS_PATH = self._tmpdir / "settings.json"
+
+    def tearDown(self) -> None:
+        self._mwmod._SETTINGS_PATH = self._original_path
+
+    def test_appearance_dialog_lists_requested_themes(self) -> None:
+        from fractal_studio.main_window import AppearanceSettingsDialog
+
+        dialog = AppearanceSettingsDialog("dark")
+        self.assertTrue(dialog._light.isEnabled())
+        self.assertTrue(dialog._dark.isEnabled())
+        self.assertTrue(dialog._sepia.isEnabled())
+
+    def test_theme_change_persists_to_settings_file(self) -> None:
+        w = self.make_window()
+        w._apply_theme_name("sepia", persist=True)
+        self.assertEqual(w._theme_name, "sepia")
+        stored = self._mwmod._SETTINGS_PATH.read_text()
+        self.assertIn('"theme": "sepia"', stored)
+
+    def test_missing_settings_defaults_to_light_theme(self) -> None:
+        w = self.make_window()
+        self.assertEqual(w._theme_name, "light")
+
+    def test_preview_does_not_persist_settings(self) -> None:
+        w = self.make_window()
+        w._apply_theme_name("dark", persist=False)
+        self.assertEqual(w._theme_name, "dark")
+        self.assertFalse(self._mwmod._SETTINGS_PATH.exists())
+
+
 class TestThumbnailHelpers(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -498,17 +536,21 @@ class TestFavoriteThumbnailRow(unittest.TestCase):
         self.assertFalse(row._selected)
 
     def test_set_selected_changes_stylesheet(self) -> None:
+        from fractal_studio.theme import get_theme
+
         row, _, _, _ = self._make_row()
         row.set_selected(True)
         self.assertTrue(row._selected)
-        self.assertIn("#2f6feb", row.styleSheet())
+        self.assertIn(get_theme("light").selected_border, row.styleSheet())
         row.set_selected(False)
         self.assertFalse(row._selected)
 
     def test_hover_state_changes_stylesheet(self) -> None:
+        from fractal_studio.theme import get_theme
+
         row, _, _, _ = self._make_row()
         row._set_hovered(True)
-        self.assertIn("#94a3b8", row.styleSheet())
+        self.assertIn(get_theme("light").hover_border, row.styleSheet())
         row._set_hovered(False)
         self.assertIn("transparent", row.styleSheet())
 
