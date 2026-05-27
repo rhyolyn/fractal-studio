@@ -51,9 +51,6 @@ from fractal_studio.sidebar_wiring_coordinator import SidebarWiringCoordinator
 from fractal_studio.settings_dialog_coordinator import SettingsDialogCoordinator
 from fractal_studio.settings_service import SettingsWorkflowService
 from fractal_studio.startup_coordinator import WindowStartupCoordinator
-from fractal_studio.state import (
-    ViewportState,
-)
 from fractal_studio.thumbnail_utils import decode_thumbnail, encode_pixmap, placeholder_pixmap
 from fractal_studio.theme import ThemeSpec, get_theme
 from fractal_studio.theme_controller import ThemeController
@@ -463,7 +460,11 @@ class MainWindow(QMainWindow):
             editor=self.editor,
             aspect_ratio_mode=self._aspect_ratio_mode,
             favorites=self._favorites,
-            build_name=self._build_favorite_name,
+            build_name=lambda state: self._favorites_workflow.build_favorite_name(
+                state=state,
+                favorites=self._favorites,
+                now=datetime.datetime.now,
+            ),
             capture_thumbnail=lambda: encode_pixmap(self.viewport.grab()),
             add_favorite=self._favorites.append,
             add_row=self._add_favorite_row,
@@ -472,21 +473,6 @@ class MainWindow(QMainWindow):
                 self._favorites_repo.save,
             ),
             show_status=self.statusBar().showMessage,
-        )
-
-    def _build_favorite_name(self, state: ViewportState) -> str:
-        return self._favorites_workflow.build_favorite_name(
-            state=state,
-            favorites=self._favorites,
-            now=datetime.datetime.now,
-        )
-
-    def _load_favorite(self) -> None:
-        self._favorites_workflow.load_selected_favorite(
-            viewport=self.viewport,
-            params_panel=self.params_panel,
-            selected_row=self._selected_row,
-            load_row=self._load_favorite_row,
         )
 
     def _load_favorite_row(self, row: FavoriteThumbnailRow) -> None:
