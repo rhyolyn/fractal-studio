@@ -111,8 +111,20 @@ class MainWindowSections:
         layout = QVBoxLayout()
 
         owner.editor = ColorCubeEditor(owner.backend, owner.backend_profile)
-        owner.editor.palette_changed.connect(owner._update_palette_previews)
-        owner.editor.control_points_changed.connect(owner._update_control_summary)
+        owner.editor.palette_changed.connect(
+            lambda palette: owner._palette_preview.update_palette_previews(
+                palette=palette,
+                editor=owner.editor,
+                backend=owner.backend,
+                legacy_palette_size=owner.backend_profile.legacy_palette_size,
+                preview_palette=owner.preview_palette,
+                preview_legacy=owner.preview_legacy,
+                palette_summary=owner.palette_summary,
+            )
+        )
+        owner.editor.control_points_changed.connect(
+            lambda points: owner._palette_preview.update_control_summary(owner.point_summary, points)
+        )
         owner.editor.status_changed.connect(owner.statusBar().showMessage)
         if owner.viewport is not None:
             owner.editor.palette_changed.connect(owner.viewport.set_palette)

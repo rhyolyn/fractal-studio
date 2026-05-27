@@ -44,6 +44,7 @@ from fractal_studio.favorites_workflow_coordinator import FavoritesWorkflowCoord
 from fractal_studio.main_window_controller import MainWindowController
 from fractal_studio.main_window_sections import MainWindowSections
 from fractal_studio.palette_panel_coordinator import PalettePanelCoordinator
+from fractal_studio.palette_preview_coordinator import PalettePreviewCoordinator
 from fractal_studio.palette_service import PaletteWorkflowService
 from fractal_studio.persistence import FavoritesRepository, SettingsRepository
 from fractal_studio.sidebar_wiring_coordinator import SidebarWiringCoordinator
@@ -317,6 +318,7 @@ class MainWindow(QMainWindow):
         self._export_service = ExportService(self.backend)
         self._palette_service = PaletteWorkflowService()
         self._palette_panel = PalettePanelCoordinator(self._palette_service)
+        self._palette_preview = PalettePreviewCoordinator(self._favorites_controller)
         self._sidebar_wiring = SidebarWiringCoordinator()
         self._controller = MainWindowController(self._export_service, self._favorites_controller)
         self._export_panel = ExportPanelCoordinator(self._controller)
@@ -516,23 +518,6 @@ class MainWindow(QMainWindow):
                 self._favorites,
                 self._favorites_repo.save,
             ),
-        )
-
-    def _update_control_summary(self, control_points: list[tuple[int, int, int]]) -> None:
-        if self.point_summary is None:
-            return
-
-        self.point_summary.setText(f"{len(control_points)} control points")
-
-    def _update_palette_previews(self, palette: list[tuple[int, int, int]]) -> None:
-        self._favorites_controller.update_palette_previews(
-            palette=palette,
-            editor=self.editor,
-            backend=self.backend,
-            legacy_palette_size=self.backend_profile.legacy_palette_size,
-            preview_palette=self.preview_palette,
-            preview_legacy=self.preview_legacy,
-            palette_summary=self.palette_summary,
         )
 
     def _save_palette_json(self) -> None:

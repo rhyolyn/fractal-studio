@@ -1129,6 +1129,57 @@ class TestThemeWorkflowCoordinator(unittest.TestCase):
         self.assertEqual(refreshed, [True])
 
 
+class TestPalettePreviewCoordinator(unittest.TestCase):
+    def test_update_control_summary_sets_expected_text(self) -> None:
+        from fractal_studio.palette_preview_coordinator import PalettePreviewCoordinator
+
+        class FavoritesControllerStub:
+            def update_palette_previews(self, **kwargs) -> None:
+                pass
+
+        class LabelStub:
+            def __init__(self) -> None:
+                self.text = ""
+
+            def setText(self, text: str) -> None:
+                self.text = text
+
+        coordinator = PalettePreviewCoordinator(FavoritesControllerStub())
+        label = LabelStub()
+
+        coordinator.update_control_summary(label, [(1, 2, 3), (4, 5, 6)])
+
+        self.assertEqual(label.text, "2 control points")
+
+    def test_update_palette_previews_delegates_to_favorites_controller(self) -> None:
+        from fractal_studio.palette_preview_coordinator import PalettePreviewCoordinator
+
+        class FavoritesControllerStub:
+            def __init__(self) -> None:
+                self.calls: list[dict[str, object]] = []
+
+            def update_palette_previews(self, **kwargs) -> None:
+                self.calls.append(kwargs)
+
+        controller = FavoritesControllerStub()
+        coordinator = PalettePreviewCoordinator(controller)
+        marker = object()
+
+        coordinator.update_palette_previews(
+            palette=[(1, 2, 3)],
+            editor=marker,
+            backend=marker,
+            legacy_palette_size=256,
+            preview_palette=marker,
+            preview_legacy=marker,
+            palette_summary=marker,
+        )
+
+        self.assertEqual(len(controller.calls), 1)
+        self.assertEqual(controller.calls[0]["palette"], [(1, 2, 3)])
+        self.assertEqual(controller.calls[0]["legacy_palette_size"], 256)
+
+
 class TestThumbnailHelpers(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
