@@ -401,8 +401,6 @@ class MainWindow(QMainWindow):
         )
 
     def _apply_aspect_ratio_mode(self, mode: str, update_combo: bool = True) -> None:
-        if mode not in ("square", "portrait", "landscape"):
-            mode = "square"
         self._aspect_ratio_mode = mode
         self._aspect_ratio_mode = self._export_panel.apply_aspect_ratio_mode(
             mode=mode,
@@ -434,16 +432,13 @@ class MainWindow(QMainWindow):
             custom_width_box=self._custom_width_box,
             custom_height_box=self._custom_height_box,
             set_custom_size=lambda w, h: setattr(self, "_custom_width", w) or setattr(self, "_custom_height", h),
-            export_callback=self._export_render,
-        )
-
-    def _export_render(self, width: int, height: int) -> None:
-        self._controller.export_render(
-            self,
-            self.viewport,
-            width,
-            height,
-            self.statusBar().showMessage,
+            export_callback=lambda width, height: self._controller.export_render(
+                self,
+                self.viewport,
+                width,
+                height,
+                self.statusBar().showMessage,
+            ),
         )
 
     def _add_favorite_row(self, fav: dict) -> None:
