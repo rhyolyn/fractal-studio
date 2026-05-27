@@ -515,32 +515,6 @@ class MainWindow(QMainWindow):
             ),
         )
 
-    def _save_palette_json(self) -> None:
-        self._palette_panel.save_palette_json(
-            parent=self,
-            editor=self.editor,
-            backend=self.backend,
-            palette_size=self.backend_profile.palette_size,
-            set_status=self.statusBar().showMessage,
-        )
-
-    def _load_palette_json(self) -> None:
-        self._palette_panel.load_palette_json(
-            parent=self,
-            editor=self.editor,
-            backend=self.backend,
-            set_status=self.statusBar().showMessage,
-        )
-
-    def _export_legacy_map(self) -> None:
-        self._palette_panel.export_legacy_map(
-            parent=self,
-            editor=self.editor,
-            backend=self.backend,
-            legacy_palette_size=self.backend_profile.legacy_palette_size,
-            set_status=self.statusBar().showMessage,
-        )
-
     def _open_settings(self) -> None:
         self._settings_dialog.open_settings_dialog(
             parent=self,

@@ -138,11 +138,34 @@ class MainWindowSections:
         seed_button = QPushButton("Seed Sample")
         seed_button.clicked.connect(owner.editor.seed_points)
         save_button = QPushButton("Save JSON")
-        save_button.clicked.connect(owner._save_palette_json)
+        save_button.clicked.connect(
+            lambda: owner._palette_panel.save_palette_json(
+                parent=owner,
+                editor=owner.editor,
+                backend=owner.backend,
+                palette_size=owner.backend_profile.palette_size,
+                set_status=owner.statusBar().showMessage,
+            )
+        )
         load_button = QPushButton("Load JSON")
-        load_button.clicked.connect(owner._load_palette_json)
+        load_button.clicked.connect(
+            lambda: owner._palette_panel.load_palette_json(
+                parent=owner,
+                editor=owner.editor,
+                backend=owner.backend,
+                set_status=owner.statusBar().showMessage,
+            )
+        )
         export_button = QPushButton("Export .map")
-        export_button.clicked.connect(owner._export_legacy_map)
+        export_button.clicked.connect(
+            lambda: owner._palette_panel.export_legacy_map(
+                parent=owner,
+                editor=owner.editor,
+                backend=owner.backend,
+                legacy_palette_size=owner.backend_profile.legacy_palette_size,
+                set_status=owner.statusBar().showMessage,
+            )
+        )
 
         for button in (reset_button, seed_button, save_button, load_button, export_button):
             controls_layout.addWidget(button)
