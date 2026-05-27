@@ -438,30 +438,27 @@ class MainWindow(QMainWindow):
                 "_selected_row",
                 mw._favorites_panel.select_row(mw._selected_row, row),
             ),
-            on_activate_row=lambda mw, row: mw._load_favorite_row(row),
+            on_activate_row=lambda mw, row: mw._favorites_workflow.load_favorite_row(
+                row=row,
+                favorites=mw._favorites,
+                rows=mw._fav_rows,
+                viewport=mw.viewport,
+                params_panel=mw.params_panel,
+                editor=mw.editor,
+                preview_palette=mw.preview_palette,
+                apply_aspect_ratio_mode=mw._apply_aspect_ratio_mode,
+                select_row=lambda selected_row: setattr(
+                    mw,
+                    "_selected_row",
+                    mw._favorites_panel.select_row(mw._selected_row, selected_row),
+                ),
+                show_status=mw.statusBar().showMessage,
+            ),
             row_factory=FavoriteThumbnailRow,
             decode_thumbnail=decode_thumbnail,
             placeholder_pixmap=placeholder_pixmap,
         )
         self._favorites_panel.append_row(row, self._fav_rows, self._fav_scroll_layout)
-
-    def _load_favorite_row(self, row: FavoriteThumbnailRow) -> None:
-        self._favorites_workflow.load_favorite_row(
-            row=row,
-            favorites=self._favorites,
-            rows=self._fav_rows,
-            viewport=self.viewport,
-            params_panel=self.params_panel,
-            editor=self.editor,
-            preview_palette=self.preview_palette,
-            apply_aspect_ratio_mode=self._apply_aspect_ratio_mode,
-            select_row=lambda row: setattr(
-                self,
-                "_selected_row",
-                self._favorites_panel.select_row(self._selected_row, row),
-            ),
-            show_status=self.statusBar().showMessage,
-        )
 
     def _delete_favorite(self) -> None:
         self._selected_row = self._favorites_workflow.delete_selected_favorite(
