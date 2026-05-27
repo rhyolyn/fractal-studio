@@ -30,6 +30,7 @@ from fractal_studio.favorites_panel_coordinator import FavoritesPanelCoordinator
 from fractal_studio.favorites_workflow_coordinator import FavoritesWorkflowCoordinator
 from fractal_studio.main_window_controller import MainWindowController
 from fractal_studio.main_window_sections import MainWindowSections
+from fractal_studio.main_window_sections_mediator import MainWindowSectionsMediator
 from fractal_studio.palette_panel_coordinator import PalettePanelCoordinator
 from fractal_studio.palette_preview_coordinator import PalettePreviewCoordinator
 from fractal_studio.palette_service import PaletteWorkflowService
@@ -68,7 +69,8 @@ class MainWindow(QMainWindow):
             self._favorites_controller,
             self._favorites_panel,
         )
-        self._sections = MainWindowSections(self)
+        self._sections_mediator = MainWindowSectionsMediator(self)
+        self._sections = MainWindowSections(self._sections_mediator)
         self._theme_controller = ThemeController()
         self.backend = load_backend()
         self._export_service = ExportService(self.backend)
