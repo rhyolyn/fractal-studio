@@ -365,7 +365,7 @@ class MainWindow(QMainWindow):
         self._hover_panel.hide()
 
         self.setCentralWidget(self._build_layout())
-        self._apply_theme_to_dynamic_widgets()
+        self._theme_controller.refresh_dynamic_widgets(self._hover_panel, self._fav_rows)
         self.statusBar().showMessage(
             self._startup.compose_startup_message(
                 backend_loaded=self.backend_loaded,
@@ -487,7 +487,10 @@ class MainWindow(QMainWindow):
                 current_theme=self._theme_name,
                 current_theme_spec=self._theme_spec,
                 application=QApplication.instance(),
-                refresh_dynamic_widgets=self._apply_theme_to_dynamic_widgets,
+                refresh_dynamic_widgets=lambda: self._theme_controller.refresh_dynamic_widgets(
+                    self._hover_panel,
+                    self._fav_rows,
+                ),
             )
 
         self._settings_dialog.open_settings_dialog(
@@ -496,7 +499,4 @@ class MainWindow(QMainWindow):
             dialog_factory=lambda theme, parent: AppearanceSettingsDialog(theme, parent),
             apply_theme_name=apply_theme_name,
         )
-
-    def _apply_theme_to_dynamic_widgets(self) -> None:
-        self._theme_controller.refresh_dynamic_widgets(self._hover_panel, self._fav_rows)
 
