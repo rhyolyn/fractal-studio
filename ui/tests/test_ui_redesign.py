@@ -1028,6 +1028,106 @@ class TestSettingsDialogCoordinator(unittest.TestCase):
         self.assertEqual(refreshed, [True])
 
 
+class TestThemeWorkflowCoordinator(unittest.TestCase):
+    def test_apply_theme_name_applies_persists_and_returns_updated_spec(self) -> None:
+        from fractal_studio.state import UiSettings
+        from fractal_studio.theme_workflow_coordinator import ThemeWorkflowCoordinator
+
+        class SettingsDialogStub:
+            def apply_theme_name(self, **kwargs):
+                if kwargs["theme_name"] != kwargs["current_theme"]:
+                    kwargs["apply_theme_to_app"](kwargs["theme_name"])
+                if kwargs["persist"]:
+                    kwargs["persist_theme"](kwargs["theme_name"])
+                kwargs["refresh_dynamic_widgets"]()
+                return kwargs["theme_name"]
+
+        class ThemeControllerStub:
+            def apply_theme(self, application, theme_name: str):
+                return f"spec-{theme_name}"
+
+        class SettingsRepoStub:
+            def __init__(self) -> None:
+                self.saved: list[UiSettings] = []
+
+            def save(self, settings: UiSettings) -> None:
+                self.saved.append(settings)
+
+        refreshed: list[bool] = []
+        settings_repo = SettingsRepoStub()
+        coordinator = ThemeWorkflowCoordinator(
+            SettingsDialogStub(),
+            ThemeControllerStub(),
+            settings_repo,
+        )
+
+        theme_name, theme_spec = coordinator.apply_theme_name(
+            theme_name="sepia",
+            persist=True,
+            current_theme="light",
+            current_theme_spec="spec-light",
+            application=object(),
+            refresh_dynamic_widgets=lambda: refreshed.append(True),
+        )
+
+        self.assertEqual(theme_name, "sepia")
+        self.assertEqual(theme_spec, "spec-sepia")
+        self.assertEqual([setting.theme for setting in settings_repo.saved], ["sepia"])
+        self.assertEqual(refreshed, [True])
+
+    def test_apply_theme_name_keeps_current_spec_when_theme_unchanged(self) -> None:
+        from fractal_studio.state import UiSettings
+        from fractal_studio.theme_workflow_coordinator import ThemeWorkflowCoordinator
+
+        class SettingsDialogStub:
+            def apply_theme_name(self, **kwargs):
+                if kwargs["theme_name"] != kwargs["current_theme"]:
+                    kwargs["apply_theme_to_app"](kwargs["theme_name"])
+                if kwargs["persist"]:
+                    kwargs["persist_theme"](kwargs["theme_name"])
+                kwargs["refresh_dynamic_widgets"]()
+                return kwargs["theme_name"]
+
+        class ThemeControllerStub:
+            def __init__(self) -> None:
+                self.calls: list[str] = []
+
+            def apply_theme(self, application, theme_name: str):
+                self.calls.append(theme_name)
+                return f"spec-{theme_name}"
+
+        class SettingsRepoStub:
+            def __init__(self) -> None:
+                self.saved: list[UiSettings] = []
+
+            def save(self, settings: UiSettings) -> None:
+                self.saved.append(settings)
+
+        refreshed: list[bool] = []
+        theme_controller = ThemeControllerStub()
+        settings_repo = SettingsRepoStub()
+        coordinator = ThemeWorkflowCoordinator(
+            SettingsDialogStub(),
+            theme_controller,
+            settings_repo,
+        )
+
+        theme_name, theme_spec = coordinator.apply_theme_name(
+            theme_name="light",
+            persist=False,
+            current_theme="light",
+            current_theme_spec="spec-light",
+            application=object(),
+            refresh_dynamic_widgets=lambda: refreshed.append(True),
+        )
+
+        self.assertEqual(theme_name, "light")
+        self.assertEqual(theme_spec, "spec-light")
+        self.assertEqual(theme_controller.calls, [])
+        self.assertEqual(settings_repo.saved, [])
+        self.assertEqual(refreshed, [True])
+
+
 class TestThumbnailHelpers(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

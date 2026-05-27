@@ -52,12 +52,12 @@ from fractal_studio.settings_dialog_coordinator import SettingsDialogCoordinator
 from fractal_studio.settings_service import SettingsWorkflowService
 from fractal_studio.startup_coordinator import WindowStartupCoordinator
 from fractal_studio.state import (
-    UiSettings,
     ViewportState,
 )
 from fractal_studio.thumbnail_utils import decode_thumbnail, encode_pixmap, placeholder_pixmap
 from fractal_studio.theme import ThemeSpec, get_theme
 from fractal_studio.theme_controller import ThemeController
+from fractal_studio.theme_workflow_coordinator import ThemeWorkflowCoordinator
 from fractal_studio.viewport import FractalParamsPanel, FractalViewportWidget
 
 
@@ -322,6 +322,11 @@ class MainWindow(QMainWindow):
         self._controller = MainWindowController(self._export_service, self._favorites_controller)
         self._export_panel = ExportPanelCoordinator(self._controller)
         self._settings_dialog = SettingsDialogCoordinator(self._controller, self._settings_service)
+        self._theme_workflow = ThemeWorkflowCoordinator(
+            self._settings_dialog,
+            self._theme_controller,
+            self._settings_repo,
+        )
         self.backend_loaded = self.backend.available
         self.backend_profile = self.backend.profile()
         self.editor: ColorCubeEditor | None = None
@@ -579,16 +584,12 @@ class MainWindow(QMainWindow):
         )
 
     def _apply_theme_name(self, theme_name: str, persist: bool) -> None:
-        self._theme_name = self._settings_dialog.apply_theme_name(
+        self._theme_name, self._theme_spec = self._theme_workflow.apply_theme_name(
             theme_name=theme_name,
             persist=persist,
             current_theme=self._theme_name,
-            apply_theme_to_app=lambda name: setattr(
-                self,
-                "_theme_spec",
-                self._theme_controller.apply_theme(QApplication.instance(), name),
-            ),
-            persist_theme=lambda name: self._settings_repo.save(UiSettings(theme=name)),
+            current_theme_spec=self._theme_spec,
+            application=QApplication.instance(),
             refresh_dynamic_widgets=self._apply_theme_to_dynamic_widgets,
         )
 
