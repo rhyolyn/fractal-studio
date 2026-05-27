@@ -516,21 +516,21 @@ class MainWindow(QMainWindow):
         )
 
     def _open_settings(self) -> None:
+        def apply_theme_name(theme_name: str, persist: bool) -> None:
+            self._theme_name, self._theme_spec = self._theme_workflow.apply_theme_name(
+                theme_name=theme_name,
+                persist=persist,
+                current_theme=self._theme_name,
+                current_theme_spec=self._theme_spec,
+                application=QApplication.instance(),
+                refresh_dynamic_widgets=self._apply_theme_to_dynamic_widgets,
+            )
+
         self._settings_dialog.open_settings_dialog(
             parent=self,
             current_theme=self._theme_name,
             dialog_factory=lambda theme, parent: AppearanceSettingsDialog(theme, parent),
-            apply_theme_name=self._apply_theme_name,
-        )
-
-    def _apply_theme_name(self, theme_name: str, persist: bool) -> None:
-        self._theme_name, self._theme_spec = self._theme_workflow.apply_theme_name(
-            theme_name=theme_name,
-            persist=persist,
-            current_theme=self._theme_name,
-            current_theme_spec=self._theme_spec,
-            application=QApplication.instance(),
-            refresh_dynamic_widgets=self._apply_theme_to_dynamic_widgets,
+            apply_theme_name=apply_theme_name,
         )
 
     def _apply_theme_to_dynamic_widgets(self) -> None:
