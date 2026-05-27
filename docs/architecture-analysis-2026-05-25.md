@@ -347,6 +347,8 @@ Completed since this analysis was written:
 - UI regression suite remains green after phase 2 decomposition slice 30 (`107 passed`).
 - Phase 2 decomposition slice 31 is done: redundant `MainWindow` favorite-name and selected-favorite load wrappers were removed, with save/load call sites now delegating directly through `FavoritesWorkflowCoordinator`.
 - UI regression suite remains green after phase 2 decomposition slice 31 (`107 passed`).
+- Phase 2 decomposition slice 32 is done: export/aspect event wrappers were removed from `MainWindow`, with `MainWindowSections` wiring those events directly through `ExportPanelCoordinator`.
+- UI regression suite remains green after phase 2 decomposition slice 32 (`107 passed`).
 
 Removed from active queue:
 - "Introduce typed state objects" (already completed).
@@ -417,6 +419,7 @@ Removed from active queue:
 - "Phase 2 decomposition slice 29" for removing redundant `MainWindow` palette action pass-through helpers (already completed).
 - "Phase 2 decomposition slice 30" for removing redundant `MainWindow._apply_theme_name` pass-through wrapper (already completed).
 - "Phase 2 decomposition slice 31" for removing redundant `MainWindow` favorite-name and selected-favorite load wrappers (already completed).
+- "Phase 2 decomposition slice 32" for removing redundant `MainWindow` export/aspect event wrappers (already completed).
 
 ### Phase 3 (Remaining cleanup)
 1. Tighten behavior-level tests around the remaining high-churn widget interactions.
@@ -482,6 +485,6 @@ Reason:
 ## Resume Marker
 
 Resume from here next session:
-- Current checkpoint: Phase 1 policy slice 1, Phase 1 gate slice 2, Phase 2 decomposition slices 13-31, Phase 3 cleanup slices 3-4 and 6-7, plus behavior tests hardening slices 4-24 are complete.
+- Current checkpoint: Phase 1 policy slice 1, Phase 1 gate slice 2, Phase 2 decomposition slices 13-32, Phase 3 cleanup slices 3-4 and 6-7, plus behavior tests hardening slices 4-24 are complete.
 - Next action: continue Phase 3 follow-up by tightening behavior-level tests for remaining high-churn widget interactions.
 - Quick resume command: `cd c:/git/graphics/fractal-studio/ui ; c:/git/graphics/fractal-studio/.venv/Scripts/python.exe -m pytest tests/test_ui_redesign.py`

@@ -65,7 +65,12 @@ class MainWindowSections:
         aspect_layout.addWidget(QLabel("Aspect ratio:"))
         owner._aspect_ratio_combo = QComboBox()
         owner._aspect_ratio_combo.addItems(["Square (1:1)", "Portrait (3:4)", "Landscape (4:3)"])
-        owner._aspect_ratio_combo.currentIndexChanged.connect(owner._on_aspect_ratio_changed)
+        owner._aspect_ratio_combo.currentIndexChanged.connect(
+            lambda index: owner._export_panel.on_aspect_ratio_changed(
+                index=index,
+                apply_aspect_ratio_mode=owner._apply_aspect_ratio_mode,
+            )
+        )
         aspect_layout.addWidget(owner._aspect_ratio_combo, 1)
         aspect_row.setLayout(aspect_layout)
 
@@ -213,10 +218,37 @@ class MainWindowSections:
         top_layout.setContentsMargins(0, 0, 0, 0)
 
         owner._export_combo = QComboBox()
-        owner._refresh_export_presets()
+        owner._export_presets = owner._export_panel.refresh_export_presets(
+            aspect_ratio_mode=owner._aspect_ratio_mode,
+            export_combo=owner._export_combo,
+            current_presets=owner._export_presets,
+            on_export_preset_changed=lambda index: owner._export_panel.on_export_preset_changed(
+                index=index,
+                export_presets=owner._export_presets,
+                custom_width_box=owner._custom_width_box,
+                custom_height_box=owner._custom_height_box,
+                set_custom_row_visible=lambda visible: owner._custom_width_box.parentWidget().setVisible(visible),
+            ),
+        )
 
         export_btn = QPushButton("Export")
-        export_btn.clicked.connect(owner._on_export_clicked)
+        export_btn.clicked.connect(
+            lambda: owner._export_panel.on_export_clicked(
+                export_presets=owner._export_presets,
+                export_combo=owner._export_combo,
+                custom_width_box=owner._custom_width_box,
+                custom_height_box=owner._custom_height_box,
+                set_custom_size=lambda w, h: setattr(owner, "_custom_width", w)
+                or setattr(owner, "_custom_height", h),
+                export_callback=lambda width, height: owner._controller.export_render(
+                    owner,
+                    owner.viewport,
+                    width,
+                    height,
+                    owner.statusBar().showMessage,
+                ),
+            )
+        )
 
         top_layout.addWidget(owner._export_combo, 1)
         top_layout.addWidget(export_btn)
@@ -238,8 +270,22 @@ class MainWindowSections:
         custom_layout.addStretch()
         custom_row.setLayout(custom_layout)
 
-        owner._export_combo.currentIndexChanged.connect(owner._on_export_preset_changed)
-        owner._on_export_preset_changed(owner._export_combo.currentIndex())
+        owner._export_combo.currentIndexChanged.connect(
+            lambda index: owner._export_panel.on_export_preset_changed(
+                index=index,
+                export_presets=owner._export_presets,
+                custom_width_box=owner._custom_width_box,
+                custom_height_box=owner._custom_height_box,
+                set_custom_row_visible=lambda visible: owner._custom_width_box.parentWidget().setVisible(visible),
+            )
+        )
+        owner._export_panel.on_export_preset_changed(
+            index=owner._export_combo.currentIndex(),
+            export_presets=owner._export_presets,
+            custom_width_box=owner._custom_width_box,
+            custom_height_box=owner._custom_height_box,
+            set_custom_row_visible=lambda visible: owner._custom_width_box.parentWidget().setVisible(visible),
+        )
 
         owner._apply_aspect_ratio_mode(owner._aspect_ratio_mode, update_combo=False)
 

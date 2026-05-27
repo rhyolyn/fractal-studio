@@ -389,53 +389,31 @@ class MainWindow(QMainWindow):
         container.setLayout(layout)
         return container
 
-    def _refresh_export_presets(self) -> None:
-        self._export_presets = self._export_panel.refresh_export_presets(
-            aspect_ratio_mode=self._aspect_ratio_mode,
-            export_combo=self._export_combo,
-            current_presets=self._export_presets,
-            on_export_preset_changed=self._on_export_preset_changed,
-        )
-
     def _apply_aspect_ratio_mode(self, mode: str, update_combo: bool = True) -> None:
         self._aspect_ratio_mode = mode
         self._aspect_ratio_mode = self._export_panel.apply_aspect_ratio_mode(
             mode=mode,
             viewport=self.viewport,
             aspect_ratio_combo=self._aspect_ratio_combo,
-            refresh_export_presets=self._refresh_export_presets,
-            update_combo=update_combo,
-        )
-
-    def _on_aspect_ratio_changed(self, index: int) -> None:
-        self._export_panel.on_aspect_ratio_changed(
-            index=index,
-            apply_aspect_ratio_mode=self._apply_aspect_ratio_mode,
-        )
-
-    def _on_export_preset_changed(self, index: int) -> None:
-        self._export_panel.on_export_preset_changed(
-            index=index,
-            export_presets=self._export_presets,
-            custom_width_box=self._custom_width_box,
-            custom_height_box=self._custom_height_box,
-            set_custom_row_visible=lambda visible: self._custom_width_box.parentWidget().setVisible(visible),
-        )
-
-    def _on_export_clicked(self) -> None:
-        self._export_panel.on_export_clicked(
-            export_presets=self._export_presets,
-            export_combo=self._export_combo,
-            custom_width_box=self._custom_width_box,
-            custom_height_box=self._custom_height_box,
-            set_custom_size=lambda w, h: setattr(self, "_custom_width", w) or setattr(self, "_custom_height", h),
-            export_callback=lambda width, height: self._controller.export_render(
+            refresh_export_presets=lambda: setattr(
                 self,
-                self.viewport,
-                width,
-                height,
-                self.statusBar().showMessage,
+                "_export_presets",
+                self._export_panel.refresh_export_presets(
+                    aspect_ratio_mode=self._aspect_ratio_mode,
+                    export_combo=self._export_combo,
+                    current_presets=self._export_presets,
+                    on_export_preset_changed=lambda index: self._export_panel.on_export_preset_changed(
+                        index=index,
+                        export_presets=self._export_presets,
+                        custom_width_box=self._custom_width_box,
+                        custom_height_box=self._custom_height_box,
+                        set_custom_row_visible=lambda visible: self._custom_width_box.parentWidget().setVisible(
+                            visible
+                        ),
+                    ),
+                ),
             ),
+            update_combo=update_combo,
         )
 
     def _add_favorite_row(self, fav: dict) -> None:
