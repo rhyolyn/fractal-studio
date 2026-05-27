@@ -2573,6 +2573,50 @@ class TestFavoritesWorkflowCoordinator(unittest.TestCase):
         self.assertEqual(name, "resolved-name")
         self.assertEqual(controller.existing_names, {"A", "B", ""})
 
+    def test_load_favorite_row_delegates_to_controller(self) -> None:
+        from fractal_studio.favorites_workflow_coordinator import FavoritesWorkflowCoordinator
+
+        class ControllerStub:
+            def __init__(self) -> None:
+                self.called: dict[str, object] | None = None
+
+            def save_favorite(self, **kwargs):
+                return None
+
+            def build_favorite_name(self, state, existing_names, now):
+                return "unused"
+
+            def load_favorite_row(self, **kwargs):
+                self.called = kwargs
+
+        class PanelStub:
+            def delete_selected(self, **kwargs):
+                return kwargs["selected_row"]
+
+        controller = ControllerStub()
+        coordinator = FavoritesWorkflowCoordinator(controller, PanelStub())
+        row = object()
+        rows = [row]
+        favorites = [{"id": "fav-1"}]
+
+        coordinator.load_favorite_row(
+            row=row,
+            favorites=favorites,
+            rows=rows,
+            viewport=object(),
+            params_panel=object(),
+            editor=object(),
+            preview_palette=object(),
+            apply_aspect_ratio_mode=lambda mode: None,
+            select_row=lambda selected: None,
+            show_status=lambda message: None,
+        )
+
+        self.assertIsNotNone(controller.called)
+        self.assertIs(controller.called["row"], row)
+        self.assertIs(controller.called["rows"], rows)
+        self.assertIs(controller.called["favorites"], favorites)
+
 
 if __name__ == "__main__":
     unittest.main()

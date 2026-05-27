@@ -4,7 +4,7 @@ import datetime
 from collections.abc import Callable
 from typing import Any
 
-from fractal_studio.editor import ColorCubeEditor
+from fractal_studio.editor import ColorCubeEditor, PalettePreviewWidget
 from fractal_studio.favorites_controller import FavoritesController
 from fractal_studio.favorites_panel_coordinator import FavoritesPanelCoordinator
 from fractal_studio.state import ViewportState
@@ -89,3 +89,30 @@ class FavoritesWorkflowCoordinator:
         if selected_row is None:
             persist_favorites()
         return selected_row
+
+    def load_favorite_row(
+        self,
+        *,
+        row: Any,
+        favorites: list[dict],
+        rows: list[Any],
+        viewport: FractalViewportWidget | None,
+        params_panel: FractalParamsPanel | None,
+        editor: ColorCubeEditor | None,
+        preview_palette: PalettePreviewWidget | None,
+        apply_aspect_ratio_mode: Callable[[str], None],
+        select_row: Callable[[Any], None],
+        show_status: Callable[[str], None],
+    ) -> None:
+        self._favorites_controller.load_favorite_row(
+            row=row,
+            favorites=favorites,
+            rows=rows,
+            viewport=viewport,
+            params_panel=params_panel,
+            editor=editor,
+            preview_palette=preview_palette,
+            apply_aspect_ratio_mode=apply_aspect_ratio_mode,
+            select_row=select_row,
+            show_status=show_status,
+        )

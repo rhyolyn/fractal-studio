@@ -495,7 +495,7 @@ class MainWindow(QMainWindow):
         )
 
     def _load_favorite_row(self, row: FavoriteThumbnailRow) -> None:
-        self._favorites_controller.load_favorite_row(
+        self._favorites_workflow.load_favorite_row(
             row=row,
             favorites=self._favorites,
             rows=self._fav_rows,
