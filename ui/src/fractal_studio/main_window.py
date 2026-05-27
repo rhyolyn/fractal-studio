@@ -49,12 +49,13 @@ from fractal_studio.persistence import FavoritesRepository, SettingsRepository
 from fractal_studio.sidebar_wiring_coordinator import SidebarWiringCoordinator
 from fractal_studio.settings_dialog_coordinator import SettingsDialogCoordinator
 from fractal_studio.settings_service import SettingsWorkflowService
+from fractal_studio.startup_coordinator import WindowStartupCoordinator
 from fractal_studio.state import (
     UiSettings,
     ViewportState,
 )
 from fractal_studio.thumbnail_utils import decode_thumbnail, encode_pixmap, placeholder_pixmap
-from fractal_studio.theme import ThemeSpec, apply_theme, get_theme
+from fractal_studio.theme import ThemeSpec, get_theme
 from fractal_studio.theme_controller import ThemeController
 from fractal_studio.viewport import FractalParamsPanel, FractalViewportWidget
 
@@ -303,6 +304,7 @@ class MainWindow(QMainWindow):
         self._favorites_repo = FavoritesRepository(_FAVORITES_PATH)
         self._settings_repo = SettingsRepository(_SETTINGS_PATH)
         self._settings_service = SettingsWorkflowService()
+        self._startup = WindowStartupCoordinator(self._settings_repo, self._settings_service)
         self._favorites_controller = FavoritesController()
         self._favorites_panel = FavoritesPanelCoordinator(FavoriteHoverPresenter())
         self._sections = MainWindowSections(self)
@@ -344,9 +346,11 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Fractal Studio")
         self.resize(1500, 940)
 
-        settings = self._settings_repo.load()
-        self._theme_name = settings.settings.theme
-        self._theme_spec = apply_theme(QApplication.instance(), self._theme_name)
+        startup = self._startup.bootstrap(
+            application=QApplication.instance(),
+        )
+        self._theme_name = startup.theme_name
+        self._theme_spec = startup.theme_spec
 
         self._hover_panel = QLabel(self)
         self._hover_panel.setObjectName("hoverPanel")
@@ -354,12 +358,13 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(self._build_layout())
         self._apply_theme_to_dynamic_widgets()
-        status_message = self._settings_service.startup_status(
-            backend_loaded=self.backend_loaded,
-            load_result=settings,
-            diagnostics=[settings.diagnostic, self._favorites_repo.last_load_diagnostic],
+        self.statusBar().showMessage(
+            self._startup.compose_startup_message(
+                backend_loaded=self.backend_loaded,
+                startup_state=startup,
+                favorites_diagnostic=self._favorites_repo.last_load_diagnostic,
+            )
         )
-        self.statusBar().showMessage(status_message)
 
     def _build_layout(self) -> QWidget:
         splitter = QSplitter(Qt.Orientation.Horizontal)

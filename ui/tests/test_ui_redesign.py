@@ -888,6 +888,79 @@ class TestSettingsWorkflowService(unittest.TestCase):
         self.assertEqual(events, [("sepia", False), ("sepia", True)])
 
 
+class TestWindowStartupCoordinator(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        _get_app()
+
+    def setUp(self) -> None:
+        import fractal_studio.main_window as mwmod
+
+        self._mwmod = mwmod
+        self._original_settings_path = mwmod._SETTINGS_PATH
+        self._tmpdir = Path(tempfile.mkdtemp(prefix="fs_startup_"))
+        mwmod._SETTINGS_PATH = self._tmpdir / "settings.json"
+
+    def tearDown(self) -> None:
+        self._mwmod._SETTINGS_PATH = self._original_settings_path
+
+    def test_bootstrap_uses_versioned_settings_and_applies_theme(self) -> None:
+        from fractal_studio.persistence import SettingsRepository
+        from fractal_studio.settings_service import SettingsWorkflowService
+        from fractal_studio.startup_coordinator import WindowStartupCoordinator
+        from fractal_studio.state import UiSettings
+
+        SettingsRepository(self._mwmod._SETTINGS_PATH).save(UiSettings(theme="sepia"))
+        coordinator = WindowStartupCoordinator(
+            SettingsRepository(self._mwmod._SETTINGS_PATH),
+            SettingsWorkflowService(),
+        )
+
+        startup = coordinator.bootstrap(application=_get_app())
+
+        self.assertEqual(startup.theme_name, "sepia")
+        self.assertEqual(startup.theme_spec.name, "sepia")
+        self.assertEqual(startup.load_result.source, "current")
+
+        message = coordinator.compose_startup_message(
+            backend_loaded=True,
+            startup_state=startup,
+            favorites_diagnostic="",
+        )
+
+        self.assertEqual(message, "Fractal Studio ready with Rust backend.")
+
+    def test_bootstrap_reports_legacy_settings_and_diagnostics(self) -> None:
+        from fractal_studio.persistence import SettingsRepository
+        from fractal_studio.settings_service import SettingsWorkflowService
+        from fractal_studio.startup_coordinator import WindowStartupCoordinator
+
+        self._mwmod._SETTINGS_PATH.write_text(json.dumps({"theme": "dark"}))
+        coordinator = WindowStartupCoordinator(
+            SettingsRepository(self._mwmod._SETTINGS_PATH),
+            SettingsWorkflowService(),
+        )
+
+        startup = coordinator.bootstrap(
+            application=_get_app(),
+        )
+
+        self.assertEqual(startup.theme_name, "dark")
+        self.assertEqual(startup.theme_spec.name, "dark")
+        self.assertEqual(startup.load_result.source, "legacy")
+
+        message = coordinator.compose_startup_message(
+            backend_loaded=False,
+            startup_state=startup,
+            favorites_diagnostic="Ignored invalid favorites file and loaded an empty list.",
+        )
+
+        self.assertEqual(
+            message,
+            "Loaded legacy settings file. Ignored invalid favorites file and loaded an empty list.",
+        )
+
+
 class TestSettingsDialogCoordinator(unittest.TestCase):
     def test_open_settings_dialog_delegates_to_main_window_controller(self) -> None:
         from fractal_studio.settings_dialog_coordinator import SettingsDialogCoordinator
