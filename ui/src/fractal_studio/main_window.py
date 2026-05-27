@@ -375,6 +375,19 @@ class MainWindow(QMainWindow):
         )
 
     def _build_layout(self) -> QWidget:
+        def on_open_settings() -> None:
+            self._theme_name, self._theme_spec = self._theme_workflow.open_settings(
+                parent=self,
+                current_theme=self._theme_name,
+                current_theme_spec=self._theme_spec,
+                dialog_factory=lambda theme, parent: AppearanceSettingsDialog(theme, parent),
+                application=QApplication.instance(),
+                refresh_dynamic_widgets=lambda: self._theme_controller.refresh_dynamic_widgets(
+                    self._hover_panel,
+                    self._fav_rows,
+                ),
+            )
+
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(self._sections.build_workspace())
         splitter.addWidget(self._sections.build_sidebar())
@@ -384,7 +397,7 @@ class MainWindow(QMainWindow):
 
         container = QWidget()
         layout = QVBoxLayout()
-        layout.addWidget(self._sections.build_header(self.backend_profile, self._open_settings))
+        layout.addWidget(self._sections.build_header(self.backend_profile, on_open_settings))
         layout.addWidget(splitter)
         container.setLayout(layout)
         return container
@@ -479,24 +492,4 @@ class MainWindow(QMainWindow):
             ),
         )
 
-    def _open_settings(self) -> None:
-        def apply_theme_name(theme_name: str, persist: bool) -> None:
-            self._theme_name, self._theme_spec = self._theme_workflow.apply_theme_name(
-                theme_name=theme_name,
-                persist=persist,
-                current_theme=self._theme_name,
-                current_theme_spec=self._theme_spec,
-                application=QApplication.instance(),
-                refresh_dynamic_widgets=lambda: self._theme_controller.refresh_dynamic_widgets(
-                    self._hover_panel,
-                    self._fav_rows,
-                ),
-            )
-
-        self._settings_dialog.open_settings_dialog(
-            parent=self,
-            current_theme=self._theme_name,
-            dialog_factory=lambda theme, parent: AppearanceSettingsDialog(theme, parent),
-            apply_theme_name=apply_theme_name,
-        )
 

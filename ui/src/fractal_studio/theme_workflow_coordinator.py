@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 from PySide6.QtWidgets import QApplication
 
 from fractal_studio.persistence import SettingsRepository
@@ -45,3 +48,36 @@ class ThemeWorkflowCoordinator:
             refresh_dynamic_widgets=refresh_dynamic_widgets,
         )
         return updated_theme, theme_spec
+
+    def open_settings(
+        self,
+        *,
+        parent,
+        current_theme: str,
+        current_theme_spec: ThemeSpec,
+        dialog_factory: Callable[[str, Any], Any],
+        application: QApplication | None,
+        refresh_dynamic_widgets,
+    ) -> tuple[str, ThemeSpec]:
+        updated_theme = current_theme
+        updated_theme_spec = current_theme_spec
+
+        def apply_theme_name(theme_name: str, persist: bool) -> None:
+            nonlocal updated_theme
+            nonlocal updated_theme_spec
+            updated_theme, updated_theme_spec = self.apply_theme_name(
+                theme_name=theme_name,
+                persist=persist,
+                current_theme=updated_theme,
+                current_theme_spec=updated_theme_spec,
+                application=application,
+                refresh_dynamic_widgets=refresh_dynamic_widgets,
+            )
+
+        self._settings_dialog.open_settings_dialog(
+            parent=parent,
+            current_theme=current_theme,
+            dialog_factory=dialog_factory,
+            apply_theme_name=apply_theme_name,
+        )
+        return updated_theme, updated_theme_spec
