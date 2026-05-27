@@ -434,16 +434,17 @@ class MainWindow(QMainWindow):
             favorite=fav,
             owner=self,
             hover_panel=self._hover_panel,
-            on_select_row=lambda mw, row: mw._on_row_selected(row),
+            on_select_row=lambda mw, row: setattr(
+                mw,
+                "_selected_row",
+                mw._favorites_panel.select_row(mw._selected_row, row),
+            ),
             on_activate_row=lambda mw, row: mw._load_favorite_row(row),
             row_factory=FavoriteThumbnailRow,
             decode_thumbnail=decode_thumbnail,
             placeholder_pixmap=placeholder_pixmap,
         )
         self._favorites_panel.append_row(row, self._fav_rows, self._fav_scroll_layout)
-
-    def _on_row_selected(self, row: FavoriteThumbnailRow) -> None:
-        self._selected_row = self._favorites_panel.select_row(self._selected_row, row)
 
     def _save_favorite(self) -> None:
         self._favorites_workflow.save_favorite(
@@ -476,7 +477,11 @@ class MainWindow(QMainWindow):
             editor=self.editor,
             preview_palette=self.preview_palette,
             apply_aspect_ratio_mode=self._apply_aspect_ratio_mode,
-            select_row=self._on_row_selected,
+            select_row=lambda row: setattr(
+                self,
+                "_selected_row",
+                self._favorites_panel.select_row(self._selected_row, row),
+            ),
             show_status=self.statusBar().showMessage,
         )
 
