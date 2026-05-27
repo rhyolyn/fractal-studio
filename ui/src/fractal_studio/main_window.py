@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime
 from pathlib import Path
 
 _FAVORITES_PATH = Path.home() / ".fractal_studio" / "favorites.json"
@@ -51,7 +50,7 @@ from fractal_studio.sidebar_wiring_coordinator import SidebarWiringCoordinator
 from fractal_studio.settings_dialog_coordinator import SettingsDialogCoordinator
 from fractal_studio.settings_service import SettingsWorkflowService
 from fractal_studio.startup_coordinator import WindowStartupCoordinator
-from fractal_studio.thumbnail_utils import decode_thumbnail, encode_pixmap, placeholder_pixmap
+from fractal_studio.thumbnail_utils import decode_thumbnail, placeholder_pixmap
 from fractal_studio.theme import ThemeSpec, get_theme
 from fractal_studio.theme_controller import ThemeController
 from fractal_studio.theme_workflow_coordinator import ThemeWorkflowCoordinator
@@ -445,27 +444,6 @@ class MainWindow(QMainWindow):
             placeholder_pixmap=placeholder_pixmap,
         )
         self._favorites_panel.append_row(row, self._fav_rows, self._fav_scroll_layout)
-
-    def _save_favorite(self) -> None:
-        self._favorites_workflow.save_favorite(
-            viewport=self.viewport,
-            editor=self.editor,
-            aspect_ratio_mode=self._aspect_ratio_mode,
-            favorites=self._favorites,
-            build_name=lambda state: self._favorites_workflow.build_favorite_name(
-                state=state,
-                favorites=self._favorites,
-                now=datetime.datetime.now,
-            ),
-            capture_thumbnail=lambda: encode_pixmap(self.viewport.grab()),
-            add_favorite=self._favorites.append,
-            add_row=self._add_favorite_row,
-            persist_favorites=lambda: self._favorites_controller.persist_favorites(
-                self._favorites,
-                self._favorites_repo.save,
-            ),
-            show_status=self.statusBar().showMessage,
-        )
 
     def _load_favorite_row(self, row: FavoriteThumbnailRow) -> None:
         self._favorites_workflow.load_favorite_row(

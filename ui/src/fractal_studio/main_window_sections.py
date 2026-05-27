@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -21,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from fractal_studio.editor import ColorCubeEditor, PalettePreviewWidget
+from fractal_studio.thumbnail_utils import encode_pixmap
 from fractal_studio.viewport import FractalParamsPanel, FractalViewportWidget
 
 if TYPE_CHECKING:
@@ -144,12 +146,24 @@ class MainWindowSections:
         seed_button.clicked.connect(owner.editor.seed_points)
         save_button = QPushButton("Save JSON")
         save_button.clicked.connect(
-            lambda: owner._palette_panel.save_palette_json(
-                parent=owner,
+            lambda: owner._favorites_workflow.save_favorite(
+                viewport=owner.viewport,
                 editor=owner.editor,
-                backend=owner.backend,
-                palette_size=owner.backend_profile.palette_size,
-                set_status=owner.statusBar().showMessage,
+                aspect_ratio_mode=owner._aspect_ratio_mode,
+                favorites=owner._favorites,
+                build_name=lambda state: owner._favorites_workflow.build_favorite_name(
+                    state=state,
+                    favorites=owner._favorites,
+                    now=datetime.datetime.now,
+                ),
+                capture_thumbnail=lambda: encode_pixmap(owner.viewport.grab()),
+                add_favorite=owner._favorites.append,
+                add_row=owner._add_favorite_row,
+                persist_favorites=lambda: owner._favorites_controller.persist_favorites(
+                    owner._favorites,
+                    owner._favorites_repo.save,
+                ),
+                show_status=owner.statusBar().showMessage,
             )
         )
         load_button = QPushButton("Load JSON")
@@ -322,8 +336,30 @@ class MainWindowSections:
         btn_layout = QHBoxLayout()
         btn_layout.setContentsMargins(0, 0, 0, 0)
         save_fav_btn = QPushButton("Save")
+        save_fav_btn.clicked.connect(
+            lambda: owner._favorites_workflow.save_favorite(
+                viewport=owner.viewport,
+                editor=owner.editor,
+                aspect_ratio_mode=owner._aspect_ratio_mode,
+                favorites=owner._favorites,
+                build_name=lambda state: owner._favorites_workflow.build_favorite_name(
+                    state=state,
+                    favorites=owner._favorites,
+                    now=datetime.datetime.now,
+                ),
+                capture_thumbnail=lambda: __import__("fractal_studio.thumbnail_utils", fromlist=["encode_pixmap"]).encode_pixmap(
+                    owner.viewport.grab()
+                ),
+                add_favorite=owner._favorites.append,
+                add_row=owner._add_favorite_row,
+                persist_favorites=lambda: owner._favorites_controller.persist_favorites(
+                    owner._favorites,
+                    owner._favorites_repo.save,
+                ),
+                show_status=owner.statusBar().showMessage,
+            )
+        )
         del_fav_btn = QPushButton("Delete")
-        save_fav_btn.clicked.connect(owner._save_favorite)
         del_fav_btn.clicked.connect(owner._delete_favorite)
         for button in (save_fav_btn, del_fav_btn):
             btn_layout.addWidget(button)
