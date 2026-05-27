@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 import datetime
 import weakref
 from pathlib import Path
@@ -8,8 +7,8 @@ from pathlib import Path
 _FAVORITES_PATH = Path.home() / ".fractal_studio" / "favorites.json"
 _SETTINGS_PATH = Path.home() / ".fractal_studio" / "settings.json"
 
-from PySide6.QtCore import QBuffer, QByteArray, Qt, Signal
-from PySide6.QtGui import QColor, QImage, QPixmap
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -36,19 +35,25 @@ from PySide6.QtWidgets import (
 
 from fractal_studio.backend import BackendProfile, load_backend
 from fractal_studio.editor import ColorCubeEditor, PalettePreviewWidget
+from fractal_studio.export_panel_coordinator import ExportPanelCoordinator
 from fractal_studio.export_service import ExportService
 from fractal_studio.favorite_hover_presenter import FavoriteHoverPresenter
 from fractal_studio.favorite_row_style_presenter import FavoriteRowStylePresenter
 from fractal_studio.favorites_controller import FavoritesController
+from fractal_studio.favorites_panel_coordinator import FavoritesPanelCoordinator
 from fractal_studio.main_window_controller import MainWindowController
 from fractal_studio.main_window_sections import MainWindowSections
+from fractal_studio.palette_panel_coordinator import PalettePanelCoordinator
 from fractal_studio.palette_service import PaletteWorkflowService
 from fractal_studio.persistence import FavoritesRepository, SettingsRepository
+from fractal_studio.sidebar_wiring_coordinator import SidebarWiringCoordinator
+from fractal_studio.settings_dialog_coordinator import SettingsDialogCoordinator
 from fractal_studio.settings_service import SettingsWorkflowService
 from fractal_studio.state import (
     UiSettings,
     ViewportState,
 )
+from fractal_studio.thumbnail_utils import decode_thumbnail, encode_pixmap, placeholder_pixmap
 from fractal_studio.theme import ThemeSpec, apply_theme, get_theme
 from fractal_studio.theme_controller import ThemeController
 from fractal_studio.viewport import FractalParamsPanel, FractalViewportWidget
@@ -299,13 +304,17 @@ class MainWindow(QMainWindow):
         self._settings_repo = SettingsRepository(_SETTINGS_PATH)
         self._settings_service = SettingsWorkflowService()
         self._favorites_controller = FavoritesController()
+        self._favorites_panel = FavoritesPanelCoordinator(FavoriteHoverPresenter())
         self._sections = MainWindowSections(self)
         self._theme_controller = ThemeController()
-        self._favorite_hover_presenter = FavoriteHoverPresenter()
         self.backend = load_backend()
         self._export_service = ExportService(self.backend)
         self._palette_service = PaletteWorkflowService()
+        self._palette_panel = PalettePanelCoordinator(self._palette_service)
+        self._sidebar_wiring = SidebarWiringCoordinator()
         self._controller = MainWindowController(self._export_service, self._favorites_controller)
+        self._export_panel = ExportPanelCoordinator(self._controller)
+        self._settings_dialog = SettingsDialogCoordinator(self._controller, self._settings_service)
         self.backend_loaded = self.backend.available
         self.backend_profile = self.backend.profile()
         self.editor: ColorCubeEditor | None = None
@@ -345,13 +354,10 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(self._build_layout())
         self._apply_theme_to_dynamic_widgets()
-        status_message = (
-            self._settings_service.startup_message(settings)
-            or self._settings_service.status_message(self.backend_loaded, settings.source)
-        )
-        status_message = self._settings_service.append_diagnostics(
-            status_message,
-            [settings.diagnostic, self._favorites_repo.last_load_diagnostic],
+        status_message = self._settings_service.startup_status(
+            backend_loaded=self.backend_loaded,
+            load_result=settings,
+            diagnostics=[settings.diagnostic, self._favorites_repo.last_load_diagnostic],
         )
         self.statusBar().showMessage(status_message)
 
@@ -371,7 +377,7 @@ class MainWindow(QMainWindow):
         return container
 
     def _refresh_export_presets(self) -> None:
-        self._export_presets = self._controller.refresh_export_presets(
+        self._export_presets = self._export_panel.refresh_export_presets(
             aspect_ratio_mode=self._aspect_ratio_mode,
             export_combo=self._export_combo,
             current_presets=self._export_presets,
@@ -381,9 +387,8 @@ class MainWindow(QMainWindow):
     def _apply_aspect_ratio_mode(self, mode: str, update_combo: bool = True) -> None:
         if mode not in ("square", "portrait", "landscape"):
             mode = "square"
-        # Ensure refresh callbacks observe the newly selected mode.
         self._aspect_ratio_mode = mode
-        self._aspect_ratio_mode = self._controller.apply_aspect_ratio_mode(
+        self._aspect_ratio_mode = self._export_panel.apply_aspect_ratio_mode(
             mode=mode,
             viewport=self.viewport,
             aspect_ratio_combo=self._aspect_ratio_combo,
@@ -392,22 +397,24 @@ class MainWindow(QMainWindow):
         )
 
     def _on_aspect_ratio_changed(self, index: int) -> None:
-        mode = self._controller.aspect_mode_from_index(index)
-        self._apply_aspect_ratio_mode(mode, update_combo=False)
+        self._export_panel.on_aspect_ratio_changed(
+            index=index,
+            apply_aspect_ratio_mode=self._apply_aspect_ratio_mode,
+        )
 
     def _on_export_preset_changed(self, index: int) -> None:
-        if self._custom_width_box is None or self._custom_height_box is None:
-            return
-        is_custom = self._controller.should_show_custom_size(index, len(self._export_presets))
-        self._custom_width_box.parentWidget().setVisible(is_custom)
+        self._export_panel.on_export_preset_changed(
+            index=index,
+            export_presets=self._export_presets,
+            custom_width_box=self._custom_width_box,
+            custom_height_box=self._custom_height_box,
+            set_custom_row_visible=lambda visible: self._custom_width_box.parentWidget().setVisible(visible),
+        )
 
     def _on_export_clicked(self) -> None:
-        if self._export_combo is None:
-            return
-
-        self._controller.on_export_clicked(
+        self._export_panel.on_export_clicked(
             export_presets=self._export_presets,
-            index=self._export_combo.currentIndex(),
+            export_combo=self._export_combo,
             custom_width_box=self._custom_width_box,
             custom_height_box=self._custom_height_box,
             set_custom_size=lambda w, h: setattr(self, "_custom_width", w) or setattr(self, "_custom_height", h),
@@ -424,15 +431,6 @@ class MainWindow(QMainWindow):
         )
 
     def _add_favorite_row(self, fav: dict) -> None:
-        if "thumbnail" in fav:
-            try:
-                pixmap = MainWindow._decode_thumbnail(fav["thumbnail"])
-                if pixmap.isNull():
-                    pixmap = MainWindow._placeholder_pixmap()
-            except Exception:
-                pixmap = MainWindow._placeholder_pixmap()
-        else:
-            pixmap = MainWindow._placeholder_pixmap()
         # Use a weakref to break the MainWindow ↔ FavoriteThumbnailRow reference cycle
         # so CPython's cyclic GC doesn't finalize Rust-backed objects at unsafe times.
         weak_self = weakref.ref(self)
@@ -447,23 +445,19 @@ class MainWindow(QMainWindow):
             if mw is not None:
                 mw._load_favorite_row(row)
 
-        row = FavoriteThumbnailRow(
-            pixmap,
-            fav,
-            self._hover_panel,
-            on_select,
-            on_activate,
-            hover_presenter=self._favorite_hover_presenter,
+        row = self._favorites_panel.build_row(
+            favorite=fav,
+            hover_panel=self._hover_panel,
+            on_select=on_select,
+            on_activate=on_activate,
+            row_factory=FavoriteThumbnailRow,
+            decode_thumbnail=decode_thumbnail,
+            placeholder_pixmap=placeholder_pixmap,
         )
-        self._fav_rows.append(row)
-        # Insert before the trailing stretch (always last item)
-        self._fav_scroll_layout.insertWidget(len(self._fav_rows) - 1, row)
+        self._favorites_panel.append_row(row, self._fav_rows, self._fav_scroll_layout)
 
     def _on_row_selected(self, row: FavoriteThumbnailRow) -> None:
-        if self._selected_row is not None:
-            self._selected_row.set_selected(False)
-        self._selected_row = row
-        row.set_selected(True)
+        self._selected_row = self._favorites_panel.select_row(self._selected_row, row)
 
     def _save_favorite(self) -> None:
         if self.viewport is None:
@@ -474,7 +468,7 @@ class MainWindow(QMainWindow):
             aspect_ratio_mode=self._aspect_ratio_mode,
             favorites=self._favorites,
             build_name=self._build_favorite_name,
-            capture_thumbnail=self._capture_thumbnail,
+            capture_thumbnail=lambda: encode_pixmap(self.viewport.grab()),
             add_favorite=self._favorites.append,
             add_row=self._add_favorite_row,
             persist=lambda: self._favorites_controller.persist_favorites(self._favorites, self._favorites_repo.save),
@@ -505,14 +499,14 @@ class MainWindow(QMainWindow):
         )
 
     def _delete_favorite(self) -> None:
-        if self._selected_row is None:
+        self._selected_row = self._favorites_panel.delete_selected(
+            selected_row=self._selected_row,
+            rows=self._fav_rows,
+            favorites=self._favorites,
+            scroll_layout=self._fav_scroll_layout,
+        )
+        if self._selected_row is not None:
             return
-        idx = self._fav_rows.index(self._selected_row)
-        self._favorites.pop(idx)
-        row = self._fav_rows.pop(idx)
-        self._fav_scroll_layout.removeWidget(row)
-        row.deleteLater()
-        self._selected_row = None
         self._favorites_controller.persist_favorites(self._favorites, self._favorites_repo.save)
 
     def _update_control_summary(self, control_points: list[tuple[int, int, int]]) -> None:
@@ -533,42 +527,33 @@ class MainWindow(QMainWindow):
         )
 
     def _save_palette_json(self) -> None:
-        if self.editor is None:
-            return
-
-        self._palette_service.save_palette_json(
+        self._palette_panel.save_palette_json(
             parent=self,
+            editor=self.editor,
             backend=self.backend,
-            control_points=self.editor.control_points,
             palette_size=self.backend_profile.palette_size,
             set_status=self.statusBar().showMessage,
         )
 
     def _load_palette_json(self) -> None:
-        if self.editor is None:
-            return
-
-        self._palette_service.load_palette_json(
+        self._palette_panel.load_palette_json(
             parent=self,
+            editor=self.editor,
             backend=self.backend,
-            set_control_points=self.editor.set_control_points,
             set_status=self.statusBar().showMessage,
         )
 
     def _export_legacy_map(self) -> None:
-        if self.editor is None:
-            return
-
-        self._palette_service.export_legacy_map(
+        self._palette_panel.export_legacy_map(
             parent=self,
+            editor=self.editor,
             backend=self.backend,
-            control_points=self.editor.control_points,
             legacy_palette_size=self.backend_profile.legacy_palette_size,
             set_status=self.statusBar().showMessage,
         )
 
     def _open_settings(self) -> None:
-        self._controller.open_settings_dialog(
+        self._settings_dialog.open_settings_dialog(
             parent=self,
             current_theme=self._theme_name,
             dialog_factory=lambda theme, parent: AppearanceSettingsDialog(theme, parent),
@@ -576,7 +561,7 @@ class MainWindow(QMainWindow):
         )
 
     def _apply_theme_name(self, theme_name: str, persist: bool) -> None:
-        self._theme_name = self._settings_service.apply_theme_name(
+        self._theme_name = self._settings_dialog.apply_theme_name(
             theme_name=theme_name,
             persist=persist,
             current_theme=self._theme_name,
@@ -586,45 +571,9 @@ class MainWindow(QMainWindow):
                 self._theme_controller.apply_theme(QApplication.instance(), name),
             ),
             persist_theme=lambda name: self._settings_repo.save(UiSettings(theme=name)),
+            refresh_dynamic_widgets=self._apply_theme_to_dynamic_widgets,
         )
-        self._theme_controller.refresh_dynamic_widgets(self._hover_panel, self._fav_rows)
 
     def _apply_theme_to_dynamic_widgets(self) -> None:
         self._theme_controller.refresh_dynamic_widgets(self._hover_panel, self._fav_rows)
-
-    @staticmethod
-    def _encode_pixmap(pixmap: QPixmap) -> str:
-        scaled = pixmap.scaled(
-            96, 72,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        ba = QByteArray()
-        buf = QBuffer(ba)
-        buf.open(QBuffer.OpenModeFlag.WriteOnly)
-        scaled.toImage().save(buf, "PNG")
-        buf.close()
-        return base64.b64encode(bytes(ba)).decode()
-
-    @staticmethod
-    def _decode_thumbnail(b64: str) -> QPixmap:
-        pixmap = QPixmap()
-        pixmap.loadFromData(base64.b64decode(b64))
-        return pixmap
-
-    @staticmethod
-    def _placeholder_pixmap() -> QPixmap:
-        pixmap = QPixmap(48, 36)
-        pixmap.fill(QColor("#313244"))
-        return pixmap
-
-    def _capture_thumbnail(self) -> str:
-        return MainWindow._encode_pixmap(self.viewport.grab())
-
-    def _backend_state_text(self) -> str:
-        return (
-            "Rust extension loaded."
-            if self.backend_loaded and self.backend.available
-            else "Rust extension not loaded. Build fractal_core to enable the editor."
-        )
 

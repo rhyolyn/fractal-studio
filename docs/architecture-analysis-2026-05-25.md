@@ -273,6 +273,48 @@ Completed since this analysis was written:
 - UI regression suite remains green after phase 3 cleanup slice 7 (`81 passed`).
 - Behavior tests hardening slice 6 is done: favorite persistence interaction tests now use viewport public state/palette APIs instead of private viewport fields.
 - UI regression suite remains green after behavior tests hardening slice 6 (`81 passed`).
+- Phase 2 decomposition slice 13 is done: favorite-row panel lifecycle orchestration moved behind a dedicated `FavoritesPanelCoordinator`.
+- UI regression suite remains green after phase 2 decomposition slice 13 (`84 passed`).
+- Behavior tests hardening slice 7 is done: favorite-row panel lifecycle behavior now has focused coordinator-level tests.
+- UI regression suite remains green after behavior tests hardening slice 7 (`84 passed`).
+- Phase 2 decomposition slice 14 is done: startup status/diagnostics assembly moved behind `SettingsWorkflowService.startup_status`.
+- UI regression suite remains green after phase 2 decomposition slice 14 (`85 passed`).
+- Behavior tests hardening slice 8 is done: startup status composition behavior now has focused `SettingsWorkflowService` coverage.
+- UI regression suite remains green after behavior tests hardening slice 8 (`85 passed`).
+- Phase 2 decomposition slice 15 is done: export/aspect panel event orchestration moved behind a dedicated `ExportPanelCoordinator`.
+- UI regression suite remains green after phase 2 decomposition slice 15 (`88 passed`).
+- Behavior tests hardening slice 9 is done: export/aspect panel coordinator behavior now has focused unit coverage.
+- UI regression suite remains green after behavior tests hardening slice 9 (`88 passed`).
+- Phase 2 decomposition slice 16 is done: settings dialog open/apply flow now delegates through a dedicated `SettingsDialogCoordinator`.
+- UI regression suite remains green after phase 2 decomposition slice 16 (`90 passed`).
+- Behavior tests hardening slice 10 is done: settings dialog coordinator behavior now has focused unit coverage.
+- UI regression suite remains green after behavior tests hardening slice 10 (`90 passed`).
+- Phase 2 decomposition slice 17 is done: palette import/export panel workflow now delegates through a dedicated `PalettePanelCoordinator`.
+- UI regression suite remains green after phase 2 decomposition slice 17 (`93 passed`).
+- Behavior tests hardening slice 11 is done: palette panel coordinator behavior now has focused unit coverage.
+- UI regression suite remains green after behavior tests hardening slice 11 (`93 passed`).
+- Phase 2 decomposition slice 18 is done: sidebar params-panel ↔ viewport signal wiring now delegates through a dedicated `SidebarWiringCoordinator`.
+- UI regression suite remains green after phase 2 decomposition slice 18 (`95 passed`).
+- Behavior tests hardening slice 12 is done: sidebar wiring coordinator behavior now has focused unit coverage.
+- UI regression suite remains green after behavior tests hardening slice 12 (`95 passed`).
+- Phase 2 decomposition slice 19 is done: thumbnail encode/decode/placeholder helpers were extracted from `MainWindow` into a dedicated `thumbnail_utils` module.
+- UI regression suite remains green after phase 2 decomposition slice 19 (`95 passed`).
+- Behavior tests hardening slice 13 is done: thumbnail helper tests now target `thumbnail_utils` behavior instead of `MainWindow` private static methods.
+- UI regression suite remains green after behavior tests hardening slice 13 (`95 passed`).
+- Phase 2 decomposition slice 20 is done: unused residual `MainWindow` helper `_backend_state_text` was removed after backend status assembly delegation.
+- UI regression suite remains green after phase 2 decomposition slice 20 (`95 passed`).
+- Behavior tests hardening slice 14 is done: export/aspect panel tests now discover and validate UI behavior via widget contracts instead of `MainWindow` private field access.
+- UI regression suite remains green after behavior tests hardening slice 14 (`95 passed`).
+- Behavior tests hardening slice 15 is done: favorite persistence tests now save/load through UI interactions and widget discovery instead of direct `MainWindow` private favorites/combo fields.
+- UI regression suite remains green after behavior tests hardening slice 15 (`95 passed`).
+- Behavior tests hardening slice 16 is done: legacy/versioned favorites format tests now assert through repository/file payload boundaries instead of `MainWindow` private favorites storage.
+- UI regression suite remains green after behavior tests hardening slice 16 (`95 passed`).
+- Behavior tests hardening slice 17 is done: settings/theme persistence and no-persist assertions now target repository and coordinator boundaries instead of `MainWindow` private theme helper calls.
+- UI regression suite remains green after behavior tests hardening slice 17 (`95 passed`).
+- Behavior tests hardening slice 18 is done: the remaining editor cache-reuse white-box assertion was removed, keeping editor interaction coverage at the behavior boundary.
+- UI regression suite remains green after behavior tests hardening slice 18 (`94 passed`).
+- Phase 2 decomposition slice 21 is done: the redundant pre-assignment in `MainWindow._apply_aspect_ratio_mode` was removed.
+- UI regression suite remains green after phase 2 decomposition slice 21 (`94 passed`).
 
 Removed from active queue:
 - "Introduce typed state objects" (already completed).
@@ -306,6 +348,27 @@ Removed from active queue:
 - "Phase 3 cleanup slice 6" for extracting favorite-row hover metadata/positioning into a dedicated presenter (already completed).
 - "Phase 3 cleanup slice 7" for extracting favorite-row visual-state styling into a dedicated presenter (already completed).
 - "Behavior tests hardening slice 6" for reducing favorite persistence test coupling to private viewport fields (already completed).
+- "Phase 2 decomposition slice 13" for extracting favorite-row panel lifecycle orchestration into `FavoritesPanelCoordinator` (already completed).
+- "Behavior tests hardening slice 7" for adding focused favorite-panel coordinator behavior coverage (already completed).
+- "Phase 2 decomposition slice 14" for extracting startup status/diagnostics assembly into `SettingsWorkflowService.startup_status` (already completed).
+- "Behavior tests hardening slice 8" for adding focused startup status composition coverage (already completed).
+- "Phase 2 decomposition slice 15" for extracting export/aspect panel event orchestration into `ExportPanelCoordinator` (already completed).
+- "Behavior tests hardening slice 9" for adding focused export/aspect coordinator behavior coverage (already completed).
+- "Phase 2 decomposition slice 16" for extracting settings dialog open/apply flow into `SettingsDialogCoordinator` (already completed).
+- "Behavior tests hardening slice 10" for adding focused settings dialog coordinator behavior coverage (already completed).
+- "Phase 2 decomposition slice 17" for extracting palette import/export panel workflow into `PalettePanelCoordinator` (already completed).
+- "Behavior tests hardening slice 11" for adding focused palette panel coordinator behavior coverage (already completed).
+- "Phase 2 decomposition slice 18" for extracting sidebar params-panel ↔ viewport signal wiring into `SidebarWiringCoordinator` (already completed).
+- "Behavior tests hardening slice 12" for adding focused sidebar wiring coordinator behavior coverage (already completed).
+- "Phase 2 decomposition slice 19" for extracting thumbnail encode/decode/placeholder helpers into `thumbnail_utils` (already completed).
+- "Behavior tests hardening slice 13" for shifting thumbnail helper tests to the `thumbnail_utils` behavior boundary (already completed).
+- "Phase 2 decomposition slice 20" for trimming the unused `MainWindow._backend_state_text` helper after backend-status delegation (already completed).
+- "Behavior tests hardening slice 14" for reducing export/aspect test coupling to `MainWindow` private fields via behavior-level widget discovery (already completed).
+- "Behavior tests hardening slice 15" for reducing favorite persistence test coupling to `MainWindow` private favorites/combo fields via behavior-level UI interactions (already completed).
+- "Behavior tests hardening slice 16" for reducing legacy/versioned favorites format test coupling to `MainWindow` private favorites storage (already completed).
+- "Behavior tests hardening slice 17" for reducing settings/theme test coupling to `MainWindow` private theme helper calls (already completed).
+- "Behavior tests hardening slice 18" for removing the remaining editor cache-reuse white-box assertion (already completed).
+- "Phase 2 decomposition slice 21" for removing the redundant pre-assignment in `MainWindow._apply_aspect_ratio_mode` (already completed).
 
 ### Phase 3 (Remaining cleanup)
 1. Tighten behavior-level tests around the remaining high-churn widget interactions.
@@ -371,6 +434,6 @@ Reason:
 ## Resume Marker
 
 Resume from here next session:
-- Current checkpoint: Phase 1 policy slice 1, Phase 1 gate slice 2, Phase 3 cleanup slices 3-4 and 6-7, plus behavior tests hardening slices 4-6 are complete.
+- Current checkpoint: Phase 1 policy slice 1, Phase 1 gate slice 2, Phase 2 decomposition slices 13-21, Phase 3 cleanup slices 3-4 and 6-7, plus behavior tests hardening slices 4-18 are complete.
 - Next action: continue Phase 3 follow-up by tightening behavior-level tests for remaining high-churn widget interactions.
 - Quick resume command: `cd c:/git/graphics/fractal-studio/ui ; c:/git/graphics/fractal-studio/.venv/Scripts/python.exe -m pytest tests/test_ui_redesign.py`

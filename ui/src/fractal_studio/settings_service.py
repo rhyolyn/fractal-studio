@@ -29,6 +29,16 @@ class SettingsWorkflowService:
             return message
         return f"{message} {' '.join(parts)}"
 
+    def startup_status(
+        self,
+        *,
+        backend_loaded: bool,
+        load_result: SettingsLoadResult,
+        diagnostics: list[str],
+    ) -> str:
+        message = self.startup_message(load_result) or self.status_message(backend_loaded, load_result.source)
+        return self.append_diagnostics(message, diagnostics)
+
     def apply_theme_name(
         self,
         theme_name: str,

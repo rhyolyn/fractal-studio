@@ -273,19 +273,7 @@ class MainWindowSections:
         layout = QVBoxLayout()
 
         owner.params_panel = FractalParamsPanel()
-        if owner.viewport is not None:
-            owner.params_panel.formula_changed.connect(owner.viewport.set_formula)
-            owner.params_panel.mode_changed.connect(owner.viewport.set_mode)
-            owner.params_panel.power_changed.connect(owner.viewport.set_power)
-            owner.params_panel.phoenix_changed.connect(owner.viewport.set_phoenix_constant)
-            owner.params_panel.julia_constant_changed.connect(owner.viewport.set_julia_constant)
-            owner.params_panel.max_iterations_changed.connect(owner.viewport.set_max_iterations)
-            owner.params_panel.zoom_changed.connect(owner.viewport.set_scale)
-            owner.viewport.scale_changed.connect(owner.params_panel.set_scale)
-            owner.params_panel.coloring_mode_changed.connect(owner.viewport.set_coloring_mode)
-            owner.params_panel.trap_point_changed.connect(owner.viewport.set_trap_point)
-            owner.params_panel.cycle_toggled.connect(owner.viewport.set_cycle_active)
-            owner.params_panel.cycle_speed_changed.connect(owner.viewport.set_cycle_speed)
+        owner._sidebar_wiring.connect_params_and_viewport(owner.params_panel, owner.viewport)
 
         layout.addWidget(owner.params_panel)
         layout.addWidget(

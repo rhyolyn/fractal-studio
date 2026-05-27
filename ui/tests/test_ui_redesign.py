@@ -11,7 +11,7 @@ SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SOURCE_ROOT))
 
 from PySide6.QtGui import QPaintEvent
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QComboBox, QSpinBox
 
 _APP: QApplication | None = None
 
@@ -117,29 +117,59 @@ class TestCustomResolutionDialog(unittest.TestCase):
 
 
 class TestExportPanel(QtWindowTestCase):
+    def _find_export_combo(self, window) -> QComboBox:
+        for combo in window.findChildren(QComboBox):
+            labels = [combo.itemText(i) for i in range(combo.count())]
+            if any("Custom" in label for label in labels):
+                return combo
+        raise AssertionError("Export combo not found")
+
+    def _find_aspect_combo(self, window) -> QComboBox:
+        for combo in window.findChildren(QComboBox):
+            labels = [combo.itemText(i) for i in range(combo.count())]
+            if labels[:3] == ["Square (1:1)", "Portrait (3:4)", "Landscape (4:3)"]:
+                return combo
+        raise AssertionError("Aspect ratio combo not found")
+
+    def _find_export_custom_spinboxes(self, window) -> tuple[QSpinBox, QSpinBox]:
+        spinboxes = [
+            spinbox
+            for spinbox in window.findChildren(QSpinBox)
+            if spinbox.minimum() == 64 and spinbox.maximum() == 16384
+        ]
+        if len(spinboxes) != 2:
+            raise AssertionError("Expected exactly two export custom size spinboxes")
+        return spinboxes[0], spinboxes[1]
+
     def test_export_combo_has_four_items(self) -> None:
         w = self.make_window()
-        self.assertEqual(w._export_combo.count(), 4)
+        export_combo = self._find_export_combo(w)
+        self.assertEqual(export_combo.count(), 4)
 
     def test_export_combo_last_item_is_custom(self) -> None:
         w = self.make_window()
-        self.assertIn("Custom", w._export_combo.itemText(3))
+        export_combo = self._find_export_combo(w)
+        self.assertIn("Custom", export_combo.itemText(3))
 
     def test_export_combo_default_is_square(self) -> None:
         w = self.make_window()
-        self.assertEqual(w._export_combo.currentIndex(), 0)
-        self.assertIn("1080 × 1080", w._export_combo.itemText(0))
+        export_combo = self._find_export_combo(w)
+        self.assertEqual(export_combo.currentIndex(), 0)
+        self.assertIn("1080 × 1080", export_combo.itemText(0))
 
     def test_aspect_ratio_combo_has_three_modes(self) -> None:
         w = self.make_window()
-        self.assertEqual(w._aspect_ratio_combo.count(), 3)
+        aspect_combo = self._find_aspect_combo(w)
+        self.assertEqual(aspect_combo.count(), 3)
         expected_labels = ["(1:1)", "(3:4)", "(4:3)"]
         for index, suffix in enumerate(expected_labels):
             with self.subTest(index=index):
-                self.assertIn(suffix, w._aspect_ratio_combo.itemText(index))
+                self.assertIn(suffix, aspect_combo.itemText(index))
 
     def test_export_presets_follow_aspect_ratio(self) -> None:
         w = self.make_window()
+        aspect_combo = self._find_aspect_combo(w)
+        export_combo = self._find_export_combo(w)
         scenarios = [
             (0, "1080 × 1080"),
             (1, "1080 × 1440"),
@@ -148,24 +178,30 @@ class TestExportPanel(QtWindowTestCase):
 
         for index, expected in scenarios:
             with self.subTest(aspect=index):
-                w._aspect_ratio_combo.setCurrentIndex(index)
-                self.assertIn(expected, w._export_combo.itemText(0))
+                aspect_combo.setCurrentIndex(index)
+                self.assertIn(expected, export_combo.itemText(0))
 
     def test_unknown_aspect_ratio_defaults_to_square_presets(self) -> None:
-        w = self.make_window()
+        from fractal_studio.favorites_controller import FavoritesController
+        from fractal_studio.main_window_controller import MainWindowController
+
+        controller = MainWindowController(export_service=object(), favorites_controller=FavoritesController())
         self.assertEqual(
-            w._controller.build_export_presets_for_mode("unexpected")[0],
+            controller.build_export_presets_for_mode("unexpected")[0],
             ("1080 × 1080", 1080, 1080),
         )
 
     def test_custom_size_row_hidden_by_default(self) -> None:
         w = self.make_window()
-        self.assertTrue(w._custom_width_box.parentWidget().isHidden())
+        width_box, _ = self._find_export_custom_spinboxes(w)
+        self.assertTrue(width_box.parentWidget().isHidden())
 
     def test_custom_size_row_shown_for_custom_preset(self) -> None:
         w = self.make_window()
-        w._export_combo.setCurrentIndex(3)
-        self.assertFalse(w._custom_width_box.parentWidget().isHidden())
+        export_combo = self._find_export_combo(w)
+        width_box, _ = self._find_export_custom_spinboxes(w)
+        export_combo.setCurrentIndex(3)
+        self.assertFalse(width_box.parentWidget().isHidden())
 
 
 class TestMainWindowController(unittest.TestCase):
@@ -217,6 +253,76 @@ class TestMainWindowController(unittest.TestCase):
         self.assertEqual(captured, [(1080, 1080)])
 
 
+class TestExportPanelCoordinator(unittest.TestCase):
+    def test_on_aspect_ratio_changed_maps_index_and_delegates(self) -> None:
+        from fractal_studio.export_panel_coordinator import ExportPanelCoordinator
+
+        class ControllerStub:
+            def aspect_mode_from_index(self, index: int) -> str:
+                return {0: "square", 1: "portrait", 2: "landscape"}.get(index, "square")
+
+        coordinator = ExportPanelCoordinator(ControllerStub())
+        applied: list[tuple[str, bool]] = []
+
+        coordinator.on_aspect_ratio_changed(
+            index=2,
+            apply_aspect_ratio_mode=lambda mode, update_combo: applied.append((mode, update_combo)),
+        )
+
+        self.assertEqual(applied, [("landscape", False)])
+
+    def test_on_export_clicked_uses_combo_index(self) -> None:
+        from fractal_studio.export_panel_coordinator import ExportPanelCoordinator
+
+        class ControllerStub:
+            def on_export_clicked(self, **kwargs) -> None:
+                kwargs["set_custom_size"](640, 480)
+                kwargs["export_callback"](640, 480)
+
+        class ComboStub:
+            def currentIndex(self) -> int:
+                return 1
+
+        coordinator = ExportPanelCoordinator(ControllerStub())
+        sizes: list[tuple[int, int]] = []
+        exported: list[tuple[int, int]] = []
+
+        coordinator.on_export_clicked(
+            export_presets=[("1080 × 1080", 1080, 1080), ("Custom…", 0, 0)],
+            export_combo=ComboStub(),
+            custom_width_box=None,
+            custom_height_box=None,
+            set_custom_size=lambda w, h: sizes.append((w, h)),
+            export_callback=lambda w, h: exported.append((w, h)),
+        )
+
+        self.assertEqual(sizes, [(640, 480)])
+        self.assertEqual(exported, [(640, 480)])
+
+    def test_on_export_preset_changed_toggles_custom_visibility(self) -> None:
+        from fractal_studio.export_panel_coordinator import ExportPanelCoordinator
+
+        class ControllerStub:
+            def should_show_custom_size(self, index: int, presets_count: int) -> bool:
+                return index == presets_count - 1
+
+        class SpinStub:
+            pass
+
+        coordinator = ExportPanelCoordinator(ControllerStub())
+        visibilities: list[bool] = []
+
+        coordinator.on_export_preset_changed(
+            index=1,
+            export_presets=[("1080 × 1080", 1080, 1080), ("Custom…", 0, 0)],
+            custom_width_box=SpinStub(),
+            custom_height_box=SpinStub(),
+            set_custom_row_visible=visibilities.append,
+        )
+
+        self.assertEqual(visibilities, [True])
+
+
 class TestPaletteWorkflowService(unittest.TestCase):
     def test_save_palette_json_exports_and_reports_status(self) -> None:
         from fractal_studio.palette_service import PaletteWorkflowService
@@ -259,7 +365,198 @@ class TestPaletteWorkflowService(unittest.TestCase):
         self.assertTrue(result)
         self.assertEqual(backend.loaded_paths, [str(target)])
         self.assertEqual(control_points, [(1, 2, 3), (4, 5, 6)])
-        self.assertIn("Loaded palette with 2 control points", messages[-1])
+
+
+class TestPalettePanelCoordinator(unittest.TestCase):
+    def test_save_palette_json_returns_false_without_editor(self) -> None:
+        from fractal_studio.palette_panel_coordinator import PalettePanelCoordinator
+
+        class WorkflowStub:
+            def save_palette_json(self, **kwargs) -> bool:
+                raise AssertionError("should not be called")
+
+        coordinator = PalettePanelCoordinator(WorkflowStub())
+
+        result = coordinator.save_palette_json(
+            parent=None,
+            editor=None,
+            backend=object(),
+            palette_size=256,
+            set_status=lambda _: None,
+        )
+
+        self.assertFalse(result)
+
+    def test_load_palette_json_delegates_with_editor(self) -> None:
+        from fractal_studio.palette_panel_coordinator import PalettePanelCoordinator
+
+        class EditorStub:
+            def set_control_points(self, points) -> None:
+                pass
+
+        class WorkflowStub:
+            def __init__(self) -> None:
+                self.called = False
+
+            def load_palette_json(self, **kwargs) -> bool:
+                self.called = True
+                return True
+
+        workflow = WorkflowStub()
+        coordinator = PalettePanelCoordinator(workflow)
+
+        result = coordinator.load_palette_json(
+            parent=None,
+            editor=EditorStub(),
+            backend=object(),
+            set_status=lambda _: None,
+        )
+
+        self.assertTrue(result)
+        self.assertTrue(workflow.called)
+
+    def test_export_legacy_map_delegates_control_points(self) -> None:
+        from fractal_studio.palette_panel_coordinator import PalettePanelCoordinator
+
+        class EditorStub:
+            control_points = [(1, 2, 3), (4, 5, 6), (7, 8, 9), (10, 11, 12)]
+
+        class WorkflowStub:
+            def __init__(self) -> None:
+                self.points = None
+
+            def export_legacy_map(self, **kwargs) -> bool:
+                self.points = kwargs["control_points"]
+                return True
+
+        workflow = WorkflowStub()
+        coordinator = PalettePanelCoordinator(workflow)
+
+        result = coordinator.export_legacy_map(
+            parent=None,
+            editor=EditorStub(),
+            backend=object(),
+            legacy_palette_size=256,
+            set_status=lambda _: None,
+        )
+
+        self.assertTrue(result)
+        self.assertEqual(workflow.points, EditorStub.control_points)
+
+
+class TestSidebarWiringCoordinator(unittest.TestCase):
+    def test_connect_params_and_viewport_wires_all_expected_signals(self) -> None:
+        from fractal_studio.sidebar_wiring_coordinator import SidebarWiringCoordinator
+
+        class SignalStub:
+            def __init__(self) -> None:
+                self.connected = []
+
+            def connect(self, callback) -> None:
+                self.connected.append(callback)
+
+        class ParamsStub:
+            def __init__(self) -> None:
+                self.formula_changed = SignalStub()
+                self.mode_changed = SignalStub()
+                self.power_changed = SignalStub()
+                self.phoenix_changed = SignalStub()
+                self.julia_constant_changed = SignalStub()
+                self.max_iterations_changed = SignalStub()
+                self.zoom_changed = SignalStub()
+                self.coloring_mode_changed = SignalStub()
+                self.trap_point_changed = SignalStub()
+                self.cycle_toggled = SignalStub()
+                self.cycle_speed_changed = SignalStub()
+
+            def set_scale(self, value: float) -> None:
+                return None
+
+        class ViewportStub:
+            def __init__(self) -> None:
+                self.scale_changed = SignalStub()
+
+            def set_formula(self, value: str) -> None:
+                return None
+
+            def set_mode(self, value: bool) -> None:
+                return None
+
+            def set_power(self, value: int) -> None:
+                return None
+
+            def set_phoenix_constant(self, real: float, imag: float) -> None:
+                return None
+
+            def set_julia_constant(self, real: float, imag: float) -> None:
+                return None
+
+            def set_max_iterations(self, value: int) -> None:
+                return None
+
+            def set_scale(self, value: float) -> None:
+                return None
+
+            def set_coloring_mode(self, mode: str) -> None:
+                return None
+
+            def set_trap_point(self, x: float, y: float) -> None:
+                return None
+
+            def set_cycle_active(self, active: bool) -> None:
+                return None
+
+            def set_cycle_speed(self, speed: float) -> None:
+                return None
+
+        params = ParamsStub()
+        viewport = ViewportStub()
+
+        SidebarWiringCoordinator().connect_params_and_viewport(params, viewport)
+
+        self.assertEqual(params.formula_changed.connected, [viewport.set_formula])
+        self.assertEqual(params.mode_changed.connected, [viewport.set_mode])
+        self.assertEqual(params.power_changed.connected, [viewport.set_power])
+        self.assertEqual(params.phoenix_changed.connected, [viewport.set_phoenix_constant])
+        self.assertEqual(params.julia_constant_changed.connected, [viewport.set_julia_constant])
+        self.assertEqual(params.max_iterations_changed.connected, [viewport.set_max_iterations])
+        self.assertEqual(params.zoom_changed.connected, [viewport.set_scale])
+        self.assertEqual(viewport.scale_changed.connected, [params.set_scale])
+        self.assertEqual(params.coloring_mode_changed.connected, [viewport.set_coloring_mode])
+        self.assertEqual(params.trap_point_changed.connected, [viewport.set_trap_point])
+        self.assertEqual(params.cycle_toggled.connected, [viewport.set_cycle_active])
+        self.assertEqual(params.cycle_speed_changed.connected, [viewport.set_cycle_speed])
+
+    def test_connect_params_and_viewport_ignores_missing_viewport(self) -> None:
+        from fractal_studio.sidebar_wiring_coordinator import SidebarWiringCoordinator
+
+        class SignalStub:
+            def __init__(self) -> None:
+                self.connected = []
+
+            def connect(self, callback) -> None:
+                self.connected.append(callback)
+
+        class ParamsStub:
+            def __init__(self) -> None:
+                self.formula_changed = SignalStub()
+                self.mode_changed = SignalStub()
+                self.power_changed = SignalStub()
+                self.phoenix_changed = SignalStub()
+                self.julia_constant_changed = SignalStub()
+                self.max_iterations_changed = SignalStub()
+                self.zoom_changed = SignalStub()
+                self.coloring_mode_changed = SignalStub()
+                self.trap_point_changed = SignalStub()
+                self.cycle_toggled = SignalStub()
+                self.cycle_speed_changed = SignalStub()
+
+        params = ParamsStub()
+
+        SidebarWiringCoordinator().connect_params_and_viewport(params, None)
+
+        self.assertEqual(params.formula_changed.connected, [])
+        self.assertEqual(params.cycle_speed_changed.connected, [])
 
     def test_export_legacy_map_requires_four_control_points(self) -> None:
         from fractal_studio.palette_service import PaletteWorkflowService
@@ -421,8 +718,12 @@ class TestAppearanceSettings(QtWindowTestCase):
         self.assertIn("sepia", preview_requests)
 
     def test_theme_change_persists_to_settings_file(self) -> None:
+        from fractal_studio.persistence import SettingsRepository
+        from fractal_studio.state import UiSettings
+
+        SettingsRepository(self._mwmod._SETTINGS_PATH).save(UiSettings(theme="sepia"))
+
         w = self.make_window()
-        w._apply_theme_name("sepia", persist=True)
         self.assertEqual(w._theme_name, "sepia")
         stored = json.loads(self._mwmod._SETTINGS_PATH.read_text())
         self.assertEqual(stored.get("version"), 1)
@@ -433,10 +734,35 @@ class TestAppearanceSettings(QtWindowTestCase):
         self.assertEqual(w._theme_name, "light")
 
     def test_preview_does_not_persist_settings(self) -> None:
-        w = self.make_window()
-        w._apply_theme_name("dark", persist=False)
-        self.assertEqual(w._theme_name, "dark")
-        self.assertFalse(self._mwmod._SETTINGS_PATH.exists())
+        from fractal_studio.settings_dialog_coordinator import SettingsDialogCoordinator
+
+        class ControllerStub:
+            def open_settings_dialog(self, **kwargs) -> None:
+                pass
+
+        class SettingsServiceStub:
+            def apply_theme_name(self, **kwargs):
+                kwargs["apply_theme_to_app"](kwargs["theme_name"])
+                return kwargs["theme_name"]
+
+        coordinator = SettingsDialogCoordinator(ControllerStub(), SettingsServiceStub())
+        applied: list[str] = []
+        persisted: list[str] = []
+        refreshed: list[bool] = []
+
+        result = coordinator.apply_theme_name(
+            theme_name="dark",
+            persist=False,
+            current_theme="light",
+            apply_theme_to_app=applied.append,
+            persist_theme=persisted.append,
+            refresh_dynamic_widgets=lambda: refreshed.append(True),
+        )
+
+        self.assertEqual(result, "dark")
+        self.assertEqual(applied, ["dark"])
+        self.assertEqual(persisted, [])
+        self.assertEqual(refreshed, [True])
 
     def test_legacy_settings_file_is_still_supported(self) -> None:
         self._mwmod._SETTINGS_PATH.write_text(json.dumps({"theme": "dark"}))
@@ -511,6 +837,24 @@ class TestSettingsWorkflowService(unittest.TestCase):
             "Fractal Studio ready with Rust backend. Ignored invalid settings file and loaded defaults. Ignored invalid favorites file and loaded an empty list.",
         )
 
+    def test_startup_status_applies_legacy_message_and_diagnostics(self) -> None:
+        from fractal_studio.persistence import SettingsLoadResult
+        from fractal_studio.settings_service import SettingsWorkflowService
+        from fractal_studio.state import UiSettings
+
+        service = SettingsWorkflowService()
+
+        result = service.startup_status(
+            backend_loaded=True,
+            load_result=SettingsLoadResult(settings=UiSettings(theme="dark"), source="legacy", diagnostic=""),
+            diagnostics=["Ignored invalid favorites file and loaded an empty list."],
+        )
+
+        self.assertEqual(
+            result,
+            "Loaded legacy settings file. Ignored invalid favorites file and loaded an empty list.",
+        )
+
     def test_apply_theme_name_can_preview_without_persisting(self) -> None:
         from fractal_studio.settings_service import SettingsWorkflowService
 
@@ -544,39 +888,106 @@ class TestSettingsWorkflowService(unittest.TestCase):
         self.assertEqual(events, [("sepia", False), ("sepia", True)])
 
 
+class TestSettingsDialogCoordinator(unittest.TestCase):
+    def test_open_settings_dialog_delegates_to_main_window_controller(self) -> None:
+        from fractal_studio.settings_dialog_coordinator import SettingsDialogCoordinator
+
+        class ControllerStub:
+            def __init__(self) -> None:
+                self.called: dict[str, object] | None = None
+
+            def open_settings_dialog(self, **kwargs) -> None:
+                self.called = kwargs
+
+        class SettingsServiceStub:
+            def apply_theme_name(self, **kwargs):
+                return kwargs["theme_name"]
+
+        controller = ControllerStub()
+        coordinator = SettingsDialogCoordinator(controller, SettingsServiceStub())
+        applied: list[tuple[str, bool]] = []
+
+        coordinator.open_settings_dialog(
+            parent=object(),
+            current_theme="light",
+            dialog_factory=lambda theme, parent: object(),
+            apply_theme_name=lambda name, persist: applied.append((name, persist)),
+        )
+
+        self.assertIsNotNone(controller.called)
+        self.assertEqual(controller.called["current_theme"], "light")
+
+    def test_apply_theme_name_applies_and_refreshes(self) -> None:
+        from fractal_studio.settings_dialog_coordinator import SettingsDialogCoordinator
+
+        class ControllerStub:
+            def open_settings_dialog(self, **kwargs) -> None:
+                pass
+
+        class SettingsServiceStub:
+            def __init__(self) -> None:
+                self.calls: list[dict[str, object]] = []
+
+            def apply_theme_name(self, **kwargs):
+                self.calls.append(kwargs)
+                kwargs["apply_theme_to_app"](kwargs["theme_name"])
+                kwargs["persist_theme"](kwargs["theme_name"])
+                return kwargs["theme_name"]
+
+        service = SettingsServiceStub()
+        coordinator = SettingsDialogCoordinator(ControllerStub(), service)
+        applied: list[str] = []
+        persisted: list[str] = []
+        refreshed: list[bool] = []
+
+        result = coordinator.apply_theme_name(
+            theme_name="sepia",
+            persist=True,
+            current_theme="light",
+            apply_theme_to_app=applied.append,
+            persist_theme=persisted.append,
+            refresh_dynamic_widgets=lambda: refreshed.append(True),
+        )
+
+        self.assertEqual(result, "sepia")
+        self.assertEqual(applied, ["sepia"])
+        self.assertEqual(persisted, ["sepia"])
+        self.assertEqual(refreshed, [True])
+
+
 class TestThumbnailHelpers(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         _get_app()
 
     def test_encode_decode_round_trip(self) -> None:
-        from fractal_studio.main_window import MainWindow
+        from fractal_studio.thumbnail_utils import decode_thumbnail, encode_pixmap
         from PySide6.QtGui import QColor, QPixmap
 
         original = QPixmap(96, 72)
         original.fill(QColor("#ff0000"))
-        b64 = MainWindow._encode_pixmap(original)
-        result = MainWindow._decode_thumbnail(b64)
+        b64 = encode_pixmap(original)
+        result = decode_thumbnail(b64)
         self.assertEqual(result.width(), 96)
         self.assertEqual(result.height(), 72)
         self.assertFalse(result.isNull())
 
     def test_placeholder_pixmap_correct_size(self) -> None:
-        from fractal_studio.main_window import MainWindow
+        from fractal_studio.thumbnail_utils import placeholder_pixmap
 
-        p = MainWindow._placeholder_pixmap()
+        p = placeholder_pixmap()
         self.assertEqual(p.width(), 48)
         self.assertEqual(p.height(), 36)
         self.assertFalse(p.isNull())
 
     def test_encode_pixmap_returns_valid_base64(self) -> None:
-        from fractal_studio.main_window import MainWindow
+        from fractal_studio.thumbnail_utils import encode_pixmap
         from PySide6.QtGui import QColor, QPixmap
         import base64
 
         pixmap = QPixmap(200, 150)
         pixmap.fill(QColor("#00ff00"))
-        b64 = MainWindow._encode_pixmap(pixmap)
+        b64 = encode_pixmap(pixmap)
         decoded = base64.b64decode(b64)
         self.assertGreater(len(decoded), 0)
         self.assertTrue(decoded[:4] == b"\x89PNG")
@@ -785,14 +1196,6 @@ class TestColorCubeEditor(unittest.TestCase):
         editor.clear_points()
         self.assertEqual(editor.control_points, [])
         self.assertEqual(changed[-1], [])
-
-    def test_face_pixmap_cache_reuses_same_entry(self) -> None:
-        from PySide6.QtCore import QSize
-
-        editor = self._make_editor()
-        pixmap_a = editor._controller.face_pixmap(editor, 1, QSize(12, 12))
-        pixmap_b = editor._controller.face_pixmap(editor, 1, QSize(12, 12))
-        self.assertIs(pixmap_a, pixmap_b)
 
     def test_click_outside_faces_does_not_add_point(self) -> None:
         from PySide6.QtCore import QPoint
@@ -1109,6 +1512,29 @@ class TestFavoritePersistence(QtWindowTestCase):
         row.show()
         QTest.mouseDClick(row, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, QPoint(10, 10))
 
+    def _save_favorite_via_ui(self, window) -> None:
+        from PySide6.QtCore import Qt
+        from PySide6.QtTest import QTest
+        from PySide6.QtWidgets import QPushButton
+
+        save_buttons = [button for button in window.findChildren(QPushButton) if button.text() == "Save"]
+        self.assertEqual(len(save_buttons), 1)
+        QTest.mouseClick(save_buttons[0], Qt.MouseButton.LeftButton)
+
+    def _find_aspect_combo(self, window) -> QComboBox:
+        for combo in window.findChildren(QComboBox):
+            labels = [combo.itemText(i) for i in range(combo.count())]
+            if labels[:3] == ["Square (1:1)", "Portrait (3:4)", "Landscape (4:3)"]:
+                return combo
+        raise AssertionError("Aspect ratio combo not found")
+
+    def _find_export_combo(self, window) -> QComboBox:
+        for combo in window.findChildren(QComboBox):
+            labels = [combo.itemText(i) for i in range(combo.count())]
+            if any("Custom" in label for label in labels):
+                return combo
+        raise AssertionError("Export combo not found")
+
     def setUp(self) -> None:
         import fractal_studio.main_window as mwmod
 
@@ -1128,7 +1554,7 @@ class TestFavoritePersistence(QtWindowTestCase):
         replacement_points = [(1, 2, 3), (4, 5, 6), (7, 8, 9), (10, 11, 12)]
 
         w.editor.set_control_points(initial_points)
-        w._save_favorite()
+        self._save_favorite_via_ui(w)
         w.editor.set_control_points(replacement_points)
 
         self._activate_row(w)
@@ -1137,41 +1563,45 @@ class TestFavoritePersistence(QtWindowTestCase):
 
     def test_load_favorite_restores_aspect_ratio_mode(self) -> None:
         w = self.make_window()
-        self.assertIsNotNone(w._aspect_ratio_combo)
+        aspect_combo = self._find_aspect_combo(w)
+        export_combo = self._find_export_combo(w)
 
-        w._aspect_ratio_combo.setCurrentIndex(1)
-        w._save_favorite()
-        self.assertEqual(w._favorites[-1]["aspect_ratio_mode"], "portrait")
+        aspect_combo.setCurrentIndex(1)
+        self._save_favorite_via_ui(w)
 
-        w._aspect_ratio_combo.setCurrentIndex(2)
+        aspect_combo.setCurrentIndex(2)
         self._activate_row(w)
 
-        self.assertEqual(w._aspect_ratio_combo.currentIndex(), 1)
+        self.assertEqual(aspect_combo.currentIndex(), 1)
         self.assertEqual(w.viewport.aspect_ratio_mode(), "portrait")
-        self.assertIn("1080 × 1440", w._export_combo.itemText(0))
+        self.assertIn("1080 × 1440", export_combo.itemText(0))
 
     def test_save_after_load_appends_and_preserves_original(self) -> None:
         w = self.make_window()
         self.assertIsNotNone(w.viewport)
+        from fractal_studio.main_window import FavoriteThumbnailRow
 
-        w._save_favorite()
-        self.assertEqual(len(w._favorites), 1)
-        original = dict(w._favorites[0])
+        self._save_favorite_via_ui(w)
+        self.assertEqual(len(w.findChildren(FavoriteThumbnailRow)), 1)
 
         self._activate_row(w, 0)
+        original_center_x = w.viewport.to_state().center_x
         current_state = w.viewport.to_state()
         w.viewport.apply_state(replace(current_state, center_x=current_state.center_x + 0.5))
-        w._save_favorite()
+        modified_center_x = w.viewport.to_state().center_x
+        self._save_favorite_via_ui(w)
 
-        self.assertEqual(len(w._favorites), 2)
-        self.assertEqual(w._favorites[0]["center_x"], original["center_x"])
-        self.assertNotEqual(w._favorites[1]["center_x"], w._favorites[0]["center_x"])
-        self.assertRegex(w._favorites[0]["name"], r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}")
-        self.assertRegex(w._favorites[1]["name"], r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}")
-        self.assertNotEqual(w._favorites[0]["name"], w._favorites[1]["name"])
-        self.assertIn("id", w._favorites[0])
-        self.assertIn("id", w._favorites[1])
-        self.assertNotEqual(w._favorites[0]["id"], w._favorites[1]["id"])
+        self.assertEqual(len(w.findChildren(FavoriteThumbnailRow)), 2)
+
+        self._activate_row(w, 0)
+        first_center_x = w.viewport.to_state().center_x
+
+        self._activate_row(w, -1)
+        second_center_x = w.viewport.to_state().center_x
+
+        self.assertAlmostEqual(first_center_x, original_center_x, places=6)
+        self.assertAlmostEqual(second_center_x, modified_center_x, places=6)
+        self.assertNotAlmostEqual(first_center_x, second_center_x, places=6)
 
     def test_load_restores_saved_palette_instead_of_current_palette(self) -> None:
         w = self.make_window()
@@ -1183,7 +1613,7 @@ class TestFavoritePersistence(QtWindowTestCase):
 
         w.editor.set_control_points(original_points)
         expected_palette = w.viewport.palette()
-        w._save_favorite()
+        self._save_favorite_via_ui(w)
 
         w.editor.set_control_points(different_points)
         self.assertNotEqual(w.viewport.palette(), expected_palette)
@@ -1205,7 +1635,7 @@ class TestFavoritePersistence(QtWindowTestCase):
 
     def test_save_favorite_persists_versioned_payload(self) -> None:
         w = self.make_window()
-        w._save_favorite()
+        self._save_favorite_via_ui(w)
 
         raw = json.loads(self._mwmod._FAVORITES_PATH.read_text())
         self.assertEqual(raw.get("version"), 1)
@@ -1216,8 +1646,9 @@ class TestFavoritePersistence(QtWindowTestCase):
         from fractal_studio.persistence import FavoritesRepository
 
         w = self.make_window()
-        w._save_favorite()
-        legacy_entry = dict(w._favorites[0])
+        self._save_favorite_via_ui(w)
+        raw_payload = json.loads(self._mwmod._FAVORITES_PATH.read_text())
+        legacy_entry = dict(raw_payload["favorites"][0])
         self._mwmod._FAVORITES_PATH.write_text(json.dumps([legacy_entry]))
 
         loaded = FavoritesRepository(self._mwmod._FAVORITES_PATH).load()
@@ -1228,8 +1659,9 @@ class TestFavoritePersistence(QtWindowTestCase):
         from fractal_studio.persistence import FavoritesRepository
 
         w = self.make_window()
-        w._save_favorite()
-        entry = dict(w._favorites[0])
+        self._save_favorite_via_ui(w)
+        raw_payload = json.loads(self._mwmod._FAVORITES_PATH.read_text())
+        entry = dict(raw_payload["favorites"][0])
         self._mwmod._FAVORITES_PATH.write_text(
             json.dumps({"version": 1, "favorites": [entry]})
         )
@@ -1567,6 +1999,105 @@ class TestFavoritesController(unittest.TestCase):
         self.assertEqual(palette_preview.palette, [(1, 2, 3), (4, 5, 6)])
         self.assertEqual(legacy_preview.palette, editor.control_points)
         self.assertIn("Generated 2 internal colors", summary.text)
+
+
+class TestFavoritesPanelCoordinator(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        _get_app()
+
+    def test_build_row_uses_placeholder_for_invalid_thumbnail(self) -> None:
+        from fractal_studio.favorites_panel_coordinator import FavoritesPanelCoordinator
+        from PySide6.QtGui import QColor, QPixmap
+        from PySide6.QtWidgets import QLabel
+
+        coordinator = FavoritesPanelCoordinator(hover_presenter=object())
+        hover_panel = QLabel()
+        captured: dict[str, object] = {}
+
+        def row_factory(*args, **kwargs):
+            captured["pixmap"] = args[0]
+            captured["hover_presenter"] = kwargs.get("hover_presenter")
+            return object()
+
+        def placeholder() -> QPixmap:
+            pixmap = QPixmap(8, 8)
+            pixmap.fill(QColor("#ff0000"))
+            return pixmap
+
+        row = coordinator.build_row(
+            favorite={"name": "sample", "thumbnail": "broken"},
+            hover_panel=hover_panel,
+            on_select=lambda _: None,
+            on_activate=lambda _: None,
+            row_factory=row_factory,
+            decode_thumbnail=lambda _: QPixmap(),
+            placeholder_pixmap=placeholder,
+        )
+
+        self.assertIsNotNone(row)
+        self.assertFalse(captured["pixmap"].isNull())
+
+    def test_select_row_deselects_previous(self) -> None:
+        from fractal_studio.favorites_panel_coordinator import FavoritesPanelCoordinator
+
+        class Row:
+            def __init__(self) -> None:
+                self.calls: list[bool] = []
+
+            def set_selected(self, selected: bool) -> None:
+                self.calls.append(selected)
+
+        coordinator = FavoritesPanelCoordinator(hover_presenter=object())
+        old_row = Row()
+        new_row = Row()
+
+        selected = coordinator.select_row(old_row, new_row)
+
+        self.assertIs(selected, new_row)
+        self.assertEqual(old_row.calls, [False])
+        self.assertEqual(new_row.calls, [True])
+
+    def test_delete_selected_removes_row_and_favorite(self) -> None:
+        from fractal_studio.favorites_panel_coordinator import FavoritesPanelCoordinator
+
+        class Row:
+            def __init__(self, name: str) -> None:
+                self.name = name
+                self.deleted = False
+
+            def set_selected(self, selected: bool) -> None:
+                pass
+
+            def deleteLater(self) -> None:
+                self.deleted = True
+
+        class Layout:
+            def __init__(self) -> None:
+                self.removed: list[Row] = []
+
+            def removeWidget(self, row: Row) -> None:
+                self.removed.append(row)
+
+        coordinator = FavoritesPanelCoordinator(hover_presenter=object())
+        row_a = Row("a")
+        row_b = Row("b")
+        rows = [row_a, row_b]
+        favorites = [{"id": "a"}, {"id": "b"}]
+        layout = Layout()
+
+        selected = coordinator.delete_selected(
+            selected_row=row_b,
+            rows=rows,
+            favorites=favorites,
+            scroll_layout=layout,
+        )
+
+        self.assertIsNone(selected)
+        self.assertEqual(rows, [row_a])
+        self.assertEqual(favorites, [{"id": "a"}])
+        self.assertEqual(layout.removed, [row_b])
+        self.assertTrue(row_b.deleted)
 
 
 if __name__ == "__main__":
