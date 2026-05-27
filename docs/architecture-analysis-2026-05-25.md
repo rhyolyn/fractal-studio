@@ -327,6 +327,10 @@ Completed since this analysis was written:
 - UI regression suite remains green after phase 2 decomposition slice 24 (`102 passed`).
 - Behavior tests hardening slice 21 is done: theme workflow coordinator behavior now has focused coverage for apply/persist and unchanged-theme paths.
 - UI regression suite remains green after behavior tests hardening slice 21 (`102 passed`).
+- Phase 2 decomposition slice 25 is done: favorite-row weakref callback wiring moved out of `MainWindow` into `FavoritesPanelCoordinator.build_row_with_callbacks`.
+- UI regression suite remains green after phase 2 decomposition slice 25 (`104 passed`).
+- Behavior tests hardening slice 22 is done: favorites panel coordinator now has focused callback-wiring coverage for live-owner and collected-owner paths.
+- UI regression suite remains green after behavior tests hardening slice 22 (`104 passed`).
 
 Removed from active queue:
 - "Introduce typed state objects" (already completed).
@@ -387,6 +391,8 @@ Removed from active queue:
 - "Behavior tests hardening slice 20" for adding focused `FavoritesWorkflowCoordinator` coverage (already completed).
 - "Phase 2 decomposition slice 24" for extracting theme apply/persist bridging into `ThemeWorkflowCoordinator` (already completed).
 - "Behavior tests hardening slice 21" for adding focused `ThemeWorkflowCoordinator` coverage (already completed).
+- "Phase 2 decomposition slice 25" for extracting favorite-row weakref callback wiring into `FavoritesPanelCoordinator.build_row_with_callbacks` (already completed).
+- "Behavior tests hardening slice 22" for adding focused callback-wiring coverage in `FavoritesPanelCoordinator` (already completed).
 
 ### Phase 3 (Remaining cleanup)
 1. Tighten behavior-level tests around the remaining high-churn widget interactions.
@@ -452,6 +458,6 @@ Reason:
 ## Resume Marker
 
 Resume from here next session:
-- Current checkpoint: Phase 1 policy slice 1, Phase 1 gate slice 2, Phase 2 decomposition slices 13-24, Phase 3 cleanup slices 3-4 and 6-7, plus behavior tests hardening slices 4-21 are complete.
+- Current checkpoint: Phase 1 policy slice 1, Phase 1 gate slice 2, Phase 2 decomposition slices 13-25, Phase 3 cleanup slices 3-4 and 6-7, plus behavior tests hardening slices 4-22 are complete.
 - Next action: continue Phase 3 follow-up by tightening behavior-level tests for remaining high-churn widget interactions.
 - Quick resume command: `cd c:/git/graphics/fractal-studio/ui ; c:/git/graphics/fractal-studio/.venv/Scripts/python.exe -m pytest tests/test_ui_redesign.py`

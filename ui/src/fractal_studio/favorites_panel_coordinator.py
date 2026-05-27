@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import weakref
 from collections.abc import Callable
 from typing import Any, Protocol
 
@@ -18,6 +19,41 @@ class FavoriteRowLike(Protocol):
 class FavoritesPanelCoordinator:
     def __init__(self, hover_presenter) -> None:
         self._hover_presenter = hover_presenter
+
+    def build_row_with_callbacks(
+        self,
+        *,
+        favorite: dict,
+        owner: Any,
+        hover_panel: QLabel,
+        on_select_row: Callable[[Any, Any], None],
+        on_activate_row: Callable[[Any, Any], None],
+        row_factory: Callable[..., Any],
+        decode_thumbnail: Callable[[str], QPixmap],
+        placeholder_pixmap: Callable[[], QPixmap],
+    ) -> Any:
+        # Break owner ↔ row callback retention by capturing owner weakly.
+        weak_owner = weakref.ref(owner)
+
+        def on_select(row: Any) -> None:
+            current_owner = weak_owner()
+            if current_owner is not None:
+                on_select_row(current_owner, row)
+
+        def on_activate(row: Any) -> None:
+            current_owner = weak_owner()
+            if current_owner is not None:
+                on_activate_row(current_owner, row)
+
+        return self.build_row(
+            favorite=favorite,
+            hover_panel=hover_panel,
+            on_select=on_select,
+            on_activate=on_activate,
+            row_factory=row_factory,
+            decode_thumbnail=decode_thumbnail,
+            placeholder_pixmap=placeholder_pixmap,
+        )
 
     def build_row(
         self,

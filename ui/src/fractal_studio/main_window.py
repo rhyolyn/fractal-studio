@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import datetime
-import weakref
 from pathlib import Path
 
 _FAVORITES_PATH = Path.home() / ".fractal_studio" / "favorites.json"
@@ -446,25 +445,12 @@ class MainWindow(QMainWindow):
         )
 
     def _add_favorite_row(self, fav: dict) -> None:
-        # Use a weakref to break the MainWindow ↔ FavoriteThumbnailRow reference cycle
-        # so CPython's cyclic GC doesn't finalize Rust-backed objects at unsafe times.
-        weak_self = weakref.ref(self)
-
-        def on_select(row: FavoriteThumbnailRow) -> None:
-            mw = weak_self()
-            if mw is not None:
-                mw._on_row_selected(row)
-
-        def on_activate(row: FavoriteThumbnailRow) -> None:
-            mw = weak_self()
-            if mw is not None:
-                mw._load_favorite_row(row)
-
-        row = self._favorites_panel.build_row(
+        row = self._favorites_panel.build_row_with_callbacks(
             favorite=fav,
+            owner=self,
             hover_panel=self._hover_panel,
-            on_select=on_select,
-            on_activate=on_activate,
+            on_select_row=lambda mw, row: mw._on_row_selected(row),
+            on_activate_row=lambda mw, row: mw._load_favorite_row(row),
             row_factory=FavoriteThumbnailRow,
             decode_thumbnail=decode_thumbnail,
             placeholder_pixmap=placeholder_pixmap,

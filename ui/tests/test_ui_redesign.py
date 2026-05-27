@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import sys
 import tempfile
 import unittest
@@ -2271,6 +2272,98 @@ class TestFavoritesPanelCoordinator(unittest.TestCase):
         self.assertEqual(favorites, [{"id": "a"}])
         self.assertEqual(layout.removed, [row_b])
         self.assertTrue(row_b.deleted)
+
+    def test_build_row_with_callbacks_invokes_owner_handlers(self) -> None:
+        from fractal_studio.favorites_panel_coordinator import FavoritesPanelCoordinator
+        from PySide6.QtGui import QColor, QPixmap
+        from PySide6.QtWidgets import QLabel
+
+        coordinator = FavoritesPanelCoordinator(hover_presenter=object())
+        hover_panel = QLabel()
+        captured: dict[str, object] = {}
+
+        class Owner:
+            def __init__(self) -> None:
+                self.selected: list[object] = []
+                self.activated: list[object] = []
+
+            def on_selected(self, row: object) -> None:
+                self.selected.append(row)
+
+            def on_activated(self, row: object) -> None:
+                self.activated.append(row)
+
+        owner = Owner()
+
+        def row_factory(*args, **kwargs):
+            captured["on_select"] = args[3]
+            captured["on_activate"] = args[4]
+            return object()
+
+        def placeholder() -> QPixmap:
+            pixmap = QPixmap(8, 8)
+            pixmap.fill(QColor("#00ff00"))
+            return pixmap
+
+        row = coordinator.build_row_with_callbacks(
+            favorite={"name": "sample", "thumbnail": "broken"},
+            owner=owner,
+            hover_panel=hover_panel,
+            on_select_row=lambda current_owner, current_row: current_owner.on_selected(current_row),
+            on_activate_row=lambda current_owner, current_row: current_owner.on_activated(current_row),
+            row_factory=row_factory,
+            decode_thumbnail=lambda _: QPixmap(),
+            placeholder_pixmap=placeholder,
+        )
+
+        captured["on_select"](row)
+        captured["on_activate"](row)
+
+        self.assertEqual(owner.selected, [row])
+        self.assertEqual(owner.activated, [row])
+
+    def test_build_row_with_callbacks_noops_after_owner_collected(self) -> None:
+        from fractal_studio.favorites_panel_coordinator import FavoritesPanelCoordinator
+        from PySide6.QtGui import QColor, QPixmap
+        from PySide6.QtWidgets import QLabel
+
+        coordinator = FavoritesPanelCoordinator(hover_presenter=object())
+        hover_panel = QLabel()
+        captured: dict[str, object] = {}
+        calls: list[str] = []
+
+        class Owner:
+            pass
+
+        owner = Owner()
+
+        def row_factory(*args, **kwargs):
+            captured["on_select"] = args[3]
+            captured["on_activate"] = args[4]
+            return object()
+
+        def placeholder() -> QPixmap:
+            pixmap = QPixmap(8, 8)
+            pixmap.fill(QColor("#0000ff"))
+            return pixmap
+
+        coordinator.build_row_with_callbacks(
+            favorite={"name": "sample", "thumbnail": "broken"},
+            owner=owner,
+            hover_panel=hover_panel,
+            on_select_row=lambda current_owner, current_row: calls.append("select"),
+            on_activate_row=lambda current_owner, current_row: calls.append("activate"),
+            row_factory=row_factory,
+            decode_thumbnail=lambda _: QPixmap(),
+            placeholder_pixmap=placeholder,
+        )
+
+        del owner
+        gc.collect()
+        captured["on_select"](object())
+        captured["on_activate"](object())
+
+        self.assertEqual(calls, [])
 
 
 class TestFavoritesWorkflowCoordinator(unittest.TestCase):
