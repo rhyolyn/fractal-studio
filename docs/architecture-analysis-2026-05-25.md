@@ -361,6 +361,8 @@ Completed since this analysis was written:
 - UI regression suite remains green after phase 2 decomposition slice 36 (`109 passed`).
 - Phase 2 decomposition slice 37 is done: favorite-row activation restore wiring now calls `FavoritesWorkflowCoordinator.load_favorite_row` directly, removing the redundant `MainWindow._load_favorite_row` wrapper.
 - UI regression suite remains green after phase 2 decomposition slice 37 (`109 passed`).
+- Phase 2 decomposition slice 38 is done: favorites delete-button wiring now calls `FavoritesWorkflowCoordinator.delete_selected_favorite` directly, removing the redundant `MainWindow._delete_favorite` wrapper.
+- UI regression suite remains green after phase 2 decomposition slice 38 (`109 passed`).
 
 Removed from active queue:
 - "Introduce typed state objects" (already completed).
@@ -438,6 +440,7 @@ Removed from active queue:
 - "Phase 2 decomposition slice 35" for removing redundant `MainWindow` row-selection forwarding (already completed).
 - "Phase 2 decomposition slice 36" for removing redundant `MainWindow._save_favorite` wrapper (already completed).
 - "Phase 2 decomposition slice 37" for removing redundant `MainWindow._load_favorite_row` wrapper (already completed).
+- "Phase 2 decomposition slice 38" for removing redundant `MainWindow._delete_favorite` wrapper (already completed).
 
 ### Phase 3 (Remaining cleanup)
 1. Tighten behavior-level tests around the remaining high-churn widget interactions.
@@ -503,6 +506,6 @@ Reason:
 ## Resume Marker
 
 Resume from here next session:
-- Current checkpoint: Phase 1 policy slice 1, Phase 1 gate slice 2, Phase 2 decomposition slices 13-37, Phase 3 cleanup slices 3-4 and 6-7, plus behavior tests hardening slices 4-25 are complete.
+- Current checkpoint: Phase 1 policy slice 1, Phase 1 gate slice 2, Phase 2 decomposition slices 13-38, Phase 3 cleanup slices 3-4 and 6-7, plus behavior tests hardening slices 4-25 are complete.
 - Next action: continue Phase 3 follow-up by tightening behavior-level tests for remaining high-churn widget interactions.
 - Quick resume command: `cd c:/git/graphics/fractal-studio/ui ; c:/git/graphics/fractal-studio/.venv/Scripts/python.exe -m pytest tests/test_ui_redesign.py`

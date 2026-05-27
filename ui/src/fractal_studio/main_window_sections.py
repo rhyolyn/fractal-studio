@@ -347,9 +347,7 @@ class MainWindowSections:
                     favorites=owner._favorites,
                     now=datetime.datetime.now,
                 ),
-                capture_thumbnail=lambda: __import__("fractal_studio.thumbnail_utils", fromlist=["encode_pixmap"]).encode_pixmap(
-                    owner.viewport.grab()
-                ),
+                capture_thumbnail=lambda: encode_pixmap(owner.viewport.grab()),
                 add_favorite=owner._favorites.append,
                 add_row=owner._add_favorite_row,
                 persist_favorites=lambda: owner._favorites_controller.persist_favorites(
@@ -360,7 +358,22 @@ class MainWindowSections:
             )
         )
         del_fav_btn = QPushButton("Delete")
-        del_fav_btn.clicked.connect(owner._delete_favorite)
+        del_fav_btn.clicked.connect(
+            lambda: setattr(
+                owner,
+                "_selected_row",
+                owner._favorites_workflow.delete_selected_favorite(
+                    selected_row=owner._selected_row,
+                    rows=owner._fav_rows,
+                    favorites=owner._favorites,
+                    scroll_layout=owner._fav_scroll_layout,
+                    persist_favorites=lambda: owner._favorites_controller.persist_favorites(
+                        owner._favorites,
+                        owner._favorites_repo.save,
+                    ),
+                ),
+            )
+        )
         for button in (save_fav_btn, del_fav_btn):
             btn_layout.addWidget(button)
         btn_row.setLayout(btn_layout)
