@@ -18,6 +18,9 @@ from PySide6.QtWidgets import (
 )
 
 from fractal_studio.backend import Color, CoreBackend
+from fractal_studio.params_panel_controller import ParamsPanelController
+from fractal_studio.state import ParamsState, ViewportState
+from fractal_studio.viewport_controller import ViewportController
 
 
 class FractalViewportWidget(QWidget):
@@ -47,6 +50,7 @@ class FractalViewportWidget(QWidget):
     def __init__(self, backend: CoreBackend, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._backend = backend
+        self._controller = ViewportController(backend)
         self._palette: list[Color] = []
         self._image: QImage | None = None
         self._formula = "standard"
@@ -80,15 +84,7 @@ class FractalViewportWidget(QWidget):
         return True
 
     def set_aspect_ratio_mode(self, mode: str) -> None:
-        if mode not in self._ASPECT_RATIOS:
-            mode = "square"
-        if mode == self._aspect_ratio_mode:
-            return
-
-        self._aspect_ratio_mode = mode
-        self.setMinimumSize(320, self.heightForWidth(320))
-        self.updateGeometry()
-        self.update()
+        self._controller.apply_aspect_ratio_mode(self, mode)
 
     def aspect_ratio_mode(self) -> str:
         return self._aspect_ratio_mode
@@ -103,117 +99,98 @@ class FractalViewportWidget(QWidget):
         return QSize(width, round(width * aspect_height / aspect_width))
 
     def set_palette(self, palette: list[Color]) -> None:
-        self._palette = list(palette)
-        self._rerender()
+        self._controller.set_palette(self, palette)
+
+    def palette(self) -> list[Color]:
+        return list(self._palette)
+
+    def to_state(self) -> ViewportState:
+        return ViewportState(
+            formula=self._formula,
+            center_x=self._center_x,
+            center_y=self._center_y,
+            scale=self._scale,
+            max_iterations=self._max_iterations,
+            is_julia=self._is_julia,
+            julia_real=self._julia_real,
+            julia_imag=self._julia_imag,
+            power=self._power,
+            phoenix_real=self._phoenix_real,
+            phoenix_imag=self._phoenix_imag,
+            coloring_mode=self._coloring_mode,
+            trap_x=self._trap_x,
+            trap_y=self._trap_y,
+            palette_offset=self._palette_offset,
+        )
+
+    def apply_state(self, state: ViewportState, *, rerender: bool = True, emit_scale: bool = False) -> None:
+        self._controller.apply_state(self, state, rerender=rerender)
+        if emit_scale:
+            self.scale_changed.emit(self._scale)
 
     def set_formula(self, formula: str) -> None:
-        self._formula = formula
-        if formula == "newton":
-            self._is_julia = False
-        cx, cy = self._FORMULA_CENTERS.get(formula, (-0.5, 0.0)) if not self._is_julia else (0.0, 0.0)
-        default_scale = self._NEWTON_SCALE if formula == "newton" else 3.0
-        self._center_x, self._center_y, self._scale = cx, cy, default_scale
-        self._rerender()
+        self._controller.set_formula(self, formula)
         self.scale_changed.emit(self._scale)
 
     def set_mode(self, is_julia: bool) -> None:
-        self._is_julia = is_julia
-        self._center_x = 0.0 if is_julia else self._FORMULA_CENTERS.get(self._formula, (-0.5, 0.0))[0]
-        self._center_y = 0.0 if is_julia else self._FORMULA_CENTERS.get(self._formula, (-0.5, 0.0))[1]
-        self._scale = 3.0
-        self._rerender()
+        self._controller.set_mode(self, is_julia)
         self.scale_changed.emit(self._scale)
 
     def set_power(self, power: int) -> None:
-        self._power = power
-        if self._formula in ("multibrot", "newton"):
-            self._rerender()
+        self._controller.set_power(self, power)
 
     def set_phoenix_constant(self, real: float, imag: float) -> None:
-        self._phoenix_real = real
-        self._phoenix_imag = imag
-        if self._formula == "phoenix":
-            self._rerender()
+        self._controller.set_phoenix_constant(self, real, imag)
 
     def set_scale(self, scale: float) -> None:
-        self._scale = max(1e-12, scale)
-        self._rerender()
+        self._controller.set_scale(self, scale)
 
     def set_julia_constant(self, real: float, imag: float) -> None:
-        self._julia_real = real
-        self._julia_imag = imag
-        if self._is_julia:
-            self._rerender()
+        self._controller.set_julia_constant(self, real, imag)
 
     def set_max_iterations(self, value: int) -> None:
-        self._max_iterations = value
-        self._rerender()
+        self._controller.set_max_iterations(self, value)
 
     def set_coloring_mode(self, mode: str) -> None:
-        self._coloring_mode = mode
-        self._rerender()
+        self._controller.set_coloring_mode(self, mode)
 
     def set_trap_point(self, x: float, y: float) -> None:
-        self._trap_x = x
-        self._trap_y = y
-        if self._coloring_mode == "orbit_trap_point":
-            self._rerender()
+        self._controller.set_trap_point(self, x, y)
 
     def set_palette_offset(self, offset: float) -> None:
-        self._palette_offset = offset % 1.0
-        self._rerender()
+        self._controller.set_palette_offset(self, offset)
 
     def set_cycle_active(self, active: bool) -> None:
-        self._cycle_active = active
-        if active:
-            self._cycle_timer.start()
-        else:
-            self._cycle_timer.stop()
+        self._controller.set_cycle_active(self, active)
 
     def set_cycle_speed(self, steps_per_second: float) -> None:
-        interval = max(16, int(1000.0 / max(steps_per_second, 0.1)))
-        self._cycle_timer.setInterval(interval)
+        self._controller.set_cycle_speed(self, steps_per_second)
 
     def _advance_cycle(self) -> None:
-        self._palette_offset = (self._palette_offset + 0.005) % 1.0
-        self._rerender()
+        self._controller.advance_cycle(self)
 
     def resizeEvent(self, event) -> None:  # type: ignore[override]
         super().resizeEvent(event)
-        self._rerender()
+        self._controller.handle_resize(self)
 
     def wheelEvent(self, event: QWheelEvent) -> None:
-        factor = 0.85 if event.angleDelta().y() > 0 else 1.0 / 0.85
-        self._scale = max(1e-12, self._scale * factor)
-        self._rerender()
+        self._controller.handle_wheel(self, event.angleDelta().y())
         self.scale_changed.emit(self._scale)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            self._pan_origin = (event.position().x(), event.position().y())
-            self._pan_center_start = (self._center_x, self._center_y)
+            self._controller.handle_mouse_press(self, event.position().x(), event.position().y())
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            self._pan_origin = None  # cancel any pan state the initial press started
-            aspect = self.width() / max(1, self.height())
-            self._center_x += (event.position().x() / self.width() - 0.5) * self._scale * aspect
-            self._center_y += (0.5 - event.position().y() / self.height()) * self._scale
-            self._rerender()
+            self._controller.handle_mouse_double_click(self, event.position().x(), event.position().y())
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        if self._pan_origin is None:
-            return
-        dx = event.position().x() - self._pan_origin[0]
-        dy = event.position().y() - self._pan_origin[1]
-        aspect = self.width() / max(1, self.height())
-        self._center_x = self._pan_center_start[0] - dx / self.width() * self._scale * aspect
-        self._center_y = self._pan_center_start[1] + dy / self.height() * self._scale
-        self._rerender()
+        self._controller.handle_mouse_move(self, event.position().x(), event.position().y())
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            self._pan_origin = None
+            self._controller.handle_mouse_release(self)
 
     def paintEvent(self, event: QPaintEvent) -> None:  # noqa: ARG002
         painter = QPainter(self)
@@ -227,43 +204,6 @@ class FractalViewportWidget(QWidget):
                 Qt.AlignmentFlag.AlignCenter,
                 "Build fractal_core to enable rendering.",
             )
-
-    def _rerender(self) -> None:
-        if not self._backend.available or not self._palette:
-            return
-        w = max(1, self.width())
-        h = max(1, self.height())
-        raw = self._backend.render_fractal(
-            self._formula, w, h,
-            is_julia=self._is_julia,
-            julia_real=self._julia_real,
-            julia_imag=self._julia_imag,
-            power=self._power,
-            phoenix_real=self._phoenix_real,
-            phoenix_imag=self._phoenix_imag,
-            center_x=self._center_x,
-            center_y=self._center_y,
-            scale=self._scale,
-            max_iterations=self._max_iterations,
-            palette=self._palette,
-            coloring_mode=self._coloring_mode,
-            trap_x=self._trap_x,
-            trap_y=self._trap_y,
-            palette_offset=self._palette_offset,
-        )
-        img = QImage(raw, w, h, w * 4, QImage.Format.Format_RGBA8888)
-        self._image = img.copy()
-        self.update()
-        label = self._formula.replace("_", " ").title()
-        mode = "Julia" if self._is_julia else "Mandelbrot"
-        extra = f" (n={self._power})" if self._formula == "multibrot" else ""
-        self.status_changed.emit(
-            f"{label}{extra} · {mode} | "
-            f"center ({self._center_x:.4f}, {self._center_y:.4f}) | "
-            f"scale {self._scale:.4g} | "
-            f"{self._max_iterations} iters"
-        )
-
 
 class FractalParamsPanel(QGroupBox):
     formula_changed = Signal(str)
@@ -292,6 +232,7 @@ class FractalParamsPanel(QGroupBox):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Fractal Parameters")
+        self._controller = ParamsPanelController()
 
         self._formula_combo = QComboBox()
         for label, _ in self._FORMULAS:
@@ -433,43 +374,95 @@ class FractalParamsPanel(QGroupBox):
         self._zoom_spin.setValue(round(max(0.0, min(14.0, depth)), 2))
         self._zoom_spin.blockSignals(False)
 
+    def to_state(self) -> ParamsState:
+        formula = self._FORMULAS[self._formula_combo.currentIndex()][1]
+        coloring_mode = self._coloring_combo.currentData()
+        return ParamsState(
+            formula=formula,
+            is_julia=self._mode_combo.currentIndex() == 1,
+            power=self._power_spin.value(),
+            phoenix_real=self._phoenix_real_spin.value(),
+            phoenix_imag=self._phoenix_imag_spin.value(),
+            julia_real=self._julia_real_spin.value(),
+            julia_imag=self._julia_imag_spin.value(),
+            max_iterations=self._iterations_spin.value(),
+            scale=self._DEFAULT_SCALE / (10.0 ** self._zoom_spin.value()),
+            coloring_mode=str(coloring_mode) if coloring_mode is not None else "smooth_escape",
+            trap_x=self._trap_x_spin.value(),
+            trap_y=self._trap_y_spin.value(),
+            cycle_active=self._cycle_button.isChecked(),
+            cycle_speed=self._cycle_speed_spin.value(),
+        )
+
+    def apply_state(self, state: ParamsState | ViewportState) -> None:
+        params_state = (
+            state
+            if isinstance(state, ParamsState)
+            else ParamsState.from_viewport_state(
+                state,
+                cycle_active=self._cycle_button.isChecked(),
+                cycle_speed=self._cycle_speed_spin.value(),
+            )
+        )
+
+        widgets = [
+            self._formula_combo,
+            self._mode_combo,
+            self._power_spin,
+            self._phoenix_real_spin,
+            self._phoenix_imag_spin,
+            self._julia_real_spin,
+            self._julia_imag_spin,
+            self._iterations_spin,
+            self._coloring_combo,
+            self._trap_x_spin,
+            self._trap_y_spin,
+            self._cycle_button,
+            self._cycle_speed_spin,
+        ]
+        for widget in widgets:
+            widget.blockSignals(True)
+
+        try:
+            formula_index = 0
+            for idx, (_, key) in enumerate(self._FORMULAS):
+                if key == params_state.formula:
+                    formula_index = idx
+                    break
+
+            self._formula_combo.setCurrentIndex(formula_index)
+            self._set_power_visible(params_state.formula in ("multibrot", "newton"))
+            self._power_label.setText("Degree (n):" if params_state.formula == "newton" else "Power (n):")
+            self._set_phoenix_visible(params_state.formula == "phoenix")
+            self._set_mode_visible(params_state.formula != "newton")
+
+            self._mode_combo.setCurrentIndex(1 if params_state.is_julia else 0)
+            self._set_julia_visible(params_state.is_julia)
+            self._power_spin.setValue(params_state.power)
+            self._phoenix_real_spin.setValue(params_state.phoenix_real)
+            self._phoenix_imag_spin.setValue(params_state.phoenix_imag)
+            self._julia_real_spin.setValue(params_state.julia_real)
+            self._julia_imag_spin.setValue(params_state.julia_imag)
+            self._iterations_spin.setValue(params_state.max_iterations)
+
+            color_index = self._coloring_combo.findData(params_state.coloring_mode)
+            self._coloring_combo.setCurrentIndex(max(0, color_index))
+            self._set_trap_point_visible(params_state.coloring_mode == "orbit_trap_point")
+            self._trap_x_spin.setValue(params_state.trap_x)
+            self._trap_y_spin.setValue(params_state.trap_y)
+
+            self._cycle_button.setChecked(params_state.cycle_active)
+            self._cycle_speed_spin.setValue(params_state.cycle_speed)
+            self.set_scale(params_state.scale)
+        finally:
+            for widget in widgets:
+                widget.blockSignals(False)
+
     def reset(self) -> None:
-        for combo, handler in (
-            (self._formula_combo, lambda: self._on_formula_changed(0)),
-            (self._mode_combo,    lambda: self._on_mode_changed("Mandelbrot")),
-            (self._coloring_combo,lambda: self._on_coloring_changed(0)),
-        ):
-            combo.blockSignals(True)
-            combo.setCurrentIndex(0)
-            combo.blockSignals(False)
-
-        self._power_spin.setValue(3)
-        self._phoenix_real_spin.setValue(0.5)
-        self._phoenix_imag_spin.setValue(0.0)
-        self._julia_real_spin.setValue(-0.8)
-        self._julia_imag_spin.setValue(0.156)
-        self._iterations_spin.setValue(256)
-        self._trap_x_spin.setValue(0.0)
-        self._trap_y_spin.setValue(0.0)
-        if self._cycle_button.isChecked():
-            self._cycle_button.setChecked(False)
-
-        # Call handlers explicitly so they always fire regardless of prior state.
-        # formula handler resets center + scale in the viewport.
-        self._on_formula_changed(0)
-        self._on_mode_changed("Mandelbrot")
-        self._on_coloring_changed(0)
+        self._controller.reset(self)
 
     def _on_formula_changed(self, index: int) -> None:
-        formula = self._FORMULAS[index][1]
-        is_newton = formula == "newton"
-        self._set_power_visible(formula in ("multibrot", "newton"))
-        self._power_label.setText("Degree (n):" if is_newton else "Power (n):")
-        self._set_phoenix_visible(formula == "phoenix")
-        self._set_mode_visible(not is_newton)
-        if is_newton:
-            self._mode_combo.setCurrentIndex(0)
-        self.formula_changed.emit(formula)
+        self._controller.handle_formula_changed(self, index)
 
     def _on_phoenix_changed(self) -> None:
         self.phoenix_changed.emit(
@@ -478,9 +471,7 @@ class FractalParamsPanel(QGroupBox):
         )
 
     def _on_mode_changed(self, text: str) -> None:
-        is_julia = text == "Julia"
-        self._set_julia_visible(is_julia)
-        self.mode_changed.emit(is_julia)
+        self._controller.handle_mode_changed(self, text)
 
     def _on_julia_changed(self) -> None:
         self.julia_constant_changed.emit(
@@ -489,7 +480,7 @@ class FractalParamsPanel(QGroupBox):
         )
 
     def _on_zoom_changed(self, depth: float) -> None:
-        self.zoom_changed.emit(self._DEFAULT_SCALE / (10.0 ** depth))
+        self.zoom_changed.emit(self._controller.zoom_scale(self._DEFAULT_SCALE, depth))
 
     def _set_power_visible(self, visible: bool) -> None:
         self._power_label.setVisible(visible)
@@ -512,9 +503,7 @@ class FractalParamsPanel(QGroupBox):
         self._julia_imag_spin.setVisible(visible)
 
     def _on_coloring_changed(self, index: int) -> None:
-        mode = self._coloring_combo.itemData(index)
-        self._set_trap_point_visible(mode == "orbit_trap_point")
-        self.coloring_mode_changed.emit(mode)
+        self._controller.handle_coloring_changed(self, index)
 
     def _on_trap_changed(self) -> None:
         self.trap_point_changed.emit(self._trap_x_spin.value(), self._trap_y_spin.value())

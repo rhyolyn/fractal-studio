@@ -124,6 +124,16 @@ def build_palette(theme: ThemeSpec) -> QPalette:
 
 
 def build_stylesheet(theme: ThemeSpec) -> str:
+    sections = (
+        _base_surface_styles(theme),
+        _control_styles(theme),
+        _viewport_styles(theme),
+        _settings_dialog_styles(theme),
+    )
+    return "\n".join(sections)
+
+
+def _base_surface_styles(theme: ThemeSpec) -> str:
     return f"""
         QMainWindow, QDialog {{
             background: {theme.window_bg};
@@ -145,6 +155,11 @@ def build_stylesheet(theme: ThemeSpec) -> str:
             padding: 0 4px;
             color: {theme.text};
         }}
+    """
+
+
+def _control_styles(theme: ThemeSpec) -> str:
+    return f"""
         QPushButton, QToolButton, QComboBox, QSpinBox, QDoubleSpinBox {{
             background: {theme.surface_bg};
             color: {theme.text};
@@ -167,17 +182,6 @@ def build_stylesheet(theme: ThemeSpec) -> str:
             border: 1px solid {theme.border};
             border-radius: 10px;
         }}
-        QLabel#hoverPanel {{
-            background: {theme.hover_panel_bg};
-            color: {theme.text};
-            border: 1px solid {theme.hover_panel_border};
-            border-radius: 6px;
-            padding: 8px 10px;
-        }}
-        QLabel#viewportHint {{
-            color: {theme.hint_text};
-            font-size: 10px;
-        }}
         QToolButton#settingsButton {{
             min-width: 34px;
             max-width: 34px;
@@ -193,6 +197,27 @@ def build_stylesheet(theme: ThemeSpec) -> str:
         QDialogButtonBox QPushButton {{
             min-width: 84px;
         }}
+    """
+
+
+def _viewport_styles(theme: ThemeSpec) -> str:
+    return f"""
+        QLabel#hoverPanel {{
+            background: {theme.hover_panel_bg};
+            color: {theme.text};
+            border: 1px solid {theme.hover_panel_border};
+            border-radius: 6px;
+            padding: 8px 10px;
+        }}
+        QLabel#viewportHint {{
+            color: {theme.hint_text};
+            font-size: 10px;
+        }}
+    """
+
+
+def _settings_dialog_styles(theme: ThemeSpec) -> str:
+    return f"""
         QDialog#settingsDialog {{
             background: {theme.window_bg};
         }}
@@ -264,6 +289,7 @@ def build_stylesheet(theme: ThemeSpec) -> str:
 
 def apply_theme(app: QApplication, theme_name: str) -> ThemeSpec:
     theme = get_theme(theme_name)
-    app.setPalette(build_palette(theme))
-    app.setStyleSheet(build_stylesheet(theme))
+    if app is not None:
+        app.setPalette(build_palette(theme))
+        app.setStyleSheet(build_stylesheet(theme))
     return theme
