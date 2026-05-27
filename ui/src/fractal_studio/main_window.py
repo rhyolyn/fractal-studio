@@ -460,16 +460,4 @@ class MainWindow(QMainWindow):
         )
         self._favorites_panel.append_row(row, self._fav_rows, self._fav_scroll_layout)
 
-    def _delete_favorite(self) -> None:
-        self._selected_row = self._favorites_workflow.delete_selected_favorite(
-            selected_row=self._selected_row,
-            rows=self._fav_rows,
-            favorites=self._favorites,
-            scroll_layout=self._fav_scroll_layout,
-            persist_favorites=lambda: self._favorites_controller.persist_favorites(
-                self._favorites,
-                self._favorites_repo.save,
-            ),
-        )
-
 

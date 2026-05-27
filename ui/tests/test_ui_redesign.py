@@ -1833,6 +1833,8 @@ class TestFavoritePersistence(QtWindowTestCase):
         from PySide6.QtCore import QPoint, Qt
         from PySide6.QtTest import QTest
 
+        window.show()
+        _get_app().processEvents()
         rows = window.findChildren(FavoriteThumbnailRow)
         self.assertGreater(len(rows), 0)
         row = rows[index]
@@ -1840,13 +1842,24 @@ class TestFavoritePersistence(QtWindowTestCase):
         QTest.mouseDClick(row, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, QPoint(10, 10))
 
     def _save_favorite_via_ui(self, window) -> None:
-        from PySide6.QtCore import Qt
-        from PySide6.QtTest import QTest
         from PySide6.QtWidgets import QPushButton
 
+        window.show()
+        _get_app().processEvents()
         save_buttons = [button for button in window.findChildren(QPushButton) if button.text() == "Save"]
         self.assertEqual(len(save_buttons), 1)
-        QTest.mouseClick(save_buttons[0], Qt.MouseButton.LeftButton)
+        save_buttons[0].click()
+        _get_app().processEvents()
+
+    def _delete_favorite_via_ui(self, window) -> None:
+        from PySide6.QtWidgets import QPushButton
+
+        window.show()
+        _get_app().processEvents()
+        delete_buttons = [button for button in window.findChildren(QPushButton) if button.text() == "Delete"]
+        self.assertEqual(len(delete_buttons), 1)
+        delete_buttons[0].click()
+        _get_app().processEvents()
 
     def _find_aspect_combo(self, window) -> QComboBox:
         for combo in window.findChildren(QComboBox):
@@ -2006,6 +2019,39 @@ class TestFavoritePersistence(QtWindowTestCase):
 
         loaded = FavoritesRepository(self._mwmod._FAVORITES_PATH).load()
         self.assertEqual(len(loaded), 0)
+
+    def test_delete_button_removes_selected_favorite_and_persists(self) -> None:
+        from fractal_studio.main_window import FavoriteThumbnailRow
+
+        w = self.make_window()
+
+        self._save_favorite_via_ui(w)
+        self._save_favorite_via_ui(w)
+        rows = w.findChildren(FavoriteThumbnailRow)
+        self.assertEqual(len(rows), 2)
+        w._selected_row = rows[-1]
+        self._delete_favorite_via_ui(w)
+
+        self.assertEqual(len(w._fav_rows), 1)
+        self.assertIsNone(w._selected_row)
+        raw = json.loads(self._mwmod._FAVORITES_PATH.read_text())
+        self.assertEqual(raw.get("version"), 1)
+        self.assertEqual(len(raw.get("favorites", [])), 1)
+
+    def test_delete_button_without_selection_keeps_favorites_unchanged(self) -> None:
+        from fractal_studio.main_window import FavoriteThumbnailRow
+
+        w = self.make_window()
+
+        self._save_favorite_via_ui(w)
+        self.assertEqual(len(w.findChildren(FavoriteThumbnailRow)), 1)
+        before = json.loads(self._mwmod._FAVORITES_PATH.read_text())
+
+        self._delete_favorite_via_ui(w)
+
+        self.assertEqual(len(w.findChildren(FavoriteThumbnailRow)), 1)
+        after = json.loads(self._mwmod._FAVORITES_PATH.read_text())
+        self.assertEqual(after, before)
 
 
 class TestFavoritesController(unittest.TestCase):
