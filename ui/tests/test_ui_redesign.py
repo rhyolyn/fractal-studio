@@ -2173,5 +2173,162 @@ class TestFavoritesPanelCoordinator(unittest.TestCase):
         self.assertTrue(row_b.deleted)
 
 
+class TestFavoritesWorkflowCoordinator(unittest.TestCase):
+    def test_save_favorite_returns_early_without_viewport(self) -> None:
+        from fractal_studio.favorites_workflow_coordinator import FavoritesWorkflowCoordinator
+
+        class ControllerStub:
+            def __init__(self) -> None:
+                self.called = False
+
+            def save_favorite(self, **kwargs):
+                self.called = True
+
+            def build_favorite_name(self, state, existing_names, now):
+                return "unused"
+
+        class PanelStub:
+            def delete_selected(self, **kwargs):
+                return kwargs["selected_row"]
+
+        controller = ControllerStub()
+        coordinator = FavoritesWorkflowCoordinator(controller, PanelStub())
+
+        coordinator.save_favorite(
+            viewport=None,
+            editor=None,
+            aspect_ratio_mode="square",
+            favorites=[],
+            build_name=lambda state: "name",
+            capture_thumbnail=lambda: "thumb",
+            add_favorite=lambda fav: None,
+            add_row=lambda fav: None,
+            persist_favorites=lambda: None,
+            show_status=lambda msg: None,
+        )
+
+        self.assertFalse(controller.called)
+
+    def test_load_selected_favorite_calls_load_row_only_when_ready(self) -> None:
+        from fractal_studio.favorites_workflow_coordinator import FavoritesWorkflowCoordinator
+
+        class ControllerStub:
+            def save_favorite(self, **kwargs):
+                return None
+
+            def build_favorite_name(self, state, existing_names, now):
+                return "unused"
+
+        class PanelStub:
+            def delete_selected(self, **kwargs):
+                return kwargs["selected_row"]
+
+        coordinator = FavoritesWorkflowCoordinator(ControllerStub(), PanelStub())
+        calls: list[object] = []
+
+        coordinator.load_selected_favorite(
+            viewport=object(),
+            params_panel=object(),
+            selected_row="row-1",
+            load_row=calls.append,
+        )
+        coordinator.load_selected_favorite(
+            viewport=None,
+            params_panel=object(),
+            selected_row="row-2",
+            load_row=calls.append,
+        )
+        coordinator.load_selected_favorite(
+            viewport=object(),
+            params_panel=None,
+            selected_row="row-3",
+            load_row=calls.append,
+        )
+        coordinator.load_selected_favorite(
+            viewport=object(),
+            params_panel=object(),
+            selected_row=None,
+            load_row=calls.append,
+        )
+
+        self.assertEqual(calls, ["row-1"])
+
+    def test_delete_selected_favorite_persists_when_selection_cleared(self) -> None:
+        from fractal_studio.favorites_workflow_coordinator import FavoritesWorkflowCoordinator
+
+        class ControllerStub:
+            def save_favorite(self, **kwargs):
+                return None
+
+            def build_favorite_name(self, state, existing_names, now):
+                return "unused"
+
+        class PanelStub:
+            def delete_selected(self, **kwargs):
+                return None
+
+        coordinator = FavoritesWorkflowCoordinator(ControllerStub(), PanelStub())
+        persisted: list[str] = []
+
+        selected = coordinator.delete_selected_favorite(
+            selected_row=object(),
+            rows=[object()],
+            favorites=[{"id": "a"}],
+            scroll_layout=object(),
+            persist_favorites=lambda: persisted.append("saved"),
+        )
+
+        self.assertIsNone(selected)
+        self.assertEqual(persisted, ["saved"])
+
+    def test_build_favorite_name_delegates_with_existing_names(self) -> None:
+        from fractal_studio.favorites_workflow_coordinator import FavoritesWorkflowCoordinator
+        from fractal_studio.state import ViewportState
+
+        class ControllerStub:
+            def __init__(self) -> None:
+                self.existing_names: set[str] | None = None
+
+            def save_favorite(self, **kwargs):
+                return None
+
+            def build_favorite_name(self, state, existing_names, now):
+                self.existing_names = existing_names
+                return "resolved-name"
+
+        class PanelStub:
+            def delete_selected(self, **kwargs):
+                return kwargs["selected_row"]
+
+        controller = ControllerStub()
+        coordinator = FavoritesWorkflowCoordinator(controller, PanelStub())
+        state = ViewportState(
+            formula="Mandelbrot",
+            center_x=-0.75,
+            center_y=0.1,
+            scale=0.003,
+            max_iterations=256,
+            is_julia=False,
+            julia_real=0.0,
+            julia_imag=0.0,
+            power=2,
+            phoenix_real=0.0,
+            phoenix_imag=0.0,
+            coloring_mode="smooth",
+            trap_x=0.0,
+            trap_y=0.0,
+            palette_offset=0.0,
+        )
+
+        name = coordinator.build_favorite_name(
+            state=state,
+            favorites=[{"name": "A"}, {"name": "B"}, {}],
+            now=lambda: None,
+        )
+
+        self.assertEqual(name, "resolved-name")
+        self.assertEqual(controller.existing_names, {"A", "B", ""})
+
+
 if __name__ == "__main__":
     unittest.main()

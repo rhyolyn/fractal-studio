@@ -41,6 +41,7 @@ from fractal_studio.favorite_hover_presenter import FavoriteHoverPresenter
 from fractal_studio.favorite_row_style_presenter import FavoriteRowStylePresenter
 from fractal_studio.favorites_controller import FavoritesController
 from fractal_studio.favorites_panel_coordinator import FavoritesPanelCoordinator
+from fractal_studio.favorites_workflow_coordinator import FavoritesWorkflowCoordinator
 from fractal_studio.main_window_controller import MainWindowController
 from fractal_studio.main_window_sections import MainWindowSections
 from fractal_studio.palette_panel_coordinator import PalettePanelCoordinator
@@ -307,6 +308,10 @@ class MainWindow(QMainWindow):
         self._startup = WindowStartupCoordinator(self._settings_repo, self._settings_service)
         self._favorites_controller = FavoritesController()
         self._favorites_panel = FavoritesPanelCoordinator(FavoriteHoverPresenter())
+        self._favorites_workflow = FavoritesWorkflowCoordinator(
+            self._favorites_controller,
+            self._favorites_panel,
+        )
         self._sections = MainWindowSections(self)
         self._theme_controller = ThemeController()
         self.backend = load_backend()
@@ -465,9 +470,7 @@ class MainWindow(QMainWindow):
         self._selected_row = self._favorites_panel.select_row(self._selected_row, row)
 
     def _save_favorite(self) -> None:
-        if self.viewport is None:
-            return
-        self._favorites_controller.save_favorite(
+        self._favorites_workflow.save_favorite(
             viewport=self.viewport,
             editor=self.editor,
             aspect_ratio_mode=self._aspect_ratio_mode,
@@ -476,18 +479,27 @@ class MainWindow(QMainWindow):
             capture_thumbnail=lambda: encode_pixmap(self.viewport.grab()),
             add_favorite=self._favorites.append,
             add_row=self._add_favorite_row,
-            persist=lambda: self._favorites_controller.persist_favorites(self._favorites, self._favorites_repo.save),
+            persist_favorites=lambda: self._favorites_controller.persist_favorites(
+                self._favorites,
+                self._favorites_repo.save,
+            ),
             show_status=self.statusBar().showMessage,
         )
 
     def _build_favorite_name(self, state: ViewportState) -> str:
-        existing_names = {fav.get("name", "") for fav in self._favorites}
-        return self._favorites_controller.build_favorite_name(state, existing_names, datetime.datetime.now)
+        return self._favorites_workflow.build_favorite_name(
+            state=state,
+            favorites=self._favorites,
+            now=datetime.datetime.now,
+        )
 
     def _load_favorite(self) -> None:
-        if self.viewport is None or self.params_panel is None or self._selected_row is None:
-            return
-        self._load_favorite_row(self._selected_row)
+        self._favorites_workflow.load_selected_favorite(
+            viewport=self.viewport,
+            params_panel=self.params_panel,
+            selected_row=self._selected_row,
+            load_row=self._load_favorite_row,
+        )
 
     def _load_favorite_row(self, row: FavoriteThumbnailRow) -> None:
         self._favorites_controller.load_favorite_row(
@@ -504,15 +516,16 @@ class MainWindow(QMainWindow):
         )
 
     def _delete_favorite(self) -> None:
-        self._selected_row = self._favorites_panel.delete_selected(
+        self._selected_row = self._favorites_workflow.delete_selected_favorite(
             selected_row=self._selected_row,
             rows=self._fav_rows,
             favorites=self._favorites,
             scroll_layout=self._fav_scroll_layout,
+            persist_favorites=lambda: self._favorites_controller.persist_favorites(
+                self._favorites,
+                self._favorites_repo.save,
+            ),
         )
-        if self._selected_row is not None:
-            return
-        self._favorites_controller.persist_favorites(self._favorites, self._favorites_repo.save)
 
     def _update_control_summary(self, control_points: list[tuple[int, int, int]]) -> None:
         if self.point_summary is None:
