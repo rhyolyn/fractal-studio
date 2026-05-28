@@ -17,8 +17,8 @@ from fractal_studio.viewport import FractalParamsPanel, FractalViewportWidget
 
 if TYPE_CHECKING:
     from fractal_studio.backend import CoreBackend
-    from fractal_studio.application.controllers.main_window_controller import (
-        MainWindowController,
+    from fractal_studio.application.controllers.export_controller import (
+        ExportController,
     )
     from fractal_studio.main_window import MainWindow
     from fractal_studio.main_window_factory import MainWindowContext
@@ -78,7 +78,7 @@ class MainWindowSectionsState:
     palette_panel: PalettePanelCoordinator | None = None
     palette_preview: PalettePreviewCoordinator | None = None
     sidebar_wiring: SidebarWiringCoordinator | None = None
-    controller: MainWindowController | None = None
+    controller: ExportController | None = None
     export_panel: ExportPanelCoordinator | None = None
     settings_dialog: SettingsDialogCoordinator | None = None
     theme_workflow: ThemeWorkflowCoordinator | None = None

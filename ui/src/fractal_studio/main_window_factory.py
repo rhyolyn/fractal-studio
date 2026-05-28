@@ -22,8 +22,11 @@ from fractal_studio.application.controllers.favorites_controller import (
 from fractal_studio.application.coordinators.favorites_panel_coordinator import (
     FavoritesPanelCoordinator,
 )
-from fractal_studio.application.controllers.main_window_controller import (
-    MainWindowController,
+from fractal_studio.application.controllers.export_controller import (
+    ExportController,
+)
+from fractal_studio.application.controllers.settings_controller import (
+    SettingsController,
 )
 from fractal_studio.ui.sections.sections import MainWindowSections
 from fractal_studio.ui.sections.mediator import (
@@ -73,7 +76,8 @@ class MainWindowContext:
     palette_panel: PalettePanelCoordinator
     palette_preview: PalettePreviewCoordinator
     sidebar_wiring: SidebarWiringCoordinator
-    controller: MainWindowController
+    controller: ExportController
+    settings_controller: SettingsController
     export_panel: ExportPanelCoordinator
     settings_dialog: SettingsDialogCoordinator
     theme_workflow: ThemeWorkflowCoordinator
@@ -101,9 +105,10 @@ def build_main_window_context(window: MainWindow) -> MainWindowContext:
     palette_panel = PalettePanelCoordinator(palette_service)
     palette_preview = PalettePreviewCoordinator(favorites_controller)
     sidebar_wiring = SidebarWiringCoordinator()
-    controller = MainWindowController(export_service, favorites_controller)
+    controller = ExportController(export_service, favorites_controller)
+    settings_controller = SettingsController()
     export_panel = ExportPanelCoordinator(controller)
-    settings_dialog = SettingsDialogCoordinator(controller, settings_service)
+    settings_dialog = SettingsDialogCoordinator(settings_controller, settings_service)
     theme_workflow = ThemeWorkflowCoordinator(
         settings_dialog,
         theme_controller,
@@ -127,6 +132,7 @@ def build_main_window_context(window: MainWindow) -> MainWindowContext:
         palette_preview=palette_preview,
         sidebar_wiring=sidebar_wiring,
         controller=controller,
+        settings_controller=settings_controller,
         export_panel=export_panel,
         settings_dialog=settings_dialog,
         theme_workflow=theme_workflow,

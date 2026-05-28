@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from fractal_studio.application.controllers.main_window_controller import (
-    MainWindowController,
+from fractal_studio.application.controllers.settings_controller import (
+    SettingsController,
     SettingsDialogFactory,
 )
 from fractal_studio.services.settings_service import SettingsWorkflowService
@@ -18,7 +18,7 @@ class SettingsDialogCoordinator:
 
     def __init__(
         self,
-        controller: MainWindowController,
+        controller: SettingsController,
         settings_service: SettingsWorkflowService,
     ) -> None:
         self._controller = controller

@@ -4,16 +4,14 @@ from collections.abc import Callable
 
 from PySide6.QtWidgets import QComboBox, QSpinBox
 
-from fractal_studio.application.controllers.main_window_controller import (
-    MainWindowController,
-)
+from fractal_studio.application.controllers.export_controller import ExportController
 from fractal_studio.viewport import FractalViewportWidget
 
 
 class ExportPanelCoordinator:
     """Coordinator for the export panel. Owns aspect ratio changes, preset selection, and export execution."""
 
-    def __init__(self, controller: MainWindowController) -> None:
+    def __init__(self, controller: ExportController) -> None:
         self._controller = controller
 
     def refresh_export_presets(

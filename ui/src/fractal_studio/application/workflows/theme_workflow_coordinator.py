@@ -4,7 +4,7 @@ from collections.abc import Callable
 
 from PySide6.QtWidgets import QApplication, QWidget
 
-from fractal_studio.application.controllers.main_window_controller import (
+from fractal_studio.application.controllers.settings_controller import (
     SettingsDialogFactory,
 )
 from fractal_studio.persistence import SettingsRepository

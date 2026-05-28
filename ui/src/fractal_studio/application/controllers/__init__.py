@@ -7,18 +7,20 @@ Rules:
 - May reference repositories, services, and other controllers.
 - One controller per domain concept.
 """
+from fractal_studio.application.controllers.export_controller import ExportController
 from fractal_studio.application.controllers.favorites_controller import (
     FavoritesController,
 )
-from fractal_studio.application.controllers.main_window_controller import (
-    MainWindowController,
+from fractal_studio.application.controllers.settings_controller import (
+    SettingsController,
     SettingsDialogFactory,
 )
 from fractal_studio.application.controllers.theme_controller import ThemeController
 
 __all__ = [
+    "ExportController",
     "FavoritesController",
-    "MainWindowController",
+    "SettingsController",
     "SettingsDialogFactory",
     "ThemeController",
 ]

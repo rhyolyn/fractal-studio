@@ -31,8 +31,8 @@ if TYPE_CHECKING:
         FavoritesPanelCoordinator,
     )
     from fractal_studio.main_window import MainWindow
-    from fractal_studio.application.controllers.main_window_controller import (
-        MainWindowController,
+    from fractal_studio.application.controllers.export_controller import (
+        ExportController,
     )
     from fractal_studio.ui.sections.state import (
         MainWindowSectionsState,
@@ -53,7 +53,7 @@ if TYPE_CHECKING:
 class MainWindowViewportState:
     def __init__(self, sections_state: MainWindowSectionsState) -> None:
         self._sections_state = sections_state
-        self._controller: MainWindowController | None = None
+        self._controller: ExportController | None = None
         self._export_panel: ExportPanelCoordinator | None = None
         self._refresh_export_presets: Callable[[], None] | None = None
         self.viewport: FractalViewportWidget | None = None
@@ -64,7 +64,7 @@ class MainWindowViewportState:
     def bind_collaborators(
         self,
         *,
-        controller: MainWindowController | None,
+        controller: ExportController | None,
         export_panel: ExportPanelCoordinator | None,
         refresh_export_presets: Callable[[], None],
     ) -> None:
@@ -453,7 +453,7 @@ class MainWindowExportState:
     def __init__(self, sections_state: MainWindowSectionsState) -> None:
         self._sections_state = sections_state
         self._export_panel: ExportPanelCoordinator | None = None
-        self._controller: MainWindowController | None = None
+        self._controller: ExportController | None = None
         self._owner: MainWindow | None = None
         self._viewport_getter: Callable[[], FractalViewportWidget | None] | None = None
         self._aspect_ratio_mode_getter: Callable[[], str] | None = None
@@ -468,7 +468,7 @@ class MainWindowExportState:
         self,
         *,
         export_panel: ExportPanelCoordinator | None,
-        controller: MainWindowController | None,
+        controller: ExportController | None,
         owner: MainWindow | None,
         viewport_getter: Callable[[], FractalViewportWidget | None],
         aspect_ratio_mode_getter: Callable[[], str],
