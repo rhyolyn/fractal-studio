@@ -53,13 +53,13 @@ Eight targeted improvements to the fractal-studio Python UI, sequenced so that e
 
 ---
 
-## Step 3 — Consolidate Adapter Files
+## Step 3 — Move Adapters Into a Dedicated Subdirectory
 
-**Problem:** Seven `*_adapter.py` files in `ui/sections/` each contain 15–30 lines of delegation. The per-file split adds navigational overhead without clarity benefit.
+**Problem:** Seven `*_adapter.py` files and the existing `adapters.py` base live directly in `ui/sections/` alongside unrelated files (`ports.py`, `mediator.py`, `panel_state.py`, `state.py`, `sections.py`). The adapters are not visually grouped; finding them requires scanning the whole directory.
 
 **Change:**
-- Move all adapter class definitions into the existing `ui/sections/adapters.py`.
-- Delete the 7 individual adapter files:
+- Create `ui/sections/adapters/` directory with an `__init__.py`.
+- Move all 7 individual adapter files into the new directory:
   - `viewport_adapter.py`
   - `palette_adapter.py`
   - `colormap_adapter.py`
@@ -67,15 +67,17 @@ Eight targeted improvements to the fractal-studio Python UI, sequenced so that e
   - `export_adapter.py`
   - `favorites_adapter.py`
   - `sidebar_adapter.py`
-- Update `mediator.py` imports.
+- Move `adapters.py` (base classes and `_BasePortsAdapter`, `_FavoriteActionsMixin`) into `ui/sections/adapters/base.py`.
+- Export all adapter classes from `ui/sections/adapters/__init__.py` so `mediator.py` imports remain `from fractal_studio.ui.sections.adapters import ViewportPanelPortsAdapter, ...`.
 - No logic changes to any adapter class.
 
 **Success criteria:**
-- `adapters.py` contains all 7 adapter classes.
-- `mediator.py` imports from `adapters` only.
+- `ui/sections/adapters/` contains `__init__.py`, `base.py`, and 7 adapter files.
+- `ui/sections/` no longer contains any `*_adapter.py` files or a bare `adapters.py`.
+- `mediator.py` imports resolve unchanged (via `__init__.py` re-exports).
 - All imports resolve; unit tests pass.
 
-**Files touched:** `ui/sections/adapters.py` (expanded), `ui/sections/mediator.py` (import update), 7 deleted files.
+**Files touched:** `ui/sections/adapters/` (new directory), `ui/sections/mediator.py` (import path update if needed), `ui/sections/adapters.py` (deleted, replaced by `adapters/base.py`), 7 moved files.
 
 ---
 
@@ -246,7 +248,7 @@ class MainWindowFavoritesState:
 |------|------|------|------------|
 | 1 | Fix test infrastructure | Immediate | — |
 | 2 | Add `validate()` | Immediate | Step 1 (green baseline) |
-| 3 | Consolidate adapter files | Immediate | Step 1 |
+| 3 | Move adapters into `ui/sections/adapters/` | Immediate | Step 1 |
 | 4 | Delete thin coordinators | Immediate | Steps 1–2 |
 | 5 | Document layer contracts | Medium | Step 4 (docs reflect clean reality) |
 | 6 | Split `MainWindowController` | Medium | Steps 2, 5 |
