@@ -19,7 +19,7 @@ where = ["src"]
 "tests/*.py" = ["E402"]
 
 [tool.pytest.ini_options]
-addopts = "-m unit"
+addopts = "-m unit --strict-markers"
 markers = [
     "unit: pure-Python tests, no Qt or PySide6 required",
     "integration: tests requiring PySide6 / Qt",
