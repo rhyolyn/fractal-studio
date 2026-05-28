@@ -4,10 +4,13 @@ import sys
 import unittest
 from pathlib import Path
 
+import pytest
+
 SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SOURCE_ROOT))
 
 
+@pytest.mark.integration
 class TestMainWindowSectionPanelStates(unittest.TestCase):
     def _favorite_snapshot(self):
         from fractal_studio.state import FavoriteSnapshot, ViewportState

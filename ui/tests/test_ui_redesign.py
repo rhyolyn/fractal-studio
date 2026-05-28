@@ -8,6 +8,8 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
+import pytest
+
 SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SOURCE_ROOT))
 
@@ -97,6 +99,7 @@ class DummyPaletteBackend:
         self.exported.append((path, list(palette)))
 
 
+@pytest.mark.integration
 class TestCustomResolutionDialog(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -133,6 +136,7 @@ class TestCustomResolutionDialog(unittest.TestCase):
         self.assertEqual(dlg.values(), (16384, 16384))
 
 
+@pytest.mark.integration
 class TestExportPanel(QtWindowTestCase):
     def _find_export_combo(self, window) -> QComboBox:
         for combo in window.findChildren(QComboBox):
@@ -234,6 +238,7 @@ class TestExportPanel(QtWindowTestCase):
             _ = w._sections_state.export_combo
 
 
+@pytest.mark.integration
 class TestViewportRenderScheduling(QtWindowTestCase):
     def test_mouse_move_coalesces_render_requests(self) -> None:
         from PySide6.QtCore import QEvent, QPointF, Qt
@@ -376,6 +381,7 @@ class TestViewportRenderScheduling(QtWindowTestCase):
         self.assertEqual(stub.render_calls, 0)
 
 
+@pytest.mark.integration
 class TestMainWindowController(unittest.TestCase):
     def test_on_export_clicked_uses_custom_dimensions(self) -> None:
         from fractal_studio.application.controllers.favorites_controller import (
@@ -437,6 +443,7 @@ class TestMainWindowController(unittest.TestCase):
         self.assertEqual(captured, [(1080, 1080)])
 
 
+@pytest.mark.integration
 class TestExportPanelCoordinator(unittest.TestCase):
     def test_on_aspect_ratio_changed_maps_index_and_delegates(self) -> None:
         from fractal_studio.application.coordinators.export_panel_coordinator import (
@@ -515,6 +522,7 @@ class TestExportPanelCoordinator(unittest.TestCase):
         self.assertEqual(visibilities, [True])
 
 
+@pytest.mark.integration
 class TestPaletteWorkflowService(unittest.TestCase):
     def test_save_palette_json_exports_and_reports_status(self) -> None:
         from fractal_studio.services.palette_service import PaletteWorkflowService
@@ -559,6 +567,7 @@ class TestPaletteWorkflowService(unittest.TestCase):
         self.assertEqual(control_points, [(1, 2, 3), (4, 5, 6)])
 
 
+@pytest.mark.integration
 class TestPalettePanelCoordinator(unittest.TestCase):
     def test_save_palette_json_returns_false_without_editor(self) -> None:
         from fractal_studio.application.coordinators.palette_panel_coordinator import (
@@ -642,6 +651,7 @@ class TestPalettePanelCoordinator(unittest.TestCase):
         self.assertEqual(workflow.points, EditorStub.control_points)
 
 
+@pytest.mark.integration
 class TestSidebarWiringCoordinator(unittest.TestCase):
     def test_connect_params_and_viewport_wires_all_expected_signals(self) -> None:
         from fractal_studio.application.coordinators.sidebar_wiring_coordinator import (
@@ -793,6 +803,7 @@ class TestSidebarWiringCoordinator(unittest.TestCase):
         )
 
 
+@pytest.mark.integration
 class TestParamsPanel(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -897,6 +908,7 @@ class TestParamsPanel(unittest.TestCase):
         self.assertTrue(restored.is_julia)
 
 
+@pytest.mark.integration
 class TestParamsPanelController(unittest.TestCase):
     def test_controller_operates_on_panel_adapter_without_private_widget_access(
         self,
@@ -1063,6 +1075,7 @@ class TestParamsPanelController(unittest.TestCase):
         self.assertFalse(panel._cycle_button.isChecked())
 
 
+@pytest.mark.integration
 class TestViewportController(unittest.TestCase):
     def test_controller_state_methods_operate_on_viewport_adapter_without_private_widget_access(
         self,
@@ -1352,6 +1365,7 @@ class TestViewportController(unittest.TestCase):
         self.assertEqual(backend.last_call["palette"], [(9, 8, 7)])
 
 
+@pytest.mark.integration
 class TestAppearanceSettings(QtWindowTestCase):
     def setUp(self) -> None:
         import fractal_studio.main_window as mwmod
@@ -1474,6 +1488,7 @@ class TestAppearanceSettings(QtWindowTestCase):
         )
 
 
+@pytest.mark.integration
 class TestSettingsWorkflowService(unittest.TestCase):
     def test_backend_state_message_reports_loaded_backend(self) -> None:
         from fractal_studio.services.settings_service import SettingsWorkflowService
@@ -1581,6 +1596,7 @@ class TestSettingsWorkflowService(unittest.TestCase):
         self.assertEqual(events, [("sepia", False), ("sepia", True)])
 
 
+@pytest.mark.integration
 class TestWindowStartupCoordinator(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -1658,6 +1674,7 @@ class TestWindowStartupCoordinator(unittest.TestCase):
         )
 
 
+@pytest.mark.integration
 class TestSettingsDialogCoordinator(unittest.TestCase):
     def test_open_settings_dialog_delegates_to_main_window_controller(self) -> None:
         from fractal_studio.application.coordinators.settings_dialog_coordinator import (
@@ -1729,6 +1746,7 @@ class TestSettingsDialogCoordinator(unittest.TestCase):
         self.assertEqual(refreshed, [True])
 
 
+@pytest.mark.integration
 class TestThemeWorkflowCoordinator(unittest.TestCase):
     def test_apply_theme_name_applies_persists_and_returns_updated_spec(self) -> None:
         from fractal_studio.state import UiSettings
@@ -1939,6 +1957,7 @@ class TestThemeWorkflowCoordinator(unittest.TestCase):
         self.assertEqual(settings_repo.saved, [])
 
 
+@pytest.mark.integration
 class TestPalettePreviewCoordinator(unittest.TestCase):
     def test_update_control_summary_sets_expected_text(self) -> None:
         from fractal_studio.application.coordinators.palette_preview_coordinator import (
@@ -1994,6 +2013,7 @@ class TestPalettePreviewCoordinator(unittest.TestCase):
         self.assertEqual(controller.calls[0]["legacy_palette_size"], 256)
 
 
+@pytest.mark.integration
 class TestThumbnailHelpers(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -2032,6 +2052,7 @@ class TestThumbnailHelpers(unittest.TestCase):
         self.assertTrue(decoded[:4] == b"\x89PNG")
 
 
+@pytest.mark.integration
 class TestThemeController(unittest.TestCase):
     def test_refresh_dynamic_widgets_repolishes_hover_panel_and_rows(self) -> None:
         from fractal_studio.application.controllers.theme_controller import (
@@ -2082,6 +2103,7 @@ class TestThemeController(unittest.TestCase):
         self.assertIn("QDialog#settingsDialog", stylesheet)
 
 
+@pytest.mark.integration
 class TestFavoriteHoverPresenter(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -2138,6 +2160,7 @@ class TestFavoriteHoverPresenter(unittest.TestCase):
         self.assertFalse(panel.isVisible())
 
 
+@pytest.mark.integration
 class TestPalettePreviewWidget(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -2159,6 +2182,7 @@ class TestPalettePreviewWidget(unittest.TestCase):
         widget.paintEvent(QPaintEvent(widget.rect()))
 
 
+@pytest.mark.integration
 class TestColorCubeEditor(unittest.TestCase):
     _ACTIVE_FACE_GRID = {
         2: (0, 0),
@@ -2298,6 +2322,7 @@ class TestColorCubeEditor(unittest.TestCase):
         editor.paintEvent(QPaintEvent(editor.rect()))
 
 
+@pytest.mark.integration
 class TestViewportSizing(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -2363,6 +2388,7 @@ class TestViewportSizing(unittest.TestCase):
         self.assertEqual(restored.coloring_mode, "orbit_trap_cross")
 
 
+@pytest.mark.integration
 class TestViewportHints(QtWindowTestCase):
     def test_hint_mentions_double_click_recenter(self) -> None:
         w = self.make_window()
@@ -2377,6 +2403,7 @@ class TestViewportHints(QtWindowTestCase):
             _ = w.selected_row
 
 
+@pytest.mark.integration
 class TestWorkspaceLayout(QtWindowTestCase):
     def test_viewport_default_min_width_matches_preview_column(self) -> None:
         w = self.make_window()
@@ -2384,6 +2411,7 @@ class TestWorkspaceLayout(QtWindowTestCase):
         self.assertEqual(w.viewport.minimumWidth(), 520)
 
 
+@pytest.mark.integration
 class TestFavoriteThumbnailRow(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -2544,6 +2572,7 @@ class TestFavoriteThumbnailRow(unittest.TestCase):
                 self.assertIn(expected, hover_panel.text())
 
 
+@pytest.mark.integration
 class TestFavoriteRowStylePresenter(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -2605,6 +2634,7 @@ class TestFavoriteRowStylePresenter(unittest.TestCase):
         self.assertEqual(name.styleSheet(), "")
 
 
+@pytest.mark.integration
 class TestFavoritePersistence(QtWindowTestCase):
     def _activate_row(self, window, index: int = -1) -> None:
         from fractal_studio.ui.widgets.favorite_thumbnail_row import (
@@ -2879,6 +2909,7 @@ class TestFavoritePersistence(QtWindowTestCase):
         self.assertEqual(after, before)
 
 
+@pytest.mark.integration
 class TestFavoritesController(unittest.TestCase):
     def test_persist_favorites_passes_snapshots_to_repo(self) -> None:
         from fractal_studio.application.controllers.favorites_controller import (
@@ -3259,6 +3290,7 @@ class TestFavoritesController(unittest.TestCase):
         self.assertIn("Generated 2 internal colors", summary.text)
 
 
+@pytest.mark.integration
 class TestFavoritesPanelCoordinator(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -3464,6 +3496,7 @@ class TestFavoritesPanelCoordinator(unittest.TestCase):
         self.assertEqual(calls, [])
 
 
+@pytest.mark.integration
 class TestFavoritesWorkflowCoordinator(unittest.TestCase):
     def test_save_favorite_returns_early_without_viewport(self) -> None:
         from fractal_studio.application.workflows.favorites_workflow_coordinator import (

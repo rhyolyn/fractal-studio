@@ -18,3 +18,10 @@ where = ["src"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*.py" = ["E402"]
 
+[tool.pytest.ini_options]
+addopts = "-m unit"
+markers = [
+    "unit: pure-Python tests, no Qt or PySide6 required",
+    "integration: tests requiring PySide6 / Qt",
+]
+

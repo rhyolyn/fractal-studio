@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib
 
+import pytest
+
 
 CANONICAL_MODULES = (
     "fractal_studio.application.controllers",
@@ -54,6 +56,7 @@ CANONICAL_MODULES = (
 )
 
 
+@pytest.mark.integration
 def test_canonical_package_layout_imports() -> None:
     for module_name in CANONICAL_MODULES:
         module = importlib.import_module(module_name)

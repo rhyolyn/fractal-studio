@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 FORBIDDEN_ROOT_SHIM_MODULES = (
     "appearance_settings_dialog",
     "custom_resolution_dialog",
@@ -76,6 +78,7 @@ def _scan_forbidden_imports(file_path: Path) -> list[tuple[int, str, str]]:
     return violations
 
 
+@pytest.mark.unit
 def test_no_legacy_root_shim_imports_in_source_or_tests() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     src_root = repo_root / "src"
