@@ -7,7 +7,6 @@ from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QApplication, QFileDialog, QWidget
 
 from fractal_studio.backend import CoreBackend
-from fractal_studio.state import JuliaParams, NewtonParams, PhoenixParams
 from fractal_studio.viewport import FractalViewportWidget
 
 
@@ -40,31 +39,25 @@ class ExportService:
         QApplication.processEvents()
 
         state = viewport.to_state()
-        fp = state.formula_params
-        julia_real = fp.cx if isinstance(fp, JuliaParams) else 0.0
-        julia_imag = fp.cy if isinstance(fp, JuliaParams) else 0.0
-        phoenix_real = fp.real if isinstance(fp, PhoenixParams) else 0.0
-        phoenix_imag = fp.imag if isinstance(fp, PhoenixParams) else 0.0
-        trap_x = fp.trap_x if isinstance(fp, NewtonParams) else 0.0
-        trap_y = fp.trap_y if isinstance(fp, NewtonParams) else 0.0
+        kwargs = state.to_render_kwargs()
         raw = self._backend.render_fractal(
             state.formula,
             width,
             height,
             is_julia=state.is_julia,
-            julia_real=julia_real,
-            julia_imag=julia_imag,
+            julia_real=kwargs["julia_real"],
+            julia_imag=kwargs["julia_imag"],
             power=state.power,
-            phoenix_real=phoenix_real,
-            phoenix_imag=phoenix_imag,
+            phoenix_real=kwargs["phoenix_real"],
+            phoenix_imag=kwargs["phoenix_imag"],
             center_x=state.center_x,
             center_y=state.center_y,
             scale=state.scale,
             max_iterations=state.max_iterations,
             palette=viewport.palette(),
             coloring_mode=state.coloring_mode,
-            trap_x=trap_x,
-            trap_y=trap_y,
+            trap_x=kwargs["trap_x"],
+            trap_y=kwargs["trap_y"],
             palette_offset=state.palette_offset,
         )
 

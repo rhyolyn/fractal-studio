@@ -122,6 +122,17 @@ class ViewportState:
             power=max(2, int(raw.get("power", 3))),
         )
 
+    def to_render_kwargs(self) -> dict[str, float]:
+        fp = self.formula_params
+        return {
+            "julia_real": fp.cx if isinstance(fp, JuliaParams) else 0.0,
+            "julia_imag": fp.cy if isinstance(fp, JuliaParams) else 0.0,
+            "phoenix_real": fp.real if isinstance(fp, PhoenixParams) else 0.0,
+            "phoenix_imag": fp.imag if isinstance(fp, PhoenixParams) else 0.0,
+            "trap_x": fp.trap_x if isinstance(fp, NewtonParams) else 0.0,
+            "trap_y": fp.trap_y if isinstance(fp, NewtonParams) else 0.0,
+        }
+
     def to_dict(self) -> dict[str, Any]:
         fp = self.formula_params
         if isinstance(fp, JuliaParams):

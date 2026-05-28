@@ -105,6 +105,76 @@ class ViewportStateFormulaParamsTests(unittest.TestCase):
         restored = ViewportState.from_dict(original.to_dict())
         self.assertEqual(restored.formula_params, original.formula_params)
 
+    def test_newton_params_round_trip(self) -> None:
+        _ensure_pyside6_mocked()
+        for key in list(sys.modules):
+            if key.startswith(("fractal_studio.state", "fractal_studio.persistence")):
+                del sys.modules[key]
+        from fractal_studio.state import ViewportState, NewtonParams
+        original = ViewportState(
+            formula="newton",
+            center_x=0.0, center_y=0.0, scale=3.0,
+            max_iterations=256, is_julia=False,
+            formula_params=NewtonParams(trap_x=0.3, trap_y=-0.1),
+            coloring_mode="smooth_escape",
+            palette_offset=0.0,
+        )
+        restored = ViewportState.from_dict(original.to_dict())
+        self.assertEqual(restored.formula_params, original.formula_params)
+
+    def test_standard_params_round_trip(self) -> None:
+        _ensure_pyside6_mocked()
+        for key in list(sys.modules):
+            if key.startswith(("fractal_studio.state", "fractal_studio.persistence")):
+                del sys.modules[key]
+        from fractal_studio.state import ViewportState, StandardParams
+        original = ViewportState(
+            formula="standard",
+            center_x=0.0, center_y=0.0, scale=3.0,
+            max_iterations=256, is_julia=False,
+            formula_params=StandardParams(),
+            coloring_mode="smooth_escape",
+            palette_offset=0.0,
+        )
+        restored = ViewportState.from_dict(original.to_dict())
+        self.assertIsInstance(restored.formula_params, StandardParams)
+
+    def test_legacy_flat_format_phoenix_loads_correctly(self) -> None:
+        _ensure_pyside6_mocked()
+        for key in list(sys.modules):
+            if key.startswith(("fractal_studio.state", "fractal_studio.persistence")):
+                del sys.modules[key]
+        from fractal_studio.state import ViewportState, PhoenixParams
+        legacy = {
+            "formula": "phoenix", "center_x": 0.0, "center_y": 0.0,
+            "scale": 3.0, "max_iterations": 256, "is_julia": False,
+            "phoenix_real": 0.5, "phoenix_imag": 0.1,
+            "coloring_mode": "smooth_escape",
+            "palette_offset": 0.0,
+        }
+        state = ViewportState.from_dict(legacy)
+        self.assertIsInstance(state.formula_params, PhoenixParams)
+        self.assertAlmostEqual(state.formula_params.real, 0.5)
+        self.assertAlmostEqual(state.formula_params.imag, 0.1)
+
+    def test_legacy_flat_format_newton_loads_correctly(self) -> None:
+        _ensure_pyside6_mocked()
+        for key in list(sys.modules):
+            if key.startswith(("fractal_studio.state", "fractal_studio.persistence")):
+                del sys.modules[key]
+        from fractal_studio.state import ViewportState, NewtonParams
+        legacy = {
+            "formula": "newton", "center_x": 0.0, "center_y": 0.0,
+            "scale": 3.0, "max_iterations": 256, "is_julia": False,
+            "trap_x": 0.3, "trap_y": -0.1,
+            "coloring_mode": "smooth_escape",
+            "palette_offset": 0.0,
+        }
+        state = ViewportState.from_dict(legacy)
+        self.assertIsInstance(state.formula_params, NewtonParams)
+        self.assertAlmostEqual(state.formula_params.trap_x, 0.3)
+        self.assertAlmostEqual(state.formula_params.trap_y, -0.1)
+
     def test_legacy_flat_format_loads_correctly(self) -> None:
         _ensure_pyside6_mocked()
         for key in list(sys.modules):
