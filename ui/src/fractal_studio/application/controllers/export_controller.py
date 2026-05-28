@@ -4,9 +4,6 @@ from collections.abc import Callable
 
 from PySide6.QtWidgets import QComboBox, QSpinBox, QWidget
 
-from fractal_studio.application.controllers.favorites_controller import (
-    FavoritesController,
-)
 from fractal_studio.services.export_service import ExportService
 from fractal_studio.viewport import FractalViewportWidget
 
@@ -17,11 +14,8 @@ class ExportController:
     Owns preset math, aspect ratio application, and export execution.
     """
 
-    def __init__(
-        self, export_service: ExportService, favorites_controller: FavoritesController
-    ) -> None:
+    def __init__(self, export_service: ExportService) -> None:
         self._export_service = export_service
-        self._favorites_controller = favorites_controller
 
     def on_export_clicked(
         self,

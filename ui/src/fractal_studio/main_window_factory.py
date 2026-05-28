@@ -105,7 +105,7 @@ def build_main_window_context(window: MainWindow) -> MainWindowContext:
     palette_panel = PalettePanelCoordinator(palette_service)
     palette_preview = PalettePreviewCoordinator(favorites_controller)
     sidebar_wiring = SidebarWiringCoordinator()
-    export_controller = ExportController(export_service, favorites_controller)
+    export_controller = ExportController(export_service)
     settings_controller = SettingsController()
     export_panel = ExportPanelCoordinator(export_controller)
     settings_dialog = SettingsDialogCoordinator(settings_controller, settings_service)
