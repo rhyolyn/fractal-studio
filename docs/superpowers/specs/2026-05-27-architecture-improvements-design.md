@@ -81,30 +81,7 @@ Eight targeted improvements to the fractal-studio Python UI, sequenced so that e
 
 ---
 
-## Step 4 — Delete Thin Coordinators
-
-**Problem:** `ExportPanelCoordinator` and `PalettePreviewCoordinator` contain only one-liner delegations to `MainWindowController` and `PalettePreviewCoordinator` respectively. They add an indirection layer with no orchestration value.
-
-**Change:**
-- Identify all call sites of `ExportPanelCoordinator` and `PalettePreviewCoordinator` in panel state machines and adapters.
-- Replace each call with a direct call to the underlying collaborator.
-- Delete `application/coordinators/export_panel_coordinator.py`.
-- Delete `application/coordinators/palette_preview_coordinator.py`.
-- Remove them from `MainWindowContext` in `main_window_factory.py` and from `MainWindowSectionsState`.
-
-**What is NOT deleted:** `FavoritesPanelCoordinator`, `PalettePanelCoordinator`, `SettingsDialogCoordinator`, `SidebarWiringCoordinator` — all have genuine orchestration logic.
-
-**Success criteria:**
-- The two files are gone.
-- All call sites resolve to the underlying collaborator directly.
-- No new logic is introduced — this is a pure inlining.
-- Unit tests pass.
-
-**Files touched:** `application/coordinators/export_panel_coordinator.py` (deleted), `application/coordinators/palette_preview_coordinator.py` (deleted), `ui/sections/panel_state.py`, `main_window_factory.py`, `ui/sections/state.py`.
-
----
-
-## Step 5 — Document the Controller/Coordinator/Workflow Contract
+## Step 4 — Document the Controller/Coordinator/Workflow Contract
 
 **Problem:** The boundary between controllers, coordinators, and workflows is enforced only by convention. New contributors (or future sessions) will recreate the ambiguity.
 
@@ -112,7 +89,7 @@ Eight targeted improvements to the fractal-studio Python UI, sequenced so that e
 - Add a module docstring to `application/controllers/__init__.py`:
   > Controllers are stateless atoms of domain logic. They hold no mutable state after construction. They may reference repositories and services but must not reference Qt widgets directly.
 - Add a module docstring to `application/coordinators/__init__.py`:
-  > Coordinators orchestrate use cases by combining controllers and services. They may hold references to UI panels via port protocols, but must not subclass QWidget or hold direct widget references.
+  > Coordinators are the boundary layer for each UI panel's use cases. Every panel section has exactly one coordinator; it owns all orchestration logic for that panel, combining controllers and services as needed. Thin coordinators are expected — they represent a panel whose use cases have not yet grown complex.
 - Add a module docstring to `application/workflows/__init__.py`:
   > Workflows implement user-visible multi-step operations that cross panel boundaries and produce UI feedback (status messages, dialogs). Each workflow corresponds to one named user action.
 - Add a one-line comment above each class in each layer referencing which contract it satisfies (e.g., `# Controller: stateless domain logic`).
@@ -122,6 +99,28 @@ Eight targeted improvements to the fractal-studio Python UI, sequenced so that e
 - No structural code changes.
 
 **Files touched:** `application/controllers/__init__.py`, `application/coordinators/__init__.py`, `application/workflows/__init__.py`, and optionally the class files themselves.
+
+---
+
+## Step 5 — Audit and Document Each Coordinator's Mandate
+
+**Problem:** Now that the coordinator contract is defined ("one coordinator per panel, owns that panel's use cases"), each coordinator should be audited to confirm it sits in the right layer and has its mandate stated.
+
+**Change:**
+- For each coordinator in `application/coordinators/`, add a one-line class docstring stating its panel and mandate. Example:
+  - `ExportPanelCoordinator`: *"Coordinator for the export panel. Owns aspect ratio changes, preset selection, and export execution."*
+  - `PalettePreviewCoordinator`: *"Coordinator for the palette preview panel. Owns preview refresh and control point summary display."*
+  - `FavoritesPanelCoordinator`: *"Coordinator for the favorites panel. Owns row construction, selection, and deletion."*
+  - etc.
+- If any coordinator's documented mandate overlaps with another coordinator's or belongs in a controller/workflow, note it as a follow-up (do not restructure in this step).
+- No logic changes.
+
+**Success criteria:**
+- Every coordinator class has a one-line docstring.
+- The mandate of each coordinator is non-overlapping and consistent with the contract from Step 4.
+- No structural code changes.
+
+**Files touched:** all files in `application/coordinators/`.
 
 ---
 
@@ -249,11 +248,11 @@ class MainWindowFavoritesState:
 | 1 | Fix test infrastructure | Immediate | — |
 | 2 | Add `validate()` | Immediate | Step 1 (green baseline) |
 | 3 | Move adapters into `ui/sections/adapters/` | Immediate | Step 1 |
-| 4 | Delete thin coordinators | Immediate | Steps 1–2 |
-| 5 | Document layer contracts | Medium | Step 4 (docs reflect clean reality) |
-| 6 | Split `MainWindowController` | Medium | Steps 2, 5 |
+| 4 | Document layer contracts | Immediate | Steps 1–2 |
+| 5 | Audit and document each coordinator's mandate | Immediate | Step 4 |
+| 6 | Split `MainWindowController` | Medium | Steps 2, 4 |
 | 7 | Decompose `ViewportState` | Medium | Step 1 |
-| 8 | Shrink `bind()` | Medium | Steps 2, 4, 6 |
+| 8 | Shrink `bind()` | Medium | Steps 2, 5, 6 |
 
 Steps 3 and 7 have no inter-dependencies and can be done in parallel with adjacent steps if desired.
 
