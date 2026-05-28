@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
         self._palette_panel = context.palette_panel
         self._palette_preview = context.palette_preview
         self._sidebar_wiring = context.sidebar_wiring
-        self._controller = context.controller
+        self._controller = context.export_controller
         self._export_panel = context.export_panel
         self._settings_dialog = context.settings_dialog
         self._theme_workflow = context.theme_workflow

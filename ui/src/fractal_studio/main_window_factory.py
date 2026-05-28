@@ -76,7 +76,7 @@ class MainWindowContext:
     palette_panel: PalettePanelCoordinator
     palette_preview: PalettePreviewCoordinator
     sidebar_wiring: SidebarWiringCoordinator
-    controller: ExportController
+    export_controller: ExportController
     settings_controller: SettingsController
     export_panel: ExportPanelCoordinator
     settings_dialog: SettingsDialogCoordinator
@@ -105,9 +105,9 @@ def build_main_window_context(window: MainWindow) -> MainWindowContext:
     palette_panel = PalettePanelCoordinator(palette_service)
     palette_preview = PalettePreviewCoordinator(favorites_controller)
     sidebar_wiring = SidebarWiringCoordinator()
-    controller = ExportController(export_service, favorites_controller)
+    export_controller = ExportController(export_service, favorites_controller)
     settings_controller = SettingsController()
-    export_panel = ExportPanelCoordinator(controller)
+    export_panel = ExportPanelCoordinator(export_controller)
     settings_dialog = SettingsDialogCoordinator(settings_controller, settings_service)
     theme_workflow = ThemeWorkflowCoordinator(
         settings_dialog,
@@ -131,7 +131,7 @@ def build_main_window_context(window: MainWindow) -> MainWindowContext:
         palette_panel=palette_panel,
         palette_preview=palette_preview,
         sidebar_wiring=sidebar_wiring,
-        controller=controller,
+        export_controller=export_controller,
         settings_controller=settings_controller,
         export_panel=export_panel,
         settings_dialog=settings_dialog,

@@ -7,17 +7,14 @@ from PySide6.QtWidgets import QComboBox, QSpinBox, QWidget
 from fractal_studio.application.controllers.favorites_controller import (
     FavoritesController,
 )
-from fractal_studio.editor import ColorCubeEditor, PalettePreviewWidget
 from fractal_studio.services.export_service import ExportService
-from fractal_studio.state import FavoriteSnapshot, ViewportState
-from fractal_studio.viewport import FractalParamsPanel, FractalViewportWidget
+from fractal_studio.viewport import FractalViewportWidget
 
 
 class ExportController:
     """Controller for export and aspect ratio logic.
 
-    Owns preset math, aspect ratio application, export execution, and
-    favorites-snapshot delegation.
+    Owns preset math, aspect ratio application, and export execution.
     """
 
     def __init__(
@@ -133,43 +130,3 @@ class ExportController:
             parent, viewport, width, height, set_status
         )
 
-    def build_favorite_snapshot(
-        self,
-        viewport: FractalViewportWidget,
-        editor: ColorCubeEditor | None,
-        aspect_ratio_mode: str,
-        build_name: Callable[[ViewportState], str],
-        capture_thumbnail: Callable[[], str],
-    ) -> FavoriteSnapshot:
-        state = viewport.to_state()
-        control_points = editor.control_points if editor is not None else []
-        return self._favorites_controller.build_snapshot(
-            viewport=viewport,
-            aspect_ratio_mode=aspect_ratio_mode,
-            name=build_name(state),
-            control_points=control_points,
-            thumbnail=capture_thumbnail(),
-        )
-
-    def restore_favorite_snapshot(
-        self,
-        snapshot: FavoriteSnapshot,
-        viewport: FractalViewportWidget,
-        params_panel: FractalParamsPanel,
-        editor: ColorCubeEditor | None,
-        preview_palette: PalettePreviewWidget | None,
-        apply_aspect_ratio_mode: Callable[[str], None],
-    ) -> None:
-        self._favorites_controller.restore_snapshot(
-            snapshot=snapshot,
-            viewport=viewport,
-            params_panel=params_panel,
-            editor=editor,
-            preview_palette=preview_palette,
-            apply_aspect_ratio_mode=apply_aspect_ratio_mode,
-        )
-
-    def sync_params_from_favorite(
-        self, favorite: FavoriteSnapshot, params_panel: FractalParamsPanel
-    ) -> None:
-        self._favorites_controller.sync_params_panel(favorite, params_panel)

@@ -159,7 +159,7 @@ class MainWindowSectionsState:
         self.palette_panel = context.palette_panel
         self.palette_preview = context.palette_preview
         self.sidebar_wiring = context.sidebar_wiring
-        self.controller = context.controller
+        self.controller = context.export_controller
         self.export_panel = context.export_panel
         self.settings_dialog = context.settings_dialog
         self.theme_workflow = context.theme_workflow
