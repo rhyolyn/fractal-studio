@@ -125,7 +125,13 @@ class ParamsState:
             cycle_speed=cycle_speed,
         )
 
-    def to_viewport_state(self, *, center_x: float = -0.5, center_y: float = 0.0, palette_offset: float = 0.0) -> ViewportState:
+    def to_viewport_state(
+        self,
+        *,
+        center_x: float = -0.5,
+        center_y: float = 0.0,
+        palette_offset: float = 0.0,
+    ) -> ViewportState:
         return ViewportState(
             formula=self.formula,
             center_x=center_x,

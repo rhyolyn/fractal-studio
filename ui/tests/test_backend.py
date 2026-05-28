@@ -21,7 +21,9 @@ class BackendProfileTests(unittest.TestCase):
         self.assertTrue(profile.supersampling_enabled)
 
     def test_loader_falls_back_when_rust_extension_is_missing(self) -> None:
-        with patch("fractal_studio.backend.import_module", side_effect=ModuleNotFoundError):
+        with patch(
+            "fractal_studio.backend.import_module", side_effect=ModuleNotFoundError
+        ):
             profile, backend_loaded = load_backend_profile()
         self.assertFalse(backend_loaded)
         self.assertEqual(profile, default_profile())

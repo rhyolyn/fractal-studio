@@ -92,8 +92,7 @@ SEPIA_THEME = ThemeSpec(
 )
 
 THEMES: dict[str, ThemeSpec] = {
-    theme.name: theme
-    for theme in (LIGHT_THEME, DARK_THEME, SEPIA_THEME)
+    theme.name: theme for theme in (LIGHT_THEME, DARK_THEME, SEPIA_THEME)
 }
 
 

@@ -74,8 +74,12 @@ class FavoritesRepository:
         except FileNotFoundError:
             return []
         except json.JSONDecodeError:
-            self.last_load_diagnostic = "Ignored invalid favorites file and loaded an empty list."
+            self.last_load_diagnostic = (
+                "Ignored invalid favorites file and loaded an empty list."
+            )
             return []
         except (TypeError, ValueError):
-            self.last_load_diagnostic = "Ignored unsupported favorites payload and loaded an empty list."
+            self.last_load_diagnostic = (
+                "Ignored unsupported favorites payload and loaded an empty list."
+            )
             return []

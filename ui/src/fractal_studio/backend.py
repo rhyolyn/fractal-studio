@@ -70,7 +70,9 @@ class CoreBackend:
     ) -> Color:
         return self._require().update_control_point_from_face(face, color, position)
 
-    def generate_palette(self, control_points: list[Color], palette_size: int) -> list[Color]:
+    def generate_palette(
+        self, control_points: list[Color], palette_size: int
+    ) -> list[Color]:
         return list(self._require().generate_palette(control_points, palette_size))
 
     def render_fractal(
@@ -97,7 +99,9 @@ class CoreBackend:
     ) -> bytes:
         return bytes(
             self._require().render_fractal(
-                formula, width, height,
+                formula,
+                width,
+                height,
                 center_x=center_x,
                 center_y=center_y,
                 scale=scale,
@@ -181,7 +185,9 @@ class CoreBackend:
 
     def _require(self) -> ModuleType:
         if self._module is None:
-            raise RuntimeError("Rust backend is not available. Build fractal_core before using the editor.")
+            raise RuntimeError(
+                "Rust backend is not available. Build fractal_core before using the editor."
+            )
         return self._module
 
 

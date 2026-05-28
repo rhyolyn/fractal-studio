@@ -18,9 +18,9 @@ from PySide6.QtWidgets import (
 )
 
 from fractal_studio.backend import Color, CoreBackend
-from fractal_studio.params_panel_controller import ParamsPanelController
+from fractal_studio.ui.controllers.params_panel_controller import ParamsPanelController
 from fractal_studio.state import ParamsState, ViewportState
-from fractal_studio.viewport_controller import ViewportController
+from fractal_studio.ui.controllers.viewport_controller import ViewportController
 
 
 class FractalViewportWidget(QWidget):
@@ -35,14 +35,14 @@ class FractalViewportWidget(QWidget):
 
     # Default centers per formula (Mandelbrot mode)
     _FORMULA_CENTERS: dict[str, tuple[float, float]] = {
-        "standard":     (-0.5,  0.0),
+        "standard": (-0.5, 0.0),
         "burning_ship": (-0.5, -0.5),
-        "tricorn":      ( 0.0,  0.0),
-        "celtic":       (-0.5,  0.0),
-        "buffalo":      (-0.5, -0.5),
-        "multibrot":    ( 0.0,  0.0),
-        "phoenix":      ( 0.0,  0.0),
-        "newton":       ( 0.0,  0.0),
+        "tricorn": (0.0, 0.0),
+        "celtic": (-0.5, 0.0),
+        "buffalo": (-0.5, -0.5),
+        "multibrot": (0.0, 0.0),
+        "phoenix": (0.0, 0.0),
+        "newton": (0.0, 0.0),
     }
 
     _NEWTON_SCALE = 2.0
@@ -75,8 +75,14 @@ class FractalViewportWidget(QWidget):
         self._cycle_timer = QTimer(self)
         self._cycle_timer.setInterval(50)  # 20 fps
         self._cycle_timer.timeout.connect(self._advance_cycle)
+        self._render_pending = False
+        self._render_timer = QTimer(self)
+        self._render_timer.setSingleShot(True)
+        self._render_timer.timeout.connect(self._flush_scheduled_render)
         self.setMinimumSize(320, 320)
-        size_policy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        size_policy = QSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         size_policy.setHeightForWidth(True)
         self.setSizePolicy(size_policy)
 
@@ -104,6 +110,15 @@ class FractalViewportWidget(QWidget):
     def palette(self) -> list[Color]:
         return list(self._palette)
 
+    def replace_palette(self, palette: list[Color]) -> None:
+        self._palette = list(palette)
+
+    def supported_aspect_ratio_modes(self) -> set[str]:
+        return set(self._ASPECT_RATIOS)
+
+    def load_aspect_ratio_mode(self, mode: str) -> None:
+        self._aspect_ratio_mode = mode
+
     def to_state(self) -> ViewportState:
         return ViewportState(
             formula=self._formula,
@@ -123,7 +138,62 @@ class FractalViewportWidget(QWidget):
             palette_offset=self._palette_offset,
         )
 
-    def apply_state(self, state: ViewportState, *, rerender: bool = True, emit_scale: bool = False) -> None:
+    def load_state(self, state: ViewportState) -> None:
+        self._formula = state.formula
+        self._center_x = state.center_x
+        self._center_y = state.center_y
+        self._scale = state.scale
+        self._max_iterations = state.max_iterations
+        self._is_julia = state.is_julia
+        self._julia_real = state.julia_real
+        self._julia_imag = state.julia_imag
+        self._power = state.power
+        self._phoenix_real = state.phoenix_real
+        self._phoenix_imag = state.phoenix_imag
+        self._coloring_mode = state.coloring_mode
+        self._trap_x = state.trap_x
+        self._trap_y = state.trap_y
+        self._palette_offset = state.palette_offset
+
+    def formula_center(self, formula: str) -> tuple[float, float]:
+        return self._FORMULA_CENTERS.get(formula, (-0.5, 0.0))
+
+    def newton_scale(self) -> float:
+        return self._NEWTON_SCALE
+
+    def set_cycle_active_flag(self, active: bool) -> None:
+        self._cycle_active = active
+
+    def start_cycle_timer(self) -> None:
+        self._cycle_timer.start()
+
+    def stop_cycle_timer(self) -> None:
+        self._cycle_timer.stop()
+
+    def set_cycle_interval(self, interval: int) -> None:
+        self._cycle_timer.setInterval(interval)
+
+    def set_pan_anchor(
+        self, origin: tuple[float, float], center_start: tuple[float, float]
+    ) -> None:
+        self._pan_origin = origin
+        self._pan_center_start = center_start
+
+    def pan_origin(self) -> tuple[float, float] | None:
+        return self._pan_origin
+
+    def pan_center_start(self) -> tuple[float, float]:
+        return self._pan_center_start
+
+    def clear_pan_anchor(self) -> None:
+        self._pan_origin = None
+
+    def store_rendered_image(self, image: QImage) -> None:
+        self._image = image
+
+    def apply_state(
+        self, state: ViewportState, *, rerender: bool = True, emit_scale: bool = False
+    ) -> None:
         self._controller.apply_state(self, state, rerender=rerender)
         if emit_scale:
             self.scale_changed.emit(self._scale)
@@ -169,9 +239,20 @@ class FractalViewportWidget(QWidget):
     def _advance_cycle(self) -> None:
         self._controller.advance_cycle(self)
 
+    def _flush_scheduled_render(self) -> None:
+        self._render_pending = False
+        self._controller.render(self)
+
+    def request_render(self) -> None:
+        if self._render_pending:
+            return
+        self._render_pending = True
+        self._render_timer.start(0)
+
     def resizeEvent(self, event) -> None:  # type: ignore[override]
         super().resizeEvent(event)
-        self._controller.handle_resize(self)
+        if self._controller.handle_resize(self):
+            self.request_render()
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         self._controller.handle_wheel(self, event.angleDelta().y())
@@ -179,14 +260,21 @@ class FractalViewportWidget(QWidget):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            self._controller.handle_mouse_press(self, event.position().x(), event.position().y())
+            self._controller.handle_mouse_press(
+                self, event.position().x(), event.position().y()
+            )
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            self._controller.handle_mouse_double_click(self, event.position().x(), event.position().y())
+            self._controller.handle_mouse_double_click(
+                self, event.position().x(), event.position().y()
+            )
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        self._controller.handle_mouse_move(self, event.position().x(), event.position().y())
+        if self._controller.handle_mouse_move(
+            self, event.position().x(), event.position().y()
+        ):
+            self.request_render()
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
@@ -205,9 +293,10 @@ class FractalViewportWidget(QWidget):
                 "Build fractal_core to enable rendering.",
             )
 
+
 class FractalParamsPanel(QGroupBox):
     formula_changed = Signal(str)
-    mode_changed = Signal(bool)   # True = Julia
+    mode_changed = Signal(bool)  # True = Julia
     power_changed = Signal(int)
     phoenix_changed = Signal(float, float)
     julia_constant_changed = Signal(float, float)
@@ -220,13 +309,13 @@ class FractalParamsPanel(QGroupBox):
 
     _DEFAULT_SCALE = 3.0
     _FORMULAS = [
-        ("Standard  (z² + c)",  "standard"),
+        ("Standard  (z² + c)", "standard"),
         ("Multibrot  (zⁿ + c)", "multibrot"),
-        ("Burning Ship",         "burning_ship"),
-        ("Tricorn",              "tricorn"),
-        ("Celtic",               "celtic"),
-        ("Buffalo",              "buffalo"),
-        ("Phoenix",              "phoenix"),
+        ("Burning Ship", "burning_ship"),
+        ("Tricorn", "tricorn"),
+        ("Celtic", "celtic"),
+        ("Buffalo", "buffalo"),
+        ("Phoenix", "phoenix"),
         ("Newton  (zⁿ - 1 = 0)", "newton"),
     ]
 
@@ -289,11 +378,11 @@ class FractalParamsPanel(QGroupBox):
 
         self._coloring_combo = QComboBox()
         for label, key in [
-            ("Smooth Escape",       "smooth_escape"),
-            ("Orbit Trap: Circle",  "orbit_trap_circle"),
-            ("Orbit Trap: Cross",   "orbit_trap_cross"),
-            ("Orbit Trap: Point",   "orbit_trap_point"),
-            ("Interior Dwell",      "interior_dwell"),
+            ("Smooth Escape", "smooth_escape"),
+            ("Orbit Trap: Circle", "orbit_trap_circle"),
+            ("Orbit Trap: Cross", "orbit_trap_cross"),
+            ("Orbit Trap: Point", "orbit_trap_point"),
+            ("Interior Dwell", "interior_dwell"),
         ]:
             self._coloring_combo.addItem(label, key)
 
@@ -387,7 +476,9 @@ class FractalParamsPanel(QGroupBox):
             julia_imag=self._julia_imag_spin.value(),
             max_iterations=self._iterations_spin.value(),
             scale=self._DEFAULT_SCALE / (10.0 ** self._zoom_spin.value()),
-            coloring_mode=str(coloring_mode) if coloring_mode is not None else "smooth_escape",
+            coloring_mode=str(coloring_mode)
+            if coloring_mode is not None
+            else "smooth_escape",
             trap_x=self._trap_x_spin.value(),
             trap_y=self._trap_y_spin.value(),
             cycle_active=self._cycle_button.isChecked(),
@@ -432,7 +523,9 @@ class FractalParamsPanel(QGroupBox):
 
             self._formula_combo.setCurrentIndex(formula_index)
             self._set_power_visible(params_state.formula in ("multibrot", "newton"))
-            self._power_label.setText("Degree (n):" if params_state.formula == "newton" else "Power (n):")
+            self._power_label.setText(
+                "Degree (n):" if params_state.formula == "newton" else "Power (n):"
+            )
             self._set_phoenix_visible(params_state.formula == "phoenix")
             self._set_mode_visible(params_state.formula != "newton")
 
@@ -447,7 +540,9 @@ class FractalParamsPanel(QGroupBox):
 
             color_index = self._coloring_combo.findData(params_state.coloring_mode)
             self._coloring_combo.setCurrentIndex(max(0, color_index))
-            self._set_trap_point_visible(params_state.coloring_mode == "orbit_trap_point")
+            self._set_trap_point_visible(
+                params_state.coloring_mode == "orbit_trap_point"
+            )
             self._trap_x_spin.setValue(params_state.trap_x)
             self._trap_y_spin.setValue(params_state.trap_y)
 
@@ -460,6 +555,50 @@ class FractalParamsPanel(QGroupBox):
 
     def reset(self) -> None:
         self._controller.reset(self)
+
+    def formula_key(self, index: int) -> str:
+        return self._FORMULAS[index][1]
+
+    def set_power_visible(self, visible: bool) -> None:
+        self._set_power_visible(visible)
+
+    def set_power_label_text(self, text: str) -> None:
+        self._power_label.setText(text)
+
+    def set_phoenix_visible(self, visible: bool) -> None:
+        self._set_phoenix_visible(visible)
+
+    def set_mode_visible(self, visible: bool) -> None:
+        self._set_mode_visible(visible)
+
+    def set_mode_index(self, index: int) -> None:
+        self._mode_combo.setCurrentIndex(index)
+
+    def set_julia_visible(self, visible: bool) -> None:
+        self._set_julia_visible(visible)
+
+    def coloring_mode(self, index: int):
+        return self._coloring_combo.itemData(index)
+
+    def set_trap_point_visible(self, visible: bool) -> None:
+        self._set_trap_point_visible(visible)
+
+    def reset_controls(self) -> None:
+        for combo in (self._formula_combo, self._mode_combo, self._coloring_combo):
+            combo.blockSignals(True)
+            combo.setCurrentIndex(0)
+            combo.blockSignals(False)
+
+        self._power_spin.setValue(3)
+        self._phoenix_real_spin.setValue(0.5)
+        self._phoenix_imag_spin.setValue(0.0)
+        self._julia_real_spin.setValue(-0.8)
+        self._julia_imag_spin.setValue(0.156)
+        self._iterations_spin.setValue(256)
+        self._trap_x_spin.setValue(0.0)
+        self._trap_y_spin.setValue(0.0)
+        if self._cycle_button.isChecked():
+            self._cycle_button.setChecked(False)
 
     def _on_formula_changed(self, index: int) -> None:
         self._controller.handle_formula_changed(self, index)
@@ -506,7 +645,9 @@ class FractalParamsPanel(QGroupBox):
         self._controller.handle_coloring_changed(self, index)
 
     def _on_trap_changed(self) -> None:
-        self.trap_point_changed.emit(self._trap_x_spin.value(), self._trap_y_spin.value())
+        self.trap_point_changed.emit(
+            self._trap_x_spin.value(), self._trap_y_spin.value()
+        )
 
     def _set_trap_point_visible(self, visible: bool) -> None:
         self._trap_x_label.setVisible(visible)

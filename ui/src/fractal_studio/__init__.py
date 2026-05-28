@@ -1,2 +1,1 @@
 """Fractal Studio UI package."""
-

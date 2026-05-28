@@ -30,9 +30,9 @@ class QtWindowTestCase(unittest.TestCase):
         _get_app()
 
     def make_window(self):
-        from fractal_studio.main_window import MainWindow
+        from fractal_studio.main_window_factory import create_main_window
 
-        window = MainWindow()
+        window = create_main_window()
         self.addCleanup(window.close)
         return window
 
@@ -40,11 +40,15 @@ class QtWindowTestCase(unittest.TestCase):
 class DummyEditorBackend:
     available = True
 
-    def color_from_face(self, face: int, position: tuple[float, float]) -> tuple[int, int, int]:
+    def color_from_face(
+        self, face: int, position: tuple[float, float]
+    ) -> tuple[int, int, int]:
         x, y = position
         return (face * 10 + int(x * 10), face * 10 + int(y * 10), face * 10)
 
-    def project_color_to_face(self, face: int, color: tuple[int, int, int]) -> tuple[float, float]:
+    def project_color_to_face(
+        self, face: int, color: tuple[int, int, int]
+    ) -> tuple[float, float]:
         return ((color[0] % 10) / 10.0, (color[1] % 10) / 10.0)
 
     def update_control_point_from_face(
@@ -56,7 +60,9 @@ class DummyEditorBackend:
         x, y = position
         return (face * 10 + int(x * 10), face * 10 + int(y * 10), color[2])
 
-    def generate_palette(self, control_points: list[tuple[int, int, int]], palette_size: int) -> list[tuple[int, int, int]]:
+    def generate_palette(
+        self, control_points: list[tuple[int, int, int]], palette_size: int
+    ) -> list[tuple[int, int, int]]:
         return control_points[:palette_size]
 
 
@@ -72,14 +78,18 @@ class DummyPaletteBackend:
         self.loaded_paths: list[str] = []
         self.exported: list[tuple[str, list[tuple[int, int, int]]]] = []
 
-    def export_palette_json(self, path: str, control_points: list[tuple[int, int, int]], palette_size: int) -> None:
+    def export_palette_json(
+        self, path: str, control_points: list[tuple[int, int, int]], palette_size: int
+    ) -> None:
         self.saved.append((path, list(control_points), palette_size))
 
     def import_palette_json(self, path: str) -> tuple[int, list[tuple[int, int, int]]]:
         self.loaded_paths.append(path)
         return 6, [(1, 2, 3), (4, 5, 6)]
 
-    def generate_palette(self, control_points: list[tuple[int, int, int]], palette_size: int) -> list[tuple[int, int, int]]:
+    def generate_palette(
+        self, control_points: list[tuple[int, int, int]], palette_size: int
+    ) -> list[tuple[int, int, int]]:
         self.exported.append(("generated", list(control_points)))
         return list(control_points[:palette_size])
 
@@ -93,19 +103,25 @@ class TestCustomResolutionDialog(unittest.TestCase):
         _get_app()
 
     def test_default_values(self) -> None:
-        from fractal_studio.main_window import CustomResolutionDialog
+        from fractal_studio.ui.dialogs.custom_resolution_dialog import (
+            CustomResolutionDialog,
+        )
 
         dlg = CustomResolutionDialog(1920, 1080)
         self.assertEqual(dlg.values(), (1920, 1080))
 
     def test_custom_values(self) -> None:
-        from fractal_studio.main_window import CustomResolutionDialog
+        from fractal_studio.ui.dialogs.custom_resolution_dialog import (
+            CustomResolutionDialog,
+        )
 
         dlg = CustomResolutionDialog(3840, 2160)
         self.assertEqual(dlg.values(), (3840, 2160))
 
     def test_spinbox_range(self) -> None:
-        from fractal_studio.main_window import CustomResolutionDialog
+        from fractal_studio.ui.dialogs.custom_resolution_dialog import (
+            CustomResolutionDialog,
+        )
 
         dlg = CustomResolutionDialog(1920, 1080)
         dlg._width_box.setValue(0)
@@ -183,10 +199,16 @@ class TestExportPanel(QtWindowTestCase):
                 self.assertIn(expected, export_combo.itemText(0))
 
     def test_unknown_aspect_ratio_defaults_to_square_presets(self) -> None:
-        from fractal_studio.favorites_controller import FavoritesController
-        from fractal_studio.main_window_controller import MainWindowController
+        from fractal_studio.application.controllers.favorites_controller import (
+            FavoritesController,
+        )
+        from fractal_studio.application.controllers.main_window_controller import (
+            MainWindowController,
+        )
 
-        controller = MainWindowController(export_service=object(), favorites_controller=FavoritesController())
+        controller = MainWindowController(
+            export_service=object(), favorites_controller=FavoritesController()
+        )
         self.assertEqual(
             controller.build_export_presets_for_mode("unexpected")[0],
             ("1080 × 1080", 1080, 1080),
@@ -204,11 +226,164 @@ class TestExportPanel(QtWindowTestCase):
         export_combo.setCurrentIndex(3)
         self.assertFalse(width_box.parentWidget().isHidden())
 
+    def test_main_window_sections_state_hides_export_aliases(self) -> None:
+        w = self.make_window()
+
+        self.assertIsNotNone(self._find_export_combo(w))
+        with self.assertRaises(AttributeError):
+            _ = w._sections_state.export_combo
+
+
+class TestViewportRenderScheduling(QtWindowTestCase):
+    def test_mouse_move_coalesces_render_requests(self) -> None:
+        from PySide6.QtCore import QEvent, QPointF, Qt
+        from PySide6.QtGui import QMouseEvent
+        from fractal_studio.backend import CoreBackend
+        from fractal_studio.viewport import FractalViewportWidget
+
+        class ControllerStub:
+            def __init__(self) -> None:
+                self.move_calls = 0
+                self.render_calls = 0
+
+            def handle_mouse_move(self, widget, x: float, y: float) -> bool:
+                self.move_calls += 1
+                return True
+
+            def render(self, widget) -> None:
+                self.render_calls += 1
+
+        widget = FractalViewportWidget(CoreBackend(None))
+        self.addCleanup(widget.deleteLater)
+        stub = ControllerStub()
+        widget._controller = stub
+
+        for _ in range(5):
+            event = QMouseEvent(
+                QEvent.Type.MouseMove,
+                QPointF(10.0, 10.0),
+                QPointF(10.0, 10.0),
+                QPointF(10.0, 10.0),
+                Qt.MouseButton.NoButton,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+            )
+            widget.mouseMoveEvent(event)
+
+        self.assertEqual(stub.move_calls, 5)
+        self.assertEqual(stub.render_calls, 0)
+
+        _get_app().processEvents()
+        self.assertEqual(stub.render_calls, 1)
+
+    def test_mouse_move_without_pan_does_not_schedule_render(self) -> None:
+        from PySide6.QtCore import QEvent, QPointF, Qt
+        from PySide6.QtGui import QMouseEvent
+        from fractal_studio.backend import CoreBackend
+        from fractal_studio.viewport import FractalViewportWidget
+
+        class ControllerStub:
+            def __init__(self) -> None:
+                self.move_calls = 0
+                self.render_calls = 0
+
+            def handle_mouse_move(self, widget, x: float, y: float) -> bool:
+                self.move_calls += 1
+                return False
+
+            def render(self, widget) -> None:
+                self.render_calls += 1
+
+        widget = FractalViewportWidget(CoreBackend(None))
+        self.addCleanup(widget.deleteLater)
+        stub = ControllerStub()
+        widget._controller = stub
+
+        event = QMouseEvent(
+            QEvent.Type.MouseMove,
+            QPointF(10.0, 10.0),
+            QPointF(10.0, 10.0),
+            QPointF(10.0, 10.0),
+            Qt.MouseButton.NoButton,
+            Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+        widget.mouseMoveEvent(event)
+        _get_app().processEvents()
+
+        self.assertEqual(stub.move_calls, 1)
+        self.assertEqual(stub.render_calls, 0)
+
+    def test_resize_coalesces_render_requests(self) -> None:
+        from PySide6.QtCore import QSize
+        from PySide6.QtGui import QResizeEvent
+        from fractal_studio.backend import CoreBackend
+        from fractal_studio.viewport import FractalViewportWidget
+
+        class ControllerStub:
+            def __init__(self) -> None:
+                self.resize_calls = 0
+                self.render_calls = 0
+
+            def handle_resize(self, widget) -> bool:
+                self.resize_calls += 1
+                return True
+
+            def render(self, widget) -> None:
+                self.render_calls += 1
+
+        widget = FractalViewportWidget(CoreBackend(None))
+        self.addCleanup(widget.deleteLater)
+        stub = ControllerStub()
+        widget._controller = stub
+
+        for _ in range(5):
+            widget.resizeEvent(QResizeEvent(QSize(420, 300), QSize(320, 320)))
+
+        self.assertEqual(stub.resize_calls, 5)
+        self.assertEqual(stub.render_calls, 0)
+
+        _get_app().processEvents()
+        self.assertEqual(stub.render_calls, 1)
+
+    def test_resize_without_render_request_does_not_schedule_render(self) -> None:
+        from PySide6.QtCore import QSize
+        from PySide6.QtGui import QResizeEvent
+        from fractal_studio.backend import CoreBackend
+        from fractal_studio.viewport import FractalViewportWidget
+
+        class ControllerStub:
+            def __init__(self) -> None:
+                self.resize_calls = 0
+                self.render_calls = 0
+
+            def handle_resize(self, widget) -> bool:
+                self.resize_calls += 1
+                return False
+
+            def render(self, widget) -> None:
+                self.render_calls += 1
+
+        widget = FractalViewportWidget(CoreBackend(None))
+        self.addCleanup(widget.deleteLater)
+        stub = ControllerStub()
+        widget._controller = stub
+
+        widget.resizeEvent(QResizeEvent(QSize(420, 300), QSize(320, 320)))
+        _get_app().processEvents()
+
+        self.assertEqual(stub.resize_calls, 1)
+        self.assertEqual(stub.render_calls, 0)
+
 
 class TestMainWindowController(unittest.TestCase):
     def test_on_export_clicked_uses_custom_dimensions(self) -> None:
-        from fractal_studio.favorites_controller import FavoritesController
-        from fractal_studio.main_window_controller import MainWindowController
+        from fractal_studio.application.controllers.favorites_controller import (
+            FavoritesController,
+        )
+        from fractal_studio.application.controllers.main_window_controller import (
+            MainWindowController,
+        )
 
         class Box:
             def __init__(self, value: int) -> None:
@@ -217,7 +392,9 @@ class TestMainWindowController(unittest.TestCase):
             def value(self) -> int:
                 return self._value
 
-        controller = MainWindowController(export_service=object(), favorites_controller=FavoritesController())
+        controller = MainWindowController(
+            export_service=object(), favorites_controller=FavoritesController()
+        )
         captured: list[tuple[int, int]] = []
         custom_sizes: list[tuple[int, int]] = []
 
@@ -234,10 +411,16 @@ class TestMainWindowController(unittest.TestCase):
         self.assertEqual(captured, [(1234, 567)])
 
     def test_on_export_clicked_uses_selected_preset_dimensions(self) -> None:
-        from fractal_studio.favorites_controller import FavoritesController
-        from fractal_studio.main_window_controller import MainWindowController
+        from fractal_studio.application.controllers.favorites_controller import (
+            FavoritesController,
+        )
+        from fractal_studio.application.controllers.main_window_controller import (
+            MainWindowController,
+        )
 
-        controller = MainWindowController(export_service=object(), favorites_controller=FavoritesController())
+        controller = MainWindowController(
+            export_service=object(), favorites_controller=FavoritesController()
+        )
         captured: list[tuple[int, int]] = []
         custom_sizes: list[tuple[int, int]] = []
 
@@ -256,7 +439,9 @@ class TestMainWindowController(unittest.TestCase):
 
 class TestExportPanelCoordinator(unittest.TestCase):
     def test_on_aspect_ratio_changed_maps_index_and_delegates(self) -> None:
-        from fractal_studio.export_panel_coordinator import ExportPanelCoordinator
+        from fractal_studio.application.coordinators.export_panel_coordinator import (
+            ExportPanelCoordinator,
+        )
 
         class ControllerStub:
             def aspect_mode_from_index(self, index: int) -> str:
@@ -267,13 +452,17 @@ class TestExportPanelCoordinator(unittest.TestCase):
 
         coordinator.on_aspect_ratio_changed(
             index=2,
-            apply_aspect_ratio_mode=lambda mode, update_combo: applied.append((mode, update_combo)),
+            apply_aspect_ratio_mode=lambda mode, update_combo: applied.append(
+                (mode, update_combo)
+            ),
         )
 
         self.assertEqual(applied, [("landscape", False)])
 
     def test_on_export_clicked_uses_combo_index(self) -> None:
-        from fractal_studio.export_panel_coordinator import ExportPanelCoordinator
+        from fractal_studio.application.coordinators.export_panel_coordinator import (
+            ExportPanelCoordinator,
+        )
 
         class ControllerStub:
             def on_export_clicked(self, **kwargs) -> None:
@@ -301,7 +490,9 @@ class TestExportPanelCoordinator(unittest.TestCase):
         self.assertEqual(exported, [(640, 480)])
 
     def test_on_export_preset_changed_toggles_custom_visibility(self) -> None:
-        from fractal_studio.export_panel_coordinator import ExportPanelCoordinator
+        from fractal_studio.application.coordinators.export_panel_coordinator import (
+            ExportPanelCoordinator,
+        )
 
         class ControllerStub:
             def should_show_custom_size(self, index: int, presets_count: int) -> bool:
@@ -326,7 +517,7 @@ class TestExportPanelCoordinator(unittest.TestCase):
 
 class TestPaletteWorkflowService(unittest.TestCase):
     def test_save_palette_json_exports_and_reports_status(self) -> None:
-        from fractal_studio.palette_service import PaletteWorkflowService
+        from fractal_studio.services.palette_service import PaletteWorkflowService
 
         backend = DummyPaletteBackend()
         service = PaletteWorkflowService()
@@ -347,7 +538,7 @@ class TestPaletteWorkflowService(unittest.TestCase):
         self.assertEqual(messages[-1], f"Saved palette to {target}")
 
     def test_load_palette_json_applies_control_points_and_reports_status(self) -> None:
-        from fractal_studio.palette_service import PaletteWorkflowService
+        from fractal_studio.services.palette_service import PaletteWorkflowService
 
         backend = DummyPaletteBackend()
         service = PaletteWorkflowService()
@@ -370,7 +561,9 @@ class TestPaletteWorkflowService(unittest.TestCase):
 
 class TestPalettePanelCoordinator(unittest.TestCase):
     def test_save_palette_json_returns_false_without_editor(self) -> None:
-        from fractal_studio.palette_panel_coordinator import PalettePanelCoordinator
+        from fractal_studio.application.coordinators.palette_panel_coordinator import (
+            PalettePanelCoordinator,
+        )
 
         class WorkflowStub:
             def save_palette_json(self, **kwargs) -> bool:
@@ -389,7 +582,9 @@ class TestPalettePanelCoordinator(unittest.TestCase):
         self.assertFalse(result)
 
     def test_load_palette_json_delegates_with_editor(self) -> None:
-        from fractal_studio.palette_panel_coordinator import PalettePanelCoordinator
+        from fractal_studio.application.coordinators.palette_panel_coordinator import (
+            PalettePanelCoordinator,
+        )
 
         class EditorStub:
             def set_control_points(self, points) -> None:
@@ -417,7 +612,9 @@ class TestPalettePanelCoordinator(unittest.TestCase):
         self.assertTrue(workflow.called)
 
     def test_export_legacy_map_delegates_control_points(self) -> None:
-        from fractal_studio.palette_panel_coordinator import PalettePanelCoordinator
+        from fractal_studio.application.coordinators.palette_panel_coordinator import (
+            PalettePanelCoordinator,
+        )
 
         class EditorStub:
             control_points = [(1, 2, 3), (4, 5, 6), (7, 8, 9), (10, 11, 12)]
@@ -447,7 +644,9 @@ class TestPalettePanelCoordinator(unittest.TestCase):
 
 class TestSidebarWiringCoordinator(unittest.TestCase):
     def test_connect_params_and_viewport_wires_all_expected_signals(self) -> None:
-        from fractal_studio.sidebar_wiring_coordinator import SidebarWiringCoordinator
+        from fractal_studio.application.coordinators.sidebar_wiring_coordinator import (
+            SidebarWiringCoordinator,
+        )
 
         class SignalStub:
             def __init__(self) -> None:
@@ -518,18 +717,30 @@ class TestSidebarWiringCoordinator(unittest.TestCase):
         self.assertEqual(params.formula_changed.connected, [viewport.set_formula])
         self.assertEqual(params.mode_changed.connected, [viewport.set_mode])
         self.assertEqual(params.power_changed.connected, [viewport.set_power])
-        self.assertEqual(params.phoenix_changed.connected, [viewport.set_phoenix_constant])
-        self.assertEqual(params.julia_constant_changed.connected, [viewport.set_julia_constant])
-        self.assertEqual(params.max_iterations_changed.connected, [viewport.set_max_iterations])
+        self.assertEqual(
+            params.phoenix_changed.connected, [viewport.set_phoenix_constant]
+        )
+        self.assertEqual(
+            params.julia_constant_changed.connected, [viewport.set_julia_constant]
+        )
+        self.assertEqual(
+            params.max_iterations_changed.connected, [viewport.set_max_iterations]
+        )
         self.assertEqual(params.zoom_changed.connected, [viewport.set_scale])
         self.assertEqual(viewport.scale_changed.connected, [params.set_scale])
-        self.assertEqual(params.coloring_mode_changed.connected, [viewport.set_coloring_mode])
+        self.assertEqual(
+            params.coloring_mode_changed.connected, [viewport.set_coloring_mode]
+        )
         self.assertEqual(params.trap_point_changed.connected, [viewport.set_trap_point])
         self.assertEqual(params.cycle_toggled.connected, [viewport.set_cycle_active])
-        self.assertEqual(params.cycle_speed_changed.connected, [viewport.set_cycle_speed])
+        self.assertEqual(
+            params.cycle_speed_changed.connected, [viewport.set_cycle_speed]
+        )
 
     def test_connect_params_and_viewport_ignores_missing_viewport(self) -> None:
-        from fractal_studio.sidebar_wiring_coordinator import SidebarWiringCoordinator
+        from fractal_studio.application.coordinators.sidebar_wiring_coordinator import (
+            SidebarWiringCoordinator,
+        )
 
         class SignalStub:
             def __init__(self) -> None:
@@ -560,7 +771,7 @@ class TestSidebarWiringCoordinator(unittest.TestCase):
         self.assertEqual(params.cycle_speed_changed.connected, [])
 
     def test_export_legacy_map_requires_four_control_points(self) -> None:
-        from fractal_studio.palette_service import PaletteWorkflowService
+        from fractal_studio.services.palette_service import PaletteWorkflowService
 
         backend = DummyPaletteBackend()
         service = PaletteWorkflowService()
@@ -576,7 +787,10 @@ class TestSidebarWiringCoordinator(unittest.TestCase):
         )
 
         self.assertFalse(result)
-        self.assertEqual(messages[-1], "Add at least four control points before exporting a legacy map.")
+        self.assertEqual(
+            messages[-1],
+            "Add at least four control points before exporting a legacy map.",
+        )
 
 
 class TestParamsPanel(unittest.TestCase):
@@ -683,6 +897,461 @@ class TestParamsPanel(unittest.TestCase):
         self.assertTrue(restored.is_julia)
 
 
+class TestParamsPanelController(unittest.TestCase):
+    def test_controller_operates_on_panel_adapter_without_private_widget_access(
+        self,
+    ) -> None:
+        from fractal_studio.ui.controllers.params_panel_controller import (
+            ParamsPanelController,
+        )
+
+        class SignalStub:
+            def __init__(self) -> None:
+                self.emitted: list[object] = []
+
+            def emit(self, *args) -> None:
+                self.emitted.append(args[0] if len(args) == 1 else args)
+
+        class ComboStub:
+            def __init__(self, items: list[object]) -> None:
+                self.items = items
+                self.current_index = 0
+                self.blocked: list[bool] = []
+
+            def blockSignals(self, blocked: bool) -> None:
+                self.blocked.append(blocked)
+
+            def setCurrentIndex(self, index: int) -> None:
+                self.current_index = index
+
+            def itemData(self, index: int):
+                return self.items[index]
+
+        class SpinStub:
+            def __init__(self, value: float) -> None:
+                self._value = value
+
+            def setValue(self, value: float) -> None:
+                self._value = value
+
+            def value(self) -> float:
+                return self._value
+
+        class ToggleStub:
+            def __init__(self, checked: bool) -> None:
+                self._checked = checked
+
+            def isChecked(self) -> bool:
+                return self._checked
+
+            def setChecked(self, checked: bool) -> None:
+                self._checked = checked
+
+        class PanelStub:
+            _FORMULAS = [
+                ("Standard", "standard"),
+                ("Multibrot", "multibrot"),
+                ("Burning Ship", "burning_ship"),
+                ("Tricorn", "tricorn"),
+                ("Celtic", "celtic"),
+                ("Buffalo", "buffalo"),
+                ("Phoenix", "phoenix"),
+                ("Newton", "newton"),
+            ]
+
+            def __init__(self) -> None:
+                self.formula_changed = SignalStub()
+                self.mode_changed = SignalStub()
+                self.coloring_mode_changed = SignalStub()
+                self.power_visibility: list[bool] = []
+                self.power_labels: list[str] = []
+                self.phoenix_visibility: list[bool] = []
+                self.mode_visibility: list[bool] = []
+                self.julia_visibility: list[bool] = []
+                self.trap_visibility: list[bool] = []
+                self._formula_combo = ComboStub(list(range(len(self._FORMULAS))))
+                self._mode_combo = ComboStub(["Mandelbrot", "Julia"])
+                self._coloring_combo = ComboStub(
+                    [
+                        "smooth_escape",
+                        "orbit_trap_circle",
+                        "orbit_trap_cross",
+                        "orbit_trap_point",
+                    ]
+                )
+                self._power_spin = SpinStub(0)
+                self._phoenix_real_spin = SpinStub(0.0)
+                self._phoenix_imag_spin = SpinStub(0.0)
+                self._julia_real_spin = SpinStub(0.0)
+                self._julia_imag_spin = SpinStub(0.0)
+                self._iterations_spin = SpinStub(0)
+                self._trap_x_spin = SpinStub(0.0)
+                self._trap_y_spin = SpinStub(0.0)
+                self._cycle_button = ToggleStub(True)
+                self.reset_calls = 0
+
+            def formula_key(self, index: int) -> str:
+                return self._FORMULAS[index][1]
+
+            def set_power_visible(self, visible: bool) -> None:
+                self.power_visibility.append(visible)
+
+            def set_power_label_text(self, text: str) -> None:
+                self.power_labels.append(text)
+
+            def set_phoenix_visible(self, visible: bool) -> None:
+                self.phoenix_visibility.append(visible)
+
+            def set_mode_visible(self, visible: bool) -> None:
+                self.mode_visibility.append(visible)
+
+            def set_mode_index(self, index: int) -> None:
+                self._mode_combo.setCurrentIndex(index)
+
+            def set_julia_visible(self, visible: bool) -> None:
+                self.julia_visibility.append(visible)
+
+            def coloring_mode(self, index: int):
+                return self._coloring_combo.itemData(index)
+
+            def set_trap_point_visible(self, visible: bool) -> None:
+                self.trap_visibility.append(visible)
+
+            def reset_controls(self) -> None:
+                self.reset_calls += 1
+                self._formula_combo.setCurrentIndex(0)
+                self._mode_combo.setCurrentIndex(0)
+                self._coloring_combo.setCurrentIndex(0)
+                self._power_spin.setValue(3)
+                self._phoenix_real_spin.setValue(0.5)
+                self._phoenix_imag_spin.setValue(0.0)
+                self._julia_real_spin.setValue(-0.8)
+                self._julia_imag_spin.setValue(0.156)
+                self._iterations_spin.setValue(256)
+                self._trap_x_spin.setValue(0.0)
+                self._trap_y_spin.setValue(0.0)
+                if self._cycle_button.isChecked():
+                    self._cycle_button.setChecked(False)
+
+        controller = ParamsPanelController()
+        panel = PanelStub()
+
+        formula = controller.handle_formula_changed(panel, 7)
+        is_julia = controller.handle_mode_changed(panel, "Julia")
+        coloring = controller.handle_coloring_changed(panel, 3)
+        controller.reset(panel)
+
+        self.assertEqual(formula, "newton")
+        self.assertEqual(panel.formula_changed.emitted, ["newton", "standard"])
+        self.assertEqual(panel.power_visibility, [True, False])
+        self.assertEqual(panel.power_labels, ["Degree (n):", "Power (n):"])
+        self.assertEqual(panel.phoenix_visibility, [False, False])
+        self.assertEqual(panel.mode_visibility, [False, True])
+        self.assertEqual(panel._mode_combo.current_index, 0)
+        self.assertTrue(is_julia)
+        self.assertEqual(panel.mode_changed.emitted, [True, False])
+        self.assertEqual(panel.julia_visibility, [True, False])
+        self.assertEqual(coloring, "orbit_trap_point")
+        self.assertEqual(
+            panel.coloring_mode_changed.emitted, ["orbit_trap_point", "smooth_escape"]
+        )
+        self.assertEqual(panel.trap_visibility, [True, False])
+        self.assertEqual(panel.reset_calls, 1)
+        self.assertEqual(panel._formula_combo.current_index, 0)
+        self.assertEqual(panel._mode_combo.current_index, 0)
+        self.assertEqual(panel._coloring_combo.current_index, 0)
+        self.assertFalse(panel._cycle_button.isChecked())
+
+
+class TestViewportController(unittest.TestCase):
+    def test_controller_state_methods_operate_on_viewport_adapter_without_private_widget_access(
+        self,
+    ) -> None:
+        from fractal_studio.state import ViewportState
+        from fractal_studio.ui.controllers.viewport_controller import (
+            ViewportController,
+            ViewportRenderResult,
+        )
+
+        class DummyBackend:
+            available = False
+
+        class ViewportStub:
+            def __init__(self) -> None:
+                self._state = ViewportState(
+                    formula="standard",
+                    center_x=-0.5,
+                    center_y=0.0,
+                    scale=3.0,
+                    max_iterations=256,
+                    is_julia=False,
+                    julia_real=-0.8,
+                    julia_imag=0.156,
+                    power=3,
+                    phoenix_real=0.5,
+                    phoenix_imag=0.0,
+                    coloring_mode="smooth_escape",
+                    trap_x=0.0,
+                    trap_y=0.0,
+                    palette_offset=0.0,
+                )
+                self._aspect_ratio_mode = "square"
+                self.minimum_sizes: list[tuple[int, int]] = []
+                self.geometry_updates = 0
+                self.repaint_requests = 0
+                self.cycle_started = 0
+                self.cycle_stopped = 0
+                self.cycle_interval = 50
+                self.cycle_active = False
+                self._pan_origin: tuple[float, float] | None = None
+                self._pan_center_start: tuple[float, float] = (-0.5, 0.0)
+                self.width_value = 640
+                self.height_value = 320
+
+            def supported_aspect_ratio_modes(self) -> set[str]:
+                return {"square", "portrait", "landscape"}
+
+            def aspect_ratio_mode(self) -> str:
+                return self._aspect_ratio_mode
+
+            def load_aspect_ratio_mode(self, mode: str) -> None:
+                self._aspect_ratio_mode = mode
+
+            def heightForWidth(self, width: int) -> int:
+                return {"square": width, "portrait": 427, "landscape": 240}[
+                    self._aspect_ratio_mode
+                ]
+
+            def setMinimumSize(self, width: int, height: int) -> None:
+                self.minimum_sizes.append((width, height))
+
+            def updateGeometry(self) -> None:
+                self.geometry_updates += 1
+
+            def update(self) -> None:
+                self.repaint_requests += 1
+
+            def to_state(self) -> ViewportState:
+                return self._state
+
+            def load_state(self, state: ViewportState) -> None:
+                self._state = state
+
+            def formula_center(self, formula: str) -> tuple[float, float]:
+                return {
+                    "standard": (-0.5, 0.0),
+                    "multibrot": (0.0, 0.0),
+                    "phoenix": (0.0, 0.0),
+                    "newton": (0.0, 0.0),
+                }.get(formula, (-0.5, 0.0))
+
+            def newton_scale(self) -> float:
+                return 2.0
+
+            def set_cycle_active_flag(self, active: bool) -> None:
+                self.cycle_active = active
+
+            def start_cycle_timer(self) -> None:
+                self.cycle_started += 1
+
+            def stop_cycle_timer(self) -> None:
+                self.cycle_stopped += 1
+
+            def set_cycle_interval(self, interval: int) -> None:
+                self.cycle_interval = interval
+
+            def set_pan_anchor(
+                self, origin: tuple[float, float], center_start: tuple[float, float]
+            ) -> None:
+                self._pan_origin = origin
+                self._pan_center_start = center_start
+
+            def pan_origin(self) -> tuple[float, float] | None:
+                return self._pan_origin
+
+            def pan_center_start(self) -> tuple[float, float]:
+                return self._pan_center_start
+
+            def clear_pan_anchor(self) -> None:
+                self._pan_origin = None
+
+            def width(self) -> int:
+                return self.width_value
+
+            def height(self) -> int:
+                return self.height_value
+
+        class RecordingViewportController(ViewportController):
+            def __init__(self) -> None:
+                super().__init__(DummyBackend())
+                self.render_count = 0
+
+            def render(self, widget) -> ViewportRenderResult:
+                self.render_count += 1
+                return ViewportRenderResult(image=None, status=None)
+
+        controller = RecordingViewportController()
+        viewport = ViewportStub()
+
+        self.assertEqual(
+            controller.apply_aspect_ratio_mode(viewport, "portrait"), "portrait"
+        )
+        self.assertEqual(viewport.aspect_ratio_mode(), "portrait")
+        self.assertEqual(viewport.minimum_sizes[-1], (320, 427))
+
+        controller.apply_state(
+            viewport,
+            replace(
+                viewport.to_state(),
+                formula="multibrot",
+                scale=0.0,
+                max_iterations=0,
+                power=1,
+                palette_offset=1.25,
+            ),
+            rerender=False,
+        )
+        state_after_apply = viewport.to_state()
+        self.assertEqual(state_after_apply.formula, "multibrot")
+        self.assertEqual(state_after_apply.scale, 1e-12)
+        self.assertEqual(state_after_apply.max_iterations, 1)
+        self.assertEqual(state_after_apply.power, 2)
+        self.assertEqual(state_after_apply.palette_offset, 0.25)
+
+        self.assertEqual(controller.set_formula(viewport, "newton"), 2.0)
+        state_after_formula = viewport.to_state()
+        self.assertEqual(state_after_formula.formula, "newton")
+        self.assertFalse(state_after_formula.is_julia)
+        self.assertEqual(
+            (state_after_formula.center_x, state_after_formula.center_y), (0.0, 0.0)
+        )
+
+        self.assertEqual(controller.set_mode(viewport, True), 3.0)
+        state_after_mode = viewport.to_state()
+        self.assertTrue(state_after_mode.is_julia)
+        self.assertEqual(
+            (state_after_mode.center_x, state_after_mode.center_y), (0.0, 0.0)
+        )
+
+        controller.set_power(viewport, 4)
+        controller.set_phoenix_constant(viewport, 0.2, -0.3)
+        controller.set_scale(viewport, 0.5)
+        controller.set_julia_constant(viewport, -0.2, 0.4)
+        controller.set_max_iterations(viewport, 900)
+        controller.set_coloring_mode(viewport, "orbit_trap_point")
+        controller.set_trap_point(viewport, 0.25, -0.5)
+        controller.set_palette_offset(viewport, 1.75)
+        controller.set_cycle_active(viewport, True)
+        controller.set_cycle_speed(viewport, 25.0)
+        controller.advance_cycle(viewport)
+        wheel_scale = controller.handle_wheel(viewport, 120)
+        controller.handle_mouse_press(viewport, 100.0, 80.0)
+        controller.handle_mouse_move(viewport, 140.0, 100.0)
+        controller.handle_mouse_double_click(viewport, 320.0, 160.0)
+        controller.handle_mouse_release(viewport)
+
+        final_state = viewport.to_state()
+        self.assertEqual(final_state.power, 4)
+        self.assertEqual(
+            (final_state.phoenix_real, final_state.phoenix_imag), (0.2, -0.3)
+        )
+        self.assertEqual((final_state.julia_real, final_state.julia_imag), (-0.2, 0.4))
+        self.assertEqual(final_state.max_iterations, 900)
+        self.assertEqual(final_state.coloring_mode, "orbit_trap_point")
+        self.assertEqual((final_state.trap_x, final_state.trap_y), (0.25, -0.5))
+        self.assertAlmostEqual(final_state.palette_offset, 0.755)
+        self.assertAlmostEqual(wheel_scale, final_state.scale)
+        self.assertEqual(viewport.cycle_active, True)
+        self.assertEqual(viewport.cycle_started, 1)
+        self.assertEqual(viewport.cycle_stopped, 0)
+        self.assertEqual(viewport.cycle_interval, 40)
+        self.assertIsNone(viewport.pan_origin())
+        self.assertGreater(controller.render_count, 0)
+
+    def test_controller_render_bridge_uses_viewport_adapter_surface(self) -> None:
+        from fractal_studio.state import ViewportState
+        from fractal_studio.ui.controllers.viewport_controller import ViewportController
+
+        class DummyBackend:
+            available = True
+
+            def render_fractal(self, formula: str, width: int, height: int, **kwargs):
+                self.last_call = {
+                    "formula": formula,
+                    "width": width,
+                    "height": height,
+                    **kwargs,
+                }
+                return bytes([10, 20, 30, 255]) * (width * height)
+
+        class SignalStub:
+            def __init__(self) -> None:
+                self.emitted: list[str] = []
+
+            def emit(self, value: str) -> None:
+                self.emitted.append(value)
+
+        class ViewportRenderStub:
+            def __init__(self) -> None:
+                self._state = ViewportState(
+                    formula="multibrot",
+                    center_x=-0.25,
+                    center_y=0.5,
+                    scale=0.125,
+                    max_iterations=512,
+                    is_julia=True,
+                    julia_real=-0.8,
+                    julia_imag=0.156,
+                    power=5,
+                    phoenix_real=0.5,
+                    phoenix_imag=0.0,
+                    coloring_mode="orbit_trap_point",
+                    trap_x=0.25,
+                    trap_y=-0.5,
+                    palette_offset=0.5,
+                )
+                self._palette = [(1, 2, 3)]
+                self.status_changed = SignalStub()
+                self.rendered_image = None
+                self.updates = 0
+
+            def replace_palette(self, palette) -> None:
+                self._palette = list(palette)
+
+            def palette(self):
+                return list(self._palette)
+
+            def to_state(self) -> ViewportState:
+                return self._state
+
+            def width(self) -> int:
+                return 2
+
+            def height(self) -> int:
+                return 2
+
+            def store_rendered_image(self, image) -> None:
+                self.rendered_image = image
+
+            def update(self) -> None:
+                self.updates += 1
+
+        backend = DummyBackend()
+        controller = ViewportController(backend)
+        viewport = ViewportRenderStub()
+
+        controller.set_palette(viewport, [(9, 8, 7)])
+        result = controller.render(viewport)
+
+        self.assertEqual(viewport.palette(), [(9, 8, 7)])
+        self.assertIsNotNone(result.image)
+        self.assertIs(viewport.rendered_image, result.image)
+        self.assertEqual(viewport.updates, 2)
+        self.assertEqual(len(viewport.status_changed.emitted), 2)
+        self.assertIn("Multibrot", viewport.status_changed.emitted[-1])
+        self.assertEqual(backend.last_call["palette"], [(9, 8, 7)])
+
+
 class TestAppearanceSettings(QtWindowTestCase):
     def setUp(self) -> None:
         import fractal_studio.main_window as mwmod
@@ -699,7 +1368,9 @@ class TestAppearanceSettings(QtWindowTestCase):
         self._mwmod._FAVORITES_PATH = self._original_favorites_path
 
     def test_appearance_dialog_lists_requested_themes(self) -> None:
-        from fractal_studio.main_window import AppearanceSettingsDialog
+        from fractal_studio.ui.dialogs.appearance_settings_dialog import (
+            AppearanceSettingsDialog,
+        )
         from PySide6.QtCore import QPoint, Qt
         from PySide6.QtTest import QTest
         from PySide6.QtWidgets import QRadioButton
@@ -708,13 +1379,21 @@ class TestAppearanceSettings(QtWindowTestCase):
         preview_requests: list[str] = []
         dialog.theme_preview_requested.connect(preview_requests.append)
 
-        buttons = {button.text().lower(): button for button in dialog.findChildren(QRadioButton)}
+        buttons = {
+            button.text().lower(): button
+            for button in dialog.findChildren(QRadioButton)
+        }
         self.assertSetEqual(set(buttons), {"light", "dark", "sepia"})
         self.assertTrue(all(button.isEnabled() for button in buttons.values()))
         self.assertEqual(dialog.selected_theme(), "dark")
 
         dialog.show()
-        QTest.mouseClick(buttons["sepia"], Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, QPoint(10, 10))
+        QTest.mouseClick(
+            buttons["sepia"],
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+            QPoint(10, 10),
+        )
         self.assertEqual(dialog.selected_theme(), "sepia")
         self.assertIn("sepia", preview_requests)
 
@@ -735,7 +1414,9 @@ class TestAppearanceSettings(QtWindowTestCase):
         self.assertEqual(w._theme_name, "light")
 
     def test_preview_does_not_persist_settings(self) -> None:
-        from fractal_studio.settings_dialog_coordinator import SettingsDialogCoordinator
+        from fractal_studio.application.coordinators.settings_dialog_coordinator import (
+            SettingsDialogCoordinator,
+        )
 
         class ControllerStub:
             def open_settings_dialog(self, **kwargs) -> None:
@@ -781,17 +1462,21 @@ class TestAppearanceSettings(QtWindowTestCase):
     def test_invalid_settings_file_reports_fallback_diagnostic(self) -> None:
         self._mwmod._SETTINGS_PATH.write_text("not json")
         w = self.make_window()
-        self.assertIn("ignored invalid settings file", w.statusBar().currentMessage().lower())
+        self.assertIn(
+            "ignored invalid settings file", w.statusBar().currentMessage().lower()
+        )
 
     def test_invalid_favorites_file_reports_fallback_diagnostic(self) -> None:
         self._mwmod._FAVORITES_PATH.write_text("not json")
         w = self.make_window()
-        self.assertIn("ignored invalid favorites file", w.statusBar().currentMessage().lower())
+        self.assertIn(
+            "ignored invalid favorites file", w.statusBar().currentMessage().lower()
+        )
 
 
 class TestSettingsWorkflowService(unittest.TestCase):
     def test_backend_state_message_reports_loaded_backend(self) -> None:
-        from fractal_studio.settings_service import SettingsWorkflowService
+        from fractal_studio.services.settings_service import SettingsWorkflowService
 
         service = SettingsWorkflowService()
 
@@ -801,7 +1486,7 @@ class TestSettingsWorkflowService(unittest.TestCase):
 
     def test_startup_message_reports_legacy_settings(self) -> None:
         from fractal_studio.persistence import SettingsLoadResult
-        from fractal_studio.settings_service import SettingsWorkflowService
+        from fractal_studio.services.settings_service import SettingsWorkflowService
         from fractal_studio.state import UiSettings
 
         service = SettingsWorkflowService()
@@ -812,7 +1497,7 @@ class TestSettingsWorkflowService(unittest.TestCase):
         self.assertEqual(result, "Loaded legacy settings file.")
 
     def test_status_message_reports_legacy_settings_when_backend_missing(self) -> None:
-        from fractal_studio.settings_service import SettingsWorkflowService
+        from fractal_studio.services.settings_service import SettingsWorkflowService
 
         service = SettingsWorkflowService()
 
@@ -824,13 +1509,18 @@ class TestSettingsWorkflowService(unittest.TestCase):
         )
 
     def test_append_diagnostics_joins_non_empty_messages(self) -> None:
-        from fractal_studio.settings_service import SettingsWorkflowService
+        from fractal_studio.services.settings_service import SettingsWorkflowService
 
         service = SettingsWorkflowService()
 
         result = service.append_diagnostics(
             "Fractal Studio ready with Rust backend.",
-            ["", "Ignored invalid settings file and loaded defaults.", "  ", "Ignored invalid favorites file and loaded an empty list."],
+            [
+                "",
+                "Ignored invalid settings file and loaded defaults.",
+                "  ",
+                "Ignored invalid favorites file and loaded an empty list.",
+            ],
         )
 
         self.assertEqual(
@@ -840,14 +1530,16 @@ class TestSettingsWorkflowService(unittest.TestCase):
 
     def test_startup_status_applies_legacy_message_and_diagnostics(self) -> None:
         from fractal_studio.persistence import SettingsLoadResult
-        from fractal_studio.settings_service import SettingsWorkflowService
+        from fractal_studio.services.settings_service import SettingsWorkflowService
         from fractal_studio.state import UiSettings
 
         service = SettingsWorkflowService()
 
         result = service.startup_status(
             backend_loaded=True,
-            load_result=SettingsLoadResult(settings=UiSettings(theme="dark"), source="legacy", diagnostic=""),
+            load_result=SettingsLoadResult(
+                settings=UiSettings(theme="dark"), source="legacy", diagnostic=""
+            ),
             diagnostics=["Ignored invalid favorites file and loaded an empty list."],
         )
 
@@ -857,7 +1549,7 @@ class TestSettingsWorkflowService(unittest.TestCase):
         )
 
     def test_apply_theme_name_can_preview_without_persisting(self) -> None:
-        from fractal_studio.settings_service import SettingsWorkflowService
+        from fractal_studio.services.settings_service import SettingsWorkflowService
 
         service = SettingsWorkflowService()
         events: list[tuple[str, bool]] = []
@@ -873,7 +1565,7 @@ class TestSettingsWorkflowService(unittest.TestCase):
         self.assertEqual(events, [("dark", False)])
 
     def test_apply_theme_name_persists_when_requested(self) -> None:
-        from fractal_studio.settings_service import SettingsWorkflowService
+        from fractal_studio.services.settings_service import SettingsWorkflowService
 
         service = SettingsWorkflowService()
         events: list[tuple[str, bool]] = []
@@ -907,8 +1599,10 @@ class TestWindowStartupCoordinator(unittest.TestCase):
 
     def test_bootstrap_uses_versioned_settings_and_applies_theme(self) -> None:
         from fractal_studio.persistence import SettingsRepository
-        from fractal_studio.settings_service import SettingsWorkflowService
-        from fractal_studio.startup_coordinator import WindowStartupCoordinator
+        from fractal_studio.services.settings_service import SettingsWorkflowService
+        from fractal_studio.application.workflows.startup_coordinator import (
+            WindowStartupCoordinator,
+        )
         from fractal_studio.state import UiSettings
 
         SettingsRepository(self._mwmod._SETTINGS_PATH).save(UiSettings(theme="sepia"))
@@ -933,8 +1627,10 @@ class TestWindowStartupCoordinator(unittest.TestCase):
 
     def test_bootstrap_reports_legacy_settings_and_diagnostics(self) -> None:
         from fractal_studio.persistence import SettingsRepository
-        from fractal_studio.settings_service import SettingsWorkflowService
-        from fractal_studio.startup_coordinator import WindowStartupCoordinator
+        from fractal_studio.services.settings_service import SettingsWorkflowService
+        from fractal_studio.application.workflows.startup_coordinator import (
+            WindowStartupCoordinator,
+        )
 
         self._mwmod._SETTINGS_PATH.write_text(json.dumps({"theme": "dark"}))
         coordinator = WindowStartupCoordinator(
@@ -964,7 +1660,9 @@ class TestWindowStartupCoordinator(unittest.TestCase):
 
 class TestSettingsDialogCoordinator(unittest.TestCase):
     def test_open_settings_dialog_delegates_to_main_window_controller(self) -> None:
-        from fractal_studio.settings_dialog_coordinator import SettingsDialogCoordinator
+        from fractal_studio.application.coordinators.settings_dialog_coordinator import (
+            SettingsDialogCoordinator,
+        )
 
         class ControllerStub:
             def __init__(self) -> None:
@@ -992,7 +1690,9 @@ class TestSettingsDialogCoordinator(unittest.TestCase):
         self.assertEqual(controller.called["current_theme"], "light")
 
     def test_apply_theme_name_applies_and_refreshes(self) -> None:
-        from fractal_studio.settings_dialog_coordinator import SettingsDialogCoordinator
+        from fractal_studio.application.coordinators.settings_dialog_coordinator import (
+            SettingsDialogCoordinator,
+        )
 
         class ControllerStub:
             def open_settings_dialog(self, **kwargs) -> None:
@@ -1032,7 +1732,9 @@ class TestSettingsDialogCoordinator(unittest.TestCase):
 class TestThemeWorkflowCoordinator(unittest.TestCase):
     def test_apply_theme_name_applies_persists_and_returns_updated_spec(self) -> None:
         from fractal_studio.state import UiSettings
-        from fractal_studio.theme_workflow_coordinator import ThemeWorkflowCoordinator
+        from fractal_studio.application.workflows.theme_workflow_coordinator import (
+            ThemeWorkflowCoordinator,
+        )
 
         class SettingsDialogStub:
             def apply_theme_name(self, **kwargs):
@@ -1078,7 +1780,9 @@ class TestThemeWorkflowCoordinator(unittest.TestCase):
 
     def test_apply_theme_name_keeps_current_spec_when_theme_unchanged(self) -> None:
         from fractal_studio.state import UiSettings
-        from fractal_studio.theme_workflow_coordinator import ThemeWorkflowCoordinator
+        from fractal_studio.application.workflows.theme_workflow_coordinator import (
+            ThemeWorkflowCoordinator,
+        )
 
         class SettingsDialogStub:
             def apply_theme_name(self, **kwargs):
@@ -1130,7 +1834,9 @@ class TestThemeWorkflowCoordinator(unittest.TestCase):
 
     def test_open_settings_returns_updated_theme_and_spec(self) -> None:
         from fractal_studio.state import UiSettings
-        from fractal_studio.theme_workflow_coordinator import ThemeWorkflowCoordinator
+        from fractal_studio.application.workflows.theme_workflow_coordinator import (
+            ThemeWorkflowCoordinator,
+        )
 
         class SettingsDialogStub:
             def open_settings_dialog(self, **kwargs) -> None:
@@ -1179,7 +1885,9 @@ class TestThemeWorkflowCoordinator(unittest.TestCase):
 
     def test_open_settings_keeps_current_state_when_no_changes(self) -> None:
         from fractal_studio.state import UiSettings
-        from fractal_studio.theme_workflow_coordinator import ThemeWorkflowCoordinator
+        from fractal_studio.application.workflows.theme_workflow_coordinator import (
+            ThemeWorkflowCoordinator,
+        )
 
         class SettingsDialogStub:
             def open_settings_dialog(self, **kwargs) -> None:
@@ -1233,7 +1941,9 @@ class TestThemeWorkflowCoordinator(unittest.TestCase):
 
 class TestPalettePreviewCoordinator(unittest.TestCase):
     def test_update_control_summary_sets_expected_text(self) -> None:
-        from fractal_studio.palette_preview_coordinator import PalettePreviewCoordinator
+        from fractal_studio.application.coordinators.palette_preview_coordinator import (
+            PalettePreviewCoordinator,
+        )
 
         class FavoritesControllerStub:
             def update_palette_previews(self, **kwargs) -> None:
@@ -1254,7 +1964,9 @@ class TestPalettePreviewCoordinator(unittest.TestCase):
         self.assertEqual(label.text, "2 control points")
 
     def test_update_palette_previews_delegates_to_favorites_controller(self) -> None:
-        from fractal_studio.palette_preview_coordinator import PalettePreviewCoordinator
+        from fractal_studio.application.coordinators.palette_preview_coordinator import (
+            PalettePreviewCoordinator,
+        )
 
         class FavoritesControllerStub:
             def __init__(self) -> None:
@@ -1322,7 +2034,9 @@ class TestThumbnailHelpers(unittest.TestCase):
 
 class TestThemeController(unittest.TestCase):
     def test_refresh_dynamic_widgets_repolishes_hover_panel_and_rows(self) -> None:
-        from fractal_studio.theme_controller import ThemeController
+        from fractal_studio.application.controllers.theme_controller import (
+            ThemeController,
+        )
 
         class FakeStyle:
             def __init__(self) -> None:
@@ -1395,7 +2109,9 @@ class TestFavoriteHoverPresenter(unittest.TestCase):
         return favorite
 
     def test_build_stats_html_contains_core_values(self) -> None:
-        from fractal_studio.favorite_hover_presenter import FavoriteHoverPresenter
+        from fractal_studio.ui.presenters.favorite_hover_presenter import (
+            FavoriteHoverPresenter,
+        )
         from PySide6.QtWidgets import QWidget
 
         presenter = FavoriteHoverPresenter()
@@ -1408,7 +2124,9 @@ class TestFavoriteHoverPresenter(unittest.TestCase):
         self.assertIn("Iterations", html)
 
     def test_hide_hides_hover_panel(self) -> None:
-        from fractal_studio.favorite_hover_presenter import FavoriteHoverPresenter
+        from fractal_studio.ui.presenters.favorite_hover_presenter import (
+            FavoriteHoverPresenter,
+        )
         from PySide6.QtWidgets import QLabel
 
         presenter = FavoriteHoverPresenter()
@@ -1469,7 +2187,9 @@ class TestColorCubeEditor(unittest.TestCase):
 
     def _face_rect(self, editor, face: int) -> tuple[float, float, float, float]:
         margin = 12.0
-        size = min((editor.width() - margin * 2) / 3.0, (editor.height() - margin * 2) / 3.0)
+        size = min(
+            (editor.width() - margin * 2) / 3.0, (editor.height() - margin * 2) / 3.0
+        )
         origin_x = (editor.width() - size * 3.0) / 2.0
         origin_y = (editor.height() - size * 3.0) / 2.0
         column, row = self._ACTIVE_FACE_GRID[face]
@@ -1494,13 +2214,17 @@ class TestColorCubeEditor(unittest.TestCase):
         from PySide6.QtCore import Qt
         from PySide6.QtTest import QTest
 
-        QTest.mouseClick(editor, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, point)
+        QTest.mouseClick(
+            editor, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, point
+        )
 
     def _press(self, editor, point) -> None:
         from PySide6.QtCore import Qt
         from PySide6.QtTest import QTest
 
-        QTest.mousePress(editor, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, point)
+        QTest.mousePress(
+            editor, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, point
+        )
 
     def _move(self, editor, point) -> None:
         from PySide6.QtTest import QTest
@@ -1511,7 +2235,9 @@ class TestColorCubeEditor(unittest.TestCase):
         from PySide6.QtCore import Qt
         from PySide6.QtTest import QTest
 
-        QTest.mouseRelease(editor, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, point)
+        QTest.mouseRelease(
+            editor, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, point
+        )
 
     def test_seed_clear_and_palette_refresh(self) -> None:
         editor = self._make_editor()
@@ -1546,7 +2272,12 @@ class TestColorCubeEditor(unittest.TestCase):
         self._move(editor, end)
         self.assertNotEqual(editor.control_points[0], (10, 10, 10))
         self._release(editor, end)
-        self.assertTrue(any(status.startswith("Dragging control point 0 on face 2") for status in statuses))
+        self.assertTrue(
+            any(
+                status.startswith("Dragging control point 0 on face 2")
+                for status in statuses
+            )
+        )
 
     def test_mouse_press_adds_point_and_hover_status(self) -> None:
         editor = self._make_editor()
@@ -1555,7 +2286,12 @@ class TestColorCubeEditor(unittest.TestCase):
         pos = self._face_center_point(editor, 2)
         self._click(editor, pos)
         self.assertEqual(len(editor.control_points), 1)
-        self.assertTrue(any(status.startswith("Added control point 0 on face 2") for status in statuses))
+        self.assertTrue(
+            any(
+                status.startswith("Added control point 0 on face 2")
+                for status in statuses
+            )
+        )
 
     def test_paint_event_handles_backend_missing(self) -> None:
         editor = self._make_editor(backend=DummyUnavailableBackend())
@@ -1576,7 +2312,9 @@ class TestViewportSizing(unittest.TestCase):
         self.assertTrue(viewport.hasHeightForWidth())
         self.assertEqual(viewport.heightForWidth(640), 640)
         self.assertEqual(viewport.sizeHint().width(), viewport.sizeHint().height())
-        self.assertEqual(viewport.sizePolicy().verticalPolicy(), QSizePolicy.Policy.Fixed)
+        self.assertEqual(
+            viewport.sizePolicy().verticalPolicy(), QSizePolicy.Policy.Fixed
+        )
 
     def test_viewport_height_follows_aspect_ratio_mode(self) -> None:
         from fractal_studio.backend import load_backend
@@ -1632,6 +2370,12 @@ class TestViewportHints(QtWindowTestCase):
         self.assertIn("double-click", w.viewport_hint_label.text().lower())
         self.assertIn("recenter", w.viewport_hint_label.text().lower())
 
+    def test_main_window_hides_internal_section_state_attributes(self) -> None:
+        w = self.make_window()
+
+        with self.assertRaises(AttributeError):
+            _ = w.selected_row
+
 
 class TestWorkspaceLayout(QtWindowTestCase):
     def test_viewport_default_min_width_matches_preview_column(self) -> None:
@@ -1667,7 +2411,9 @@ class TestFavoriteThumbnailRow(unittest.TestCase):
         return fav
 
     def _make_row(self, fav=None):
-        from fractal_studio.main_window import FavoriteThumbnailRow
+        from fractal_studio.ui.widgets.favorite_thumbnail_row import (
+            FavoriteThumbnailRow,
+        )
         from PySide6.QtGui import QColor, QPixmap
         from PySide6.QtWidgets import QLabel
 
@@ -1731,7 +2477,12 @@ class TestFavoriteThumbnailRow(unittest.TestCase):
 
         row, _, selected, _ = self._make_row()
         row.show()
-        QTest.mouseClick(row, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, QPoint(10, 10))
+        QTest.mouseClick(
+            row,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+            QPoint(10, 10),
+        )
         self.assertEqual(len(selected), 1)
         self.assertIs(selected[0], row)
 
@@ -1741,7 +2492,12 @@ class TestFavoriteThumbnailRow(unittest.TestCase):
 
         row, _, _, activated = self._make_row()
         row.show()
-        QTest.mouseDClick(row, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, QPoint(10, 10))
+        QTest.mouseDClick(
+            row,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+            QPoint(10, 10),
+        )
         self.assertEqual(len(activated), 1)
         self.assertIs(activated[0], row)
 
@@ -1752,16 +2508,32 @@ class TestFavoriteThumbnailRow(unittest.TestCase):
         self.assertIn("-0.750000", hover_panel.text())
 
     def test_stats_html_includes_optional_fields(self) -> None:
-        from fractal_studio.main_window import FavoriteThumbnailRow
+        from fractal_studio.ui.widgets.favorite_thumbnail_row import (
+            FavoriteThumbnailRow,
+        )
         from PySide6.QtGui import QColor, QPixmap
         from PySide6.QtWidgets import QLabel
 
         pixmap = QPixmap(48, 36)
         pixmap.fill(QColor("#ff0000"))
         scenarios = [
-            ("Julia", self._favorite(is_julia=True, julia_real=-0.8, julia_imag=0.156), "Julia c"),
-            ("Phoenix", self._favorite(formula="Phoenix", phoenix_real=0.5, phoenix_imag=0.25), "Phoenix"),
-            ("Orbit trap", self._favorite(coloring_mode="orbit_trap_point", trap_x=0.5, trap_y=-0.25), "Trap pt"),
+            (
+                "Julia",
+                self._favorite(is_julia=True, julia_real=-0.8, julia_imag=0.156),
+                "Julia c",
+            ),
+            (
+                "Phoenix",
+                self._favorite(formula="Phoenix", phoenix_real=0.5, phoenix_imag=0.25),
+                "Phoenix",
+            ),
+            (
+                "Orbit trap",
+                self._favorite(
+                    coloring_mode="orbit_trap_point", trap_x=0.5, trap_y=-0.25
+                ),
+                "Trap pt",
+            ),
         ]
 
         for label, fav, expected in scenarios:
@@ -1778,7 +2550,9 @@ class TestFavoriteRowStylePresenter(unittest.TestCase):
         _get_app()
 
     def test_apply_visual_state_selected(self) -> None:
-        from fractal_studio.favorite_row_style_presenter import FavoriteRowStylePresenter
+        from fractal_studio.ui.presenters.favorite_row_style_presenter import (
+            FavoriteRowStylePresenter,
+        )
         from fractal_studio.theme import get_theme
         from PySide6.QtWidgets import QLabel, QWidget
 
@@ -1795,7 +2569,9 @@ class TestFavoriteRowStylePresenter(unittest.TestCase):
         self.assertIn("font-weight: 600", name.styleSheet())
 
     def test_apply_visual_state_hovered(self) -> None:
-        from fractal_studio.favorite_row_style_presenter import FavoriteRowStylePresenter
+        from fractal_studio.ui.presenters.favorite_row_style_presenter import (
+            FavoriteRowStylePresenter,
+        )
         from fractal_studio.theme import get_theme
         from PySide6.QtWidgets import QLabel, QWidget
 
@@ -1812,7 +2588,9 @@ class TestFavoriteRowStylePresenter(unittest.TestCase):
         self.assertEqual(name.styleSheet(), "")
 
     def test_apply_visual_state_default(self) -> None:
-        from fractal_studio.favorite_row_style_presenter import FavoriteRowStylePresenter
+        from fractal_studio.ui.presenters.favorite_row_style_presenter import (
+            FavoriteRowStylePresenter,
+        )
         from PySide6.QtWidgets import QLabel, QWidget
 
         presenter = FavoriteRowStylePresenter()
@@ -1829,7 +2607,9 @@ class TestFavoriteRowStylePresenter(unittest.TestCase):
 
 class TestFavoritePersistence(QtWindowTestCase):
     def _activate_row(self, window, index: int = -1) -> None:
-        from fractal_studio.main_window import FavoriteThumbnailRow
+        from fractal_studio.ui.widgets.favorite_thumbnail_row import (
+            FavoriteThumbnailRow,
+        )
         from PySide6.QtCore import QPoint, Qt
         from PySide6.QtTest import QTest
 
@@ -1839,14 +2619,23 @@ class TestFavoritePersistence(QtWindowTestCase):
         self.assertGreater(len(rows), 0)
         row = rows[index]
         row.show()
-        QTest.mouseDClick(row, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, QPoint(10, 10))
+        QTest.mouseDClick(
+            row,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+            QPoint(10, 10),
+        )
 
     def _save_favorite_via_ui(self, window) -> None:
         from PySide6.QtWidgets import QPushButton
 
         window.show()
         _get_app().processEvents()
-        save_buttons = [button for button in window.findChildren(QPushButton) if button.text() == "Save"]
+        save_buttons = [
+            button
+            for button in window.findChildren(QPushButton)
+            if button.text() == "Save"
+        ]
         self.assertEqual(len(save_buttons), 1)
         save_buttons[0].click()
         _get_app().processEvents()
@@ -1856,7 +2645,11 @@ class TestFavoritePersistence(QtWindowTestCase):
 
         window.show()
         _get_app().processEvents()
-        delete_buttons = [button for button in window.findChildren(QPushButton) if button.text() == "Delete"]
+        delete_buttons = [
+            button
+            for button in window.findChildren(QPushButton)
+            if button.text() == "Delete"
+        ]
         self.assertEqual(len(delete_buttons), 1)
         delete_buttons[0].click()
         _get_app().processEvents()
@@ -1901,6 +2694,13 @@ class TestFavoritePersistence(QtWindowTestCase):
 
         self.assertEqual(w.editor.control_points, initial_points)
 
+    def test_main_window_sections_state_hides_colormap_widget_aliases(self) -> None:
+        w = self.make_window()
+
+        self.assertIsNotNone(w.editor)
+        with self.assertRaises(AttributeError):
+            _ = w._sections_state.editor
+
     def test_load_favorite_restores_aspect_ratio_mode(self) -> None:
         w = self.make_window()
         aspect_combo = self._find_aspect_combo(w)
@@ -1919,7 +2719,9 @@ class TestFavoritePersistence(QtWindowTestCase):
     def test_save_after_load_appends_and_preserves_original(self) -> None:
         w = self.make_window()
         self.assertIsNotNone(w.viewport)
-        from fractal_studio.main_window import FavoriteThumbnailRow
+        from fractal_studio.ui.widgets.favorite_thumbnail_row import (
+            FavoriteThumbnailRow,
+        )
 
         self._save_favorite_via_ui(w)
         self.assertEqual(len(w.findChildren(FavoriteThumbnailRow)), 1)
@@ -1927,7 +2729,9 @@ class TestFavoritePersistence(QtWindowTestCase):
         self._activate_row(w, 0)
         original_center_x = w.viewport.to_state().center_x
         current_state = w.viewport.to_state()
-        w.viewport.apply_state(replace(current_state, center_x=current_state.center_x + 0.5))
+        w.viewport.apply_state(
+            replace(current_state, center_x=current_state.center_x + 0.5)
+        )
         modified_center_x = w.viewport.to_state().center_x
         self._save_favorite_via_ui(w)
 
@@ -1948,7 +2752,12 @@ class TestFavoritePersistence(QtWindowTestCase):
         self.assertIsNotNone(w.viewport)
         self.assertIsNotNone(w.editor)
 
-        original_points = [(20, 30, 40), (60, 80, 100), (120, 140, 160), (200, 220, 240)]
+        original_points = [
+            (20, 30, 40),
+            (60, 80, 100),
+            (120, 140, 160),
+            (200, 220, 240),
+        ]
         different_points = [(5, 10, 15), (25, 35, 45), (85, 95, 105), (145, 155, 165)]
 
         w.editor.set_control_points(original_points)
@@ -1962,7 +2771,9 @@ class TestFavoritePersistence(QtWindowTestCase):
 
         self.assertEqual(w.viewport.palette(), expected_palette)
 
-    def test_load_favorites_from_disk_returns_empty_for_missing_or_corrupt_file(self) -> None:
+    def test_load_favorites_from_disk_returns_empty_for_missing_or_corrupt_file(
+        self,
+    ) -> None:
         from fractal_studio.persistence import FavoritesRepository
 
         repo = FavoritesRepository(self._mwmod._FAVORITES_PATH)
@@ -1971,7 +2782,9 @@ class TestFavoritePersistence(QtWindowTestCase):
         self.assertEqual(repo.last_load_diagnostic, "")
         self._mwmod._FAVORITES_PATH.write_text("not json")
         self.assertEqual(repo.load(), [])
-        self.assertIn("ignored invalid favorites file", repo.last_load_diagnostic.lower())
+        self.assertIn(
+            "ignored invalid favorites file", repo.last_load_diagnostic.lower()
+        )
 
     def test_save_favorite_persists_versioned_payload(self) -> None:
         w = self.make_window()
@@ -2010,7 +2823,9 @@ class TestFavoritePersistence(QtWindowTestCase):
         self.assertEqual(len(loaded), 1)
         self.assertEqual(loaded[0].to_dict()["name"], entry["name"])
 
-    def test_load_favorites_supports_versioned_format_with_empty_favorites(self) -> None:
+    def test_load_favorites_supports_versioned_format_with_empty_favorites(
+        self,
+    ) -> None:
         from fractal_studio.persistence import FavoritesRepository
 
         self._mwmod._FAVORITES_PATH.write_text(
@@ -2021,7 +2836,9 @@ class TestFavoritePersistence(QtWindowTestCase):
         self.assertEqual(len(loaded), 0)
 
     def test_delete_button_removes_selected_favorite_and_persists(self) -> None:
-        from fractal_studio.main_window import FavoriteThumbnailRow
+        from fractal_studio.ui.widgets.favorite_thumbnail_row import (
+            FavoriteThumbnailRow,
+        )
 
         w = self.make_window()
 
@@ -2029,17 +2846,25 @@ class TestFavoritePersistence(QtWindowTestCase):
         self._save_favorite_via_ui(w)
         rows = w.findChildren(FavoriteThumbnailRow)
         self.assertEqual(len(rows), 2)
-        w._selected_row = rows[-1]
+        w._sections_state._favorites_state.selected_row = rows[-1]
         self._delete_favorite_via_ui(w)
 
-        self.assertEqual(len(w._fav_rows), 1)
-        self.assertIsNone(w._selected_row)
+        self.assertEqual(len(w._sections_state._favorites_state.fav_rows), 1)
+        self.assertIsNone(w._sections_state._favorites_state.selected_row)
         raw = json.loads(self._mwmod._FAVORITES_PATH.read_text())
         self.assertEqual(raw.get("version"), 1)
         self.assertEqual(len(raw.get("favorites", [])), 1)
 
+    def test_main_window_sections_state_hides_favorites_aliases(self) -> None:
+        w = self.make_window()
+
+        with self.assertRaises(AttributeError):
+            _ = w._sections_state.selected_row
+
     def test_delete_button_without_selection_keeps_favorites_unchanged(self) -> None:
-        from fractal_studio.main_window import FavoriteThumbnailRow
+        from fractal_studio.ui.widgets.favorite_thumbnail_row import (
+            FavoriteThumbnailRow,
+        )
 
         w = self.make_window()
 
@@ -2055,22 +2880,64 @@ class TestFavoritePersistence(QtWindowTestCase):
 
 
 class TestFavoritesController(unittest.TestCase):
-    def test_persist_favorites_filters_invalid_entries(self) -> None:
-        from fractal_studio.favorites_controller import FavoritesController
+    def test_persist_favorites_passes_snapshots_to_repo(self) -> None:
+        from fractal_studio.application.controllers.favorites_controller import (
+            FavoritesController,
+        )
+        from fractal_studio.state import FavoriteSnapshot, ViewportState
 
         captured: list[list[object]] = []
         controller = FavoritesController()
+        base_viewport = ViewportState(
+            formula="Mandelbrot",
+            center_x=-0.75,
+            center_y=0.1,
+            scale=0.003,
+            max_iterations=256,
+            is_julia=False,
+            julia_real=0.0,
+            julia_imag=0.0,
+            power=2,
+            phoenix_real=0.0,
+            phoenix_imag=0.0,
+            coloring_mode="smooth",
+            trap_x=0.0,
+            trap_y=0.0,
+            palette_offset=0.0,
+        )
+        snapshot_one = FavoriteSnapshot(
+            favorite_id="1",
+            saved_at="2026-05-25T12:34:56",
+            aspect_ratio_mode="square",
+            name="One",
+            viewport=base_viewport,
+            control_points=[(1, 2, 3)],
+            palette=[(4, 5, 6)],
+            thumbnail="thumb-1",
+        )
+        snapshot_two = FavoriteSnapshot(
+            favorite_id="2",
+            saved_at="2026-05-25T12:34:57",
+            aspect_ratio_mode="landscape",
+            name="Two",
+            viewport=base_viewport,
+            control_points=[(7, 8, 9)],
+            palette=[(10, 11, 12)],
+            thumbnail="thumb-2",
+        )
 
         controller.persist_favorites(
-            favorites=[{"id": "1"}, "skip-me", {"id": "2"}],
+            favorites=[snapshot_one, snapshot_two],
             save_to_repo=lambda snapshots: captured.append(snapshots),
         )
 
         self.assertEqual(len(captured), 1)
-        self.assertEqual([snapshot.to_dict()["id"] for snapshot in captured[0]], ["1", "2"])
+        self.assertEqual([snapshot.favorite_id for snapshot in captured[0]], ["1", "2"])
 
-    def test_load_favorites_converts_snapshots_to_dicts(self) -> None:
-        from fractal_studio.favorites_controller import FavoritesController
+    def test_load_favorites_returns_snapshots(self) -> None:
+        from fractal_studio.application.controllers.favorites_controller import (
+            FavoritesController,
+        )
         from fractal_studio.state import FavoriteSnapshot, ViewportState
 
         controller = FavoritesController()
@@ -2104,11 +2971,14 @@ class TestFavoritesController(unittest.TestCase):
         loaded = controller.load_favorites(lambda: [snapshot])
 
         self.assertEqual(len(loaded), 1)
-        self.assertEqual(loaded[0]["id"], "fav-1")
-        self.assertEqual(loaded[0]["name"], "Favorite")
+        self.assertEqual(loaded[0].favorite_id, "fav-1")
+        self.assertEqual(loaded[0].name, "Favorite")
+
     def test_build_favorite_name_adds_suffix_when_base_exists(self) -> None:
         from fractal_studio.backend import default_profile
-        from fractal_studio.favorites_controller import FavoritesController
+        from fractal_studio.application.controllers.favorites_controller import (
+            FavoritesController,
+        )
         from fractal_studio.state import ViewportState
 
         controller = FavoritesController()
@@ -2136,13 +3006,17 @@ class TestFavoritesController(unittest.TestCase):
             return datetime.datetime(2026, 5, 25, 12, 34, 56)
 
         base_name = "Mandelbrot (-0.750, 0.100) 2026-05-25 12:34:56"
-        result = controller.build_favorite_name(state, {base_name, f"{base_name} (2)"}, fixed_now)
+        result = controller.build_favorite_name(
+            state, {base_name, f"{base_name} (2)"}, fixed_now
+        )
 
         self.assertEqual(result, f"{base_name} (3)")
 
     def test_build_favorite_name_uses_base_when_available(self) -> None:
         from fractal_studio.backend import default_profile
-        from fractal_studio.favorites_controller import FavoritesController
+        from fractal_studio.application.controllers.favorites_controller import (
+            FavoritesController,
+        )
         from fractal_studio.state import ViewportState
 
         controller = FavoritesController()
@@ -2175,7 +3049,9 @@ class TestFavoritesController(unittest.TestCase):
 
     def test_save_favorite_orchestrates_callbacks(self) -> None:
         from fractal_studio.backend import default_profile
-        from fractal_studio.favorites_controller import FavoritesController
+        from fractal_studio.application.controllers.favorites_controller import (
+            FavoritesController,
+        )
         from fractal_studio.state import ViewportState
 
         class ViewportStub:
@@ -2215,8 +3091,8 @@ class TestFavoritesController(unittest.TestCase):
             favorites=[],
             build_name=lambda state: f"{state.formula} saved",
             capture_thumbnail=lambda: "thumb",
-            add_favorite=lambda fav: calls.append(("favorite", fav["name"])),
-            add_row=lambda fav: calls.append(("row", fav["thumbnail"])),
+            add_favorite=lambda fav: calls.append(("favorite", fav.name)),
+            add_row=lambda fav: calls.append(("row", fav.thumbnail)),
             persist=lambda: calls.append("persist"),
             show_status=lambda text: calls.append(("status", text)),
         )
@@ -2229,7 +3105,9 @@ class TestFavoritesController(unittest.TestCase):
 
     def test_load_favorite_row_orchestrates_restore_and_selection(self) -> None:
         from fractal_studio.backend import default_profile
-        from fractal_studio.favorites_controller import FavoritesController
+        from fractal_studio.application.controllers.favorites_controller import (
+            FavoritesController,
+        )
         from fractal_studio.state import FavoriteSnapshot, ViewportState
 
         class ViewportStub:
@@ -2299,7 +3177,7 @@ class TestFavoritesController(unittest.TestCase):
             palette=[(9, 8, 7)],
             thumbnail="thumb",
         )
-        favorites = [snapshot.to_dict()]
+        favorites = [snapshot]
         rows = [object()]
         selected: list[object] = []
         messages: list[str] = []
@@ -2326,11 +3204,18 @@ class TestFavoritesController(unittest.TestCase):
 
     def test_update_palette_previews_sets_summary_and_preview_palettes(self) -> None:
         from fractal_studio.backend import default_profile
-        from fractal_studio.favorites_controller import FavoritesController
+        from fractal_studio.application.controllers.favorites_controller import (
+            FavoritesController,
+        )
 
         class EditorStub:
             def __init__(self) -> None:
-                self.control_points = [(10, 20, 30), (40, 50, 60), (70, 80, 90), (100, 110, 120)]
+                self.control_points = [
+                    (10, 20, 30),
+                    (40, 50, 60),
+                    (70, 80, 90),
+                    (100, 110, 120),
+                ]
 
         class PaletteStub:
             def __init__(self) -> None:
@@ -2380,7 +3265,9 @@ class TestFavoritesPanelCoordinator(unittest.TestCase):
         _get_app()
 
     def test_build_row_uses_placeholder_for_invalid_thumbnail(self) -> None:
-        from fractal_studio.favorites_panel_coordinator import FavoritesPanelCoordinator
+        from fractal_studio.application.coordinators.favorites_panel_coordinator import (
+            FavoritesPanelCoordinator,
+        )
         from PySide6.QtGui import QColor, QPixmap
         from PySide6.QtWidgets import QLabel
 
@@ -2412,7 +3299,9 @@ class TestFavoritesPanelCoordinator(unittest.TestCase):
         self.assertFalse(captured["pixmap"].isNull())
 
     def test_select_row_deselects_previous(self) -> None:
-        from fractal_studio.favorites_panel_coordinator import FavoritesPanelCoordinator
+        from fractal_studio.application.coordinators.favorites_panel_coordinator import (
+            FavoritesPanelCoordinator,
+        )
 
         class Row:
             def __init__(self) -> None:
@@ -2432,7 +3321,9 @@ class TestFavoritesPanelCoordinator(unittest.TestCase):
         self.assertEqual(new_row.calls, [True])
 
     def test_delete_selected_removes_row_and_favorite(self) -> None:
-        from fractal_studio.favorites_panel_coordinator import FavoritesPanelCoordinator
+        from fractal_studio.application.coordinators.favorites_panel_coordinator import (
+            FavoritesPanelCoordinator,
+        )
 
         class Row:
             def __init__(self, name: str) -> None:
@@ -2473,7 +3364,9 @@ class TestFavoritesPanelCoordinator(unittest.TestCase):
         self.assertTrue(row_b.deleted)
 
     def test_build_row_with_callbacks_invokes_owner_handlers(self) -> None:
-        from fractal_studio.favorites_panel_coordinator import FavoritesPanelCoordinator
+        from fractal_studio.application.coordinators.favorites_panel_coordinator import (
+            FavoritesPanelCoordinator,
+        )
         from PySide6.QtGui import QColor, QPixmap
         from PySide6.QtWidgets import QLabel
 
@@ -2508,8 +3401,12 @@ class TestFavoritesPanelCoordinator(unittest.TestCase):
             favorite={"name": "sample", "thumbnail": "broken"},
             owner=owner,
             hover_panel=hover_panel,
-            on_select_row=lambda current_owner, current_row: current_owner.on_selected(current_row),
-            on_activate_row=lambda current_owner, current_row: current_owner.on_activated(current_row),
+            on_select_row=lambda current_owner, current_row: current_owner.on_selected(
+                current_row
+            ),
+            on_activate_row=lambda current_owner, current_row: (
+                current_owner.on_activated(current_row)
+            ),
             row_factory=row_factory,
             decode_thumbnail=lambda _: QPixmap(),
             placeholder_pixmap=placeholder,
@@ -2522,7 +3419,9 @@ class TestFavoritesPanelCoordinator(unittest.TestCase):
         self.assertEqual(owner.activated, [row])
 
     def test_build_row_with_callbacks_noops_after_owner_collected(self) -> None:
-        from fractal_studio.favorites_panel_coordinator import FavoritesPanelCoordinator
+        from fractal_studio.application.coordinators.favorites_panel_coordinator import (
+            FavoritesPanelCoordinator,
+        )
         from PySide6.QtGui import QColor, QPixmap
         from PySide6.QtWidgets import QLabel
 
@@ -2567,7 +3466,9 @@ class TestFavoritesPanelCoordinator(unittest.TestCase):
 
 class TestFavoritesWorkflowCoordinator(unittest.TestCase):
     def test_save_favorite_returns_early_without_viewport(self) -> None:
-        from fractal_studio.favorites_workflow_coordinator import FavoritesWorkflowCoordinator
+        from fractal_studio.application.workflows.favorites_workflow_coordinator import (
+            FavoritesWorkflowCoordinator,
+        )
 
         class ControllerStub:
             def __init__(self) -> None:
@@ -2602,7 +3503,9 @@ class TestFavoritesWorkflowCoordinator(unittest.TestCase):
         self.assertFalse(controller.called)
 
     def test_load_selected_favorite_calls_load_row_only_when_ready(self) -> None:
-        from fractal_studio.favorites_workflow_coordinator import FavoritesWorkflowCoordinator
+        from fractal_studio.application.workflows.favorites_workflow_coordinator import (
+            FavoritesWorkflowCoordinator,
+        )
 
         class ControllerStub:
             def save_favorite(self, **kwargs):
@@ -2646,7 +3549,10 @@ class TestFavoritesWorkflowCoordinator(unittest.TestCase):
         self.assertEqual(calls, ["row-1"])
 
     def test_delete_selected_favorite_persists_when_selection_cleared(self) -> None:
-        from fractal_studio.favorites_workflow_coordinator import FavoritesWorkflowCoordinator
+        from fractal_studio.application.workflows.favorites_workflow_coordinator import (
+            FavoritesWorkflowCoordinator,
+        )
+        from fractal_studio.state import FavoriteSnapshot, ViewportState
 
         class ControllerStub:
             def save_favorite(self, **kwargs):
@@ -2661,11 +3567,37 @@ class TestFavoritesWorkflowCoordinator(unittest.TestCase):
 
         coordinator = FavoritesWorkflowCoordinator(ControllerStub(), PanelStub())
         persisted: list[str] = []
+        snapshot = FavoriteSnapshot(
+            favorite_id="a",
+            saved_at="2026-05-25T12:34:56",
+            aspect_ratio_mode="square",
+            name="A",
+            viewport=ViewportState(
+                formula="Mandelbrot",
+                center_x=-0.75,
+                center_y=0.1,
+                scale=0.003,
+                max_iterations=256,
+                is_julia=False,
+                julia_real=0.0,
+                julia_imag=0.0,
+                power=2,
+                phoenix_real=0.0,
+                phoenix_imag=0.0,
+                coloring_mode="smooth",
+                trap_x=0.0,
+                trap_y=0.0,
+                palette_offset=0.0,
+            ),
+            control_points=[],
+            palette=[],
+            thumbnail="",
+        )
 
         selected = coordinator.delete_selected_favorite(
             selected_row=object(),
             rows=[object()],
-            favorites=[{"id": "a"}],
+            favorites=[snapshot],
             scroll_layout=object(),
             persist_favorites=lambda: persisted.append("saved"),
         )
@@ -2674,8 +3606,10 @@ class TestFavoritesWorkflowCoordinator(unittest.TestCase):
         self.assertEqual(persisted, ["saved"])
 
     def test_build_favorite_name_delegates_with_existing_names(self) -> None:
-        from fractal_studio.favorites_workflow_coordinator import FavoritesWorkflowCoordinator
-        from fractal_studio.state import ViewportState
+        from fractal_studio.application.workflows.favorites_workflow_coordinator import (
+            FavoritesWorkflowCoordinator,
+        )
+        from fractal_studio.state import FavoriteSnapshot, ViewportState
 
         class ControllerStub:
             def __init__(self) -> None:
@@ -2714,15 +3648,39 @@ class TestFavoritesWorkflowCoordinator(unittest.TestCase):
 
         name = coordinator.build_favorite_name(
             state=state,
-            favorites=[{"name": "A"}, {"name": "B"}, {}],
+            favorites=[
+                FavoriteSnapshot(
+                    favorite_id="1",
+                    saved_at="2026-05-25T12:34:56",
+                    aspect_ratio_mode="square",
+                    name="A",
+                    viewport=state,
+                    control_points=[],
+                    palette=[],
+                    thumbnail="",
+                ),
+                FavoriteSnapshot(
+                    favorite_id="2",
+                    saved_at="2026-05-25T12:34:57",
+                    aspect_ratio_mode="landscape",
+                    name="B",
+                    viewport=state,
+                    control_points=[],
+                    palette=[],
+                    thumbnail="",
+                ),
+            ],
             now=lambda: None,
         )
 
         self.assertEqual(name, "resolved-name")
-        self.assertEqual(controller.existing_names, {"A", "B", ""})
+        self.assertEqual(controller.existing_names, {"A", "B"})
 
     def test_load_favorite_row_delegates_to_controller(self) -> None:
-        from fractal_studio.favorites_workflow_coordinator import FavoritesWorkflowCoordinator
+        from fractal_studio.application.workflows.favorites_workflow_coordinator import (
+            FavoritesWorkflowCoordinator,
+        )
+        from fractal_studio.state import FavoriteSnapshot, ViewportState
 
         class ControllerStub:
             def __init__(self) -> None:
@@ -2745,7 +3703,34 @@ class TestFavoritesWorkflowCoordinator(unittest.TestCase):
         coordinator = FavoritesWorkflowCoordinator(controller, PanelStub())
         row = object()
         rows = [row]
-        favorites = [{"id": "fav-1"}]
+        favorites = [
+            FavoriteSnapshot(
+                favorite_id="fav-1",
+                saved_at="2026-05-25T12:34:56",
+                aspect_ratio_mode="square",
+                name="Favorite",
+                viewport=ViewportState(
+                    formula="Mandelbrot",
+                    center_x=-0.75,
+                    center_y=0.1,
+                    scale=0.003,
+                    max_iterations=256,
+                    is_julia=False,
+                    julia_real=0.0,
+                    julia_imag=0.0,
+                    power=2,
+                    phoenix_real=0.0,
+                    phoenix_imag=0.0,
+                    coloring_mode="smooth",
+                    trap_x=0.0,
+                    trap_y=0.0,
+                    palette_offset=0.0,
+                ),
+                control_points=[],
+                palette=[],
+                thumbnail="",
+            )
+        ]
 
         coordinator.load_favorite_row(
             row=row,

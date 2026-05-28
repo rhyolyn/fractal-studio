@@ -8,5 +8,10 @@ __pycache__/
 core/target/
 core/dist/
 *.whl
+.superpowers/
+*.egg-info/
+.coverage
+prompt.txt
+docs/
 
 

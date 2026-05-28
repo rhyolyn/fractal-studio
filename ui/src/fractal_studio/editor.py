@@ -5,7 +5,8 @@ from PySide6.QtGui import QColor, QImage, QPaintEvent, QPainter, QMouseEvent, QP
 from PySide6.QtWidgets import QWidget
 
 from fractal_studio.backend import BackendProfile, Color, CoreBackend
-from fractal_studio.editor_controller import DragState, EditorController
+from fractal_studio.ui.controllers.editor_controller import DragState, EditorController
+
 
 class PalettePreviewWidget(QWidget):
     def __init__(self, title: str, parent: QWidget | None = None) -> None:
@@ -26,12 +27,20 @@ class PalettePreviewWidget(QWidget):
 
         title_rect = QRectF(12, 8, self.width() - 24, 20)
         painter.setPen(self.palette().text().color())
-        painter.drawText(title_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, self._title)
+        painter.drawText(
+            title_rect,
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+            self._title,
+        )
 
         bar_rect = QRectF(12, 34, self.width() - 24, self.height() - 46)
         painter.fillRect(bar_rect, self.palette().base())
         if not self._palette:
-            painter.drawText(bar_rect, Qt.AlignmentFlag.AlignCenter, "Add at least four control points.")
+            painter.drawText(
+                bar_rect,
+                Qt.AlignmentFlag.AlignCenter,
+                "Add at least four control points.",
+            )
             return
 
         width = max(1, int(bar_rect.width()))
@@ -54,7 +63,12 @@ class ColorCubeEditor(QWidget):
     palette_changed = Signal(list)
     status_changed = Signal(str)
 
-    def __init__(self, backend: CoreBackend, profile: BackendProfile, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        backend: CoreBackend,
+        profile: BackendProfile,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self._backend = backend
         self._profile = profile
@@ -89,10 +103,14 @@ class ColorCubeEditor(QWidget):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            self._controller.handle_mouse_press(self, event.position().x(), event.position().y())
+            self._controller.handle_mouse_press(
+                self, event.position().x(), event.position().y()
+            )
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
-        self._controller.handle_mouse_move(self, event.position().x(), event.position().y())
+        self._controller.handle_mouse_move(
+            self, event.position().x(), event.position().y()
+        )
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
@@ -101,4 +119,3 @@ class ColorCubeEditor(QWidget):
     def paintEvent(self, event: QPaintEvent) -> None:  # noqa: ARG002
         painter = QPainter(self)
         self._controller.paint(self, painter)
-
