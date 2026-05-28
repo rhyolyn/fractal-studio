@@ -7,6 +7,8 @@ from fractal_studio.application.controllers.favorites_controller import (
 
 
 class PalettePreviewCoordinator:
+    """Coordinator for the palette preview panel. Owns preview refresh and control point summary display."""
+
     def __init__(self, favorites_controller: FavoritesController) -> None:
         self._favorites_controller = favorites_controller
 

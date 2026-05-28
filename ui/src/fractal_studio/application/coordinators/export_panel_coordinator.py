@@ -11,6 +11,8 @@ from fractal_studio.viewport import FractalViewportWidget
 
 
 class ExportPanelCoordinator:
+    """Coordinator for the export panel. Owns aspect ratio changes, preset selection, and export execution."""
+
     def __init__(self, controller: MainWindowController) -> None:
         self._controller = controller
 

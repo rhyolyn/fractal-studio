@@ -17,6 +17,8 @@ class FavoriteRowLike(Protocol):
 
 
 class FavoritesPanelCoordinator:
+    """Coordinator for the favorites panel. Owns row construction, selection, deletion, and scroll layout management."""
+
     def __init__(self, hover_presenter) -> None:
         self._hover_presenter = hover_presenter
 

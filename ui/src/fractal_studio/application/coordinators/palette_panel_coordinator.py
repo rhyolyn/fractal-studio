@@ -7,6 +7,8 @@ from fractal_studio.services.palette_service import PaletteWorkflowService
 
 
 class PalettePanelCoordinator:
+    """Coordinator for the colormap panel. Owns palette JSON save/load and legacy .map export."""
+
     def __init__(self, workflow_service: PaletteWorkflowService) -> None:
         self._workflow_service = workflow_service
 

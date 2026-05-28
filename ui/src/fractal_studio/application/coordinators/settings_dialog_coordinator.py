@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 
 
 class SettingsDialogCoordinator:
+    """Coordinator for the settings dialog. Owns dialog lifecycle and theme preview vs. persist logic."""
+
     def __init__(
         self,
         controller: MainWindowController,

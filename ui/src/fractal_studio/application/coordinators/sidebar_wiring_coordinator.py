@@ -4,6 +4,8 @@ from fractal_studio.viewport import FractalParamsPanel, FractalViewportWidget
 
 
 class SidebarWiringCoordinator:
+    """Coordinator for the sidebar panel. Owns signal wiring between the params panel and the viewport."""
+
     def connect_params_and_viewport(
         self,
         params_panel: FractalParamsPanel,
