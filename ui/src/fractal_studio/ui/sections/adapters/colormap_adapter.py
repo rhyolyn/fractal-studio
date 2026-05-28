@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fractal_studio.editor import ColorCubeEditor
-from fractal_studio.ui.sections.base import (
+from fractal_studio.ui.sections.adapters.base import (
     _BasePortsAdapter,
     _FavoriteActionsMixin,
 )

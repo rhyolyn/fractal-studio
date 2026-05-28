@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fractal_studio.ui.sections.base import _BasePortsAdapter
+from fractal_studio.ui.sections.adapters.base import _BasePortsAdapter
 from fractal_studio.viewport import FractalParamsPanel
 
 

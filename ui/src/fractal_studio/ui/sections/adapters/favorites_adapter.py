@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QVBoxLayout, QWidget
 
-from fractal_studio.ui.sections.base import (
+from fractal_studio.ui.sections.adapters.base import (
     _BasePortsAdapter,
     _FavoriteActionsMixin,
 )

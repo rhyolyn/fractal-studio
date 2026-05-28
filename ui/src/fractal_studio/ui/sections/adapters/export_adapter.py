@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QComboBox, QSpinBox
 
-from fractal_studio.ui.sections.base import _BasePortsAdapter
+from fractal_studio.ui.sections.adapters.base import _BasePortsAdapter
 
 
 class ExportPanelPortsAdapter(_BasePortsAdapter):
