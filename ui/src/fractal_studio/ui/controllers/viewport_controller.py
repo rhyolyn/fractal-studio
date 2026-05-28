@@ -6,7 +6,13 @@ from typing import TYPE_CHECKING, Protocol
 from PySide6.QtGui import QImage
 
 from fractal_studio.backend import Color, CoreBackend
-from fractal_studio.state import ViewportState
+from fractal_studio.state import (
+    JuliaParams,
+    NewtonParams,
+    PhoenixParams,
+    StandardParams,
+    ViewportState,
+)
 
 if TYPE_CHECKING:
     pass
@@ -131,7 +137,9 @@ class ViewportController:
         self, widget: _ViewportAdapter, real: float, imag: float
     ) -> None:
         current = widget.to_state()
-        widget.load_state(replace(current, phoenix_real=real, phoenix_imag=imag))
+        widget.load_state(
+            replace(current, formula_params=PhoenixParams(real=real, imag=imag))
+        )
         if current.formula == "phoenix":
             self.render(widget)
 
@@ -144,7 +152,9 @@ class ViewportController:
         self, widget: _ViewportAdapter, real: float, imag: float
     ) -> None:
         current = widget.to_state()
-        widget.load_state(replace(current, julia_real=real, julia_imag=imag))
+        widget.load_state(
+            replace(current, formula_params=JuliaParams(cx=real, cy=imag))
+        )
         if current.is_julia:
             self.render(widget)
 
@@ -160,7 +170,9 @@ class ViewportController:
 
     def set_trap_point(self, widget: _ViewportAdapter, x: float, y: float) -> None:
         current = widget.to_state()
-        widget.load_state(replace(current, trap_x=x, trap_y=y))
+        widget.load_state(
+            replace(current, formula_params=NewtonParams(trap_x=x, trap_y=y))
+        )
         if current.coloring_mode == "orbit_trap_point":
             self.render(widget)
 
@@ -249,24 +261,31 @@ class ViewportController:
         width = max(1, widget.width())
         height = max(1, widget.height())
         state = widget.to_state()
+        fp = state.formula_params
+        julia_real = fp.cx if isinstance(fp, JuliaParams) else 0.0
+        julia_imag = fp.cy if isinstance(fp, JuliaParams) else 0.0
+        phoenix_real = fp.real if isinstance(fp, PhoenixParams) else 0.0
+        phoenix_imag = fp.imag if isinstance(fp, PhoenixParams) else 0.0
+        trap_x = fp.trap_x if isinstance(fp, NewtonParams) else 0.0
+        trap_y = fp.trap_y if isinstance(fp, NewtonParams) else 0.0
         raw = self._backend.render_fractal(
             state.formula,
             width,
             height,
             is_julia=state.is_julia,
-            julia_real=state.julia_real,
-            julia_imag=state.julia_imag,
+            julia_real=julia_real,
+            julia_imag=julia_imag,
             power=state.power,
-            phoenix_real=state.phoenix_real,
-            phoenix_imag=state.phoenix_imag,
+            phoenix_real=phoenix_real,
+            phoenix_imag=phoenix_imag,
             center_x=state.center_x,
             center_y=state.center_y,
             scale=state.scale,
             max_iterations=state.max_iterations,
             palette=palette,
             coloring_mode=state.coloring_mode,
-            trap_x=state.trap_x,
-            trap_y=state.trap_y,
+            trap_x=trap_x,
+            trap_y=trap_y,
             palette_offset=state.palette_offset,
         )
         image = QImage(

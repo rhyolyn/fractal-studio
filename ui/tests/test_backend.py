@@ -67,5 +67,63 @@ class ValidateTest(unittest.TestCase):
         self.assertIn("owner", str(ctx.exception))
 
 
+@pytest.mark.unit
+class ViewportStateFormulaParamsTests(unittest.TestCase):
+    def test_julia_params_round_trip(self) -> None:
+        _ensure_pyside6_mocked()
+        from importlib import import_module
+        import sys
+        for key in list(sys.modules):
+            if key.startswith(("fractal_studio.state", "fractal_studio.persistence")):
+                del sys.modules[key]
+        from fractal_studio.state import ViewportState, JuliaParams
+        original = ViewportState(
+            formula="standard",
+            center_x=0.0, center_y=0.0, scale=3.0,
+            max_iterations=256, is_julia=True,
+            formula_params=JuliaParams(cx=-0.8, cy=0.156),
+            coloring_mode="smooth_escape",
+            palette_offset=0.0,
+        )
+        restored = ViewportState.from_dict(original.to_dict())
+        self.assertEqual(restored.formula_params, original.formula_params)
+
+    def test_phoenix_params_round_trip(self) -> None:
+        _ensure_pyside6_mocked()
+        for key in list(sys.modules):
+            if key.startswith(("fractal_studio.state", "fractal_studio.persistence")):
+                del sys.modules[key]
+        from fractal_studio.state import ViewportState, PhoenixParams
+        original = ViewportState(
+            formula="phoenix",
+            center_x=0.0, center_y=0.0, scale=3.0,
+            max_iterations=256, is_julia=False,
+            formula_params=PhoenixParams(real=0.5, imag=0.0),
+            coloring_mode="smooth_escape",
+            palette_offset=0.0,
+        )
+        restored = ViewportState.from_dict(original.to_dict())
+        self.assertEqual(restored.formula_params, original.formula_params)
+
+    def test_legacy_flat_format_loads_correctly(self) -> None:
+        _ensure_pyside6_mocked()
+        for key in list(sys.modules):
+            if key.startswith(("fractal_studio.state", "fractal_studio.persistence")):
+                del sys.modules[key]
+        from fractal_studio.state import ViewportState, JuliaParams
+        legacy = {
+            "formula": "standard", "center_x": 0.0, "center_y": 0.0,
+            "scale": 3.0, "max_iterations": 256, "is_julia": True,
+            "julia_real": -0.8, "julia_imag": 0.156,
+            "phoenix_real": 0.5, "phoenix_imag": 0.0,
+            "coloring_mode": "smooth_escape",
+            "trap_x": 0.0, "trap_y": 0.0, "palette_offset": 0.0,
+            "power": 3,
+        }
+        state = ViewportState.from_dict(legacy)
+        self.assertIsInstance(state.formula_params, JuliaParams)
+        self.assertAlmostEqual(state.formula_params.cx, -0.8)
+
+
 if __name__ == "__main__":
     unittest.main()

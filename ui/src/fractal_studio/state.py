@@ -26,6 +26,32 @@ class UiSettings:
 
 
 @dataclass(frozen=True)
+class StandardParams:
+    pass
+
+
+@dataclass(frozen=True)
+class JuliaParams:
+    cx: float = -0.8
+    cy: float = 0.156
+
+
+@dataclass(frozen=True)
+class PhoenixParams:
+    real: float = 0.5
+    imag: float = 0.0
+
+
+@dataclass(frozen=True)
+class NewtonParams:
+    trap_x: float = 0.0
+    trap_y: float = 0.0
+
+
+FormulaParams = StandardParams | JuliaParams | PhoenixParams | NewtonParams
+
+
+@dataclass(frozen=True)
 class ViewportState:
     formula: str
     center_x: float
@@ -33,37 +59,80 @@ class ViewportState:
     scale: float
     max_iterations: int
     is_julia: bool
-    julia_real: float
-    julia_imag: float
-    power: int
-    phoenix_real: float
-    phoenix_imag: float
+    formula_params: FormulaParams
     coloring_mode: str
-    trap_x: float
-    trap_y: float
     palette_offset: float
+    power: int = 3
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> ViewportState:
+        formula = str(raw.get("formula", "standard"))
+
+        if "formula_params" in raw:
+            fp_raw = raw["formula_params"]
+            fp_type = fp_raw.get("type", "standard")
+            if fp_type == "julia":
+                formula_params: FormulaParams = JuliaParams(
+                    cx=float(fp_raw.get("cx", -0.8)),
+                    cy=float(fp_raw.get("cy", 0.156)),
+                )
+            elif fp_type == "phoenix":
+                formula_params = PhoenixParams(
+                    real=float(fp_raw.get("real", 0.5)),
+                    imag=float(fp_raw.get("imag", 0.0)),
+                )
+            elif fp_type == "newton":
+                formula_params = NewtonParams(
+                    trap_x=float(fp_raw.get("trap_x", 0.0)),
+                    trap_y=float(fp_raw.get("trap_y", 0.0)),
+                )
+            else:
+                formula_params = StandardParams()
+        else:
+            # Legacy flat format
+            is_julia = bool(raw.get("is_julia", False))
+            if formula == "phoenix":
+                formula_params = PhoenixParams(
+                    real=float(raw.get("phoenix_real", 0.5)),
+                    imag=float(raw.get("phoenix_imag", 0.0)),
+                )
+            elif formula == "newton":
+                formula_params = NewtonParams(
+                    trap_x=float(raw.get("trap_x", 0.0)),
+                    trap_y=float(raw.get("trap_y", 0.0)),
+                )
+            elif is_julia or formula == "julia":
+                formula_params = JuliaParams(
+                    cx=float(raw.get("julia_real", -0.8)),
+                    cy=float(raw.get("julia_imag", 0.156)),
+                )
+            else:
+                formula_params = StandardParams()
+
         return cls(
-            formula=str(raw.get("formula", "standard")),
+            formula=formula,
             center_x=float(raw.get("center_x", -0.5)),
             center_y=float(raw.get("center_y", 0.0)),
-            scale=float(raw.get("scale", 3.0)),
-            max_iterations=int(raw.get("max_iterations", 256)),
+            scale=max(1e-12, float(raw.get("scale", 3.0))),
+            max_iterations=max(1, int(raw.get("max_iterations", 256))),
             is_julia=bool(raw.get("is_julia", False)),
-            julia_real=float(raw.get("julia_real", -0.8)),
-            julia_imag=float(raw.get("julia_imag", 0.156)),
-            power=int(raw.get("power", 3)),
-            phoenix_real=float(raw.get("phoenix_real", 0.5)),
-            phoenix_imag=float(raw.get("phoenix_imag", 0.0)),
+            formula_params=formula_params,
             coloring_mode=str(raw.get("coloring_mode", "smooth_escape")),
-            trap_x=float(raw.get("trap_x", 0.0)),
-            trap_y=float(raw.get("trap_y", 0.0)),
             palette_offset=float(raw.get("palette_offset", 0.0)) % 1.0,
+            power=max(2, int(raw.get("power", 3))),
         )
 
     def to_dict(self) -> dict[str, Any]:
+        fp = self.formula_params
+        if isinstance(fp, JuliaParams):
+            fp_dict: dict[str, Any] = {"type": "julia", "cx": fp.cx, "cy": fp.cy}
+        elif isinstance(fp, PhoenixParams):
+            fp_dict = {"type": "phoenix", "real": fp.real, "imag": fp.imag}
+        elif isinstance(fp, NewtonParams):
+            fp_dict = {"type": "newton", "trap_x": fp.trap_x, "trap_y": fp.trap_y}
+        else:
+            fp_dict = {"type": "standard"}
+
         return {
             "formula": self.formula,
             "center_x": self.center_x,
@@ -71,15 +140,10 @@ class ViewportState:
             "scale": self.scale,
             "max_iterations": self.max_iterations,
             "is_julia": self.is_julia,
-            "julia_real": self.julia_real,
-            "julia_imag": self.julia_imag,
-            "power": self.power,
-            "phoenix_real": self.phoenix_real,
-            "phoenix_imag": self.phoenix_imag,
+            "formula_params": fp_dict,
             "coloring_mode": self.coloring_mode,
-            "trap_x": self.trap_x,
-            "trap_y": self.trap_y,
             "palette_offset": self.palette_offset,
+            "power": self.power,
         }
 
 
@@ -88,15 +152,10 @@ class ParamsState:
     formula: str
     is_julia: bool
     power: int
-    phoenix_real: float
-    phoenix_imag: float
-    julia_real: float
-    julia_imag: float
+    formula_params: FormulaParams
     max_iterations: int
     scale: float
     coloring_mode: str
-    trap_x: float
-    trap_y: float
     cycle_active: bool = False
     cycle_speed: float = 10.0
 
@@ -112,15 +171,10 @@ class ParamsState:
             formula=viewport.formula,
             is_julia=viewport.is_julia,
             power=viewport.power,
-            phoenix_real=viewport.phoenix_real,
-            phoenix_imag=viewport.phoenix_imag,
-            julia_real=viewport.julia_real,
-            julia_imag=viewport.julia_imag,
+            formula_params=viewport.formula_params,
             max_iterations=viewport.max_iterations,
             scale=viewport.scale,
             coloring_mode=viewport.coloring_mode,
-            trap_x=viewport.trap_x,
-            trap_y=viewport.trap_y,
             cycle_active=cycle_active,
             cycle_speed=cycle_speed,
         )
@@ -139,15 +193,10 @@ class ParamsState:
             scale=self.scale,
             max_iterations=self.max_iterations,
             is_julia=self.is_julia,
-            julia_real=self.julia_real,
-            julia_imag=self.julia_imag,
-            power=self.power,
-            phoenix_real=self.phoenix_real,
-            phoenix_imag=self.phoenix_imag,
+            formula_params=self.formula_params,
             coloring_mode=self.coloring_mode,
-            trap_x=self.trap_x,
-            trap_y=self.trap_y,
             palette_offset=palette_offset,
+            power=self.power,
         )
 
 

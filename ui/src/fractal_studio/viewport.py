@@ -19,7 +19,15 @@ from PySide6.QtWidgets import (
 
 from fractal_studio.backend import Color, CoreBackend
 from fractal_studio.ui.controllers.params_panel_controller import ParamsPanelController
-from fractal_studio.state import ParamsState, ViewportState
+from fractal_studio.state import (
+    FormulaParams,
+    JuliaParams,
+    NewtonParams,
+    ParamsState,
+    PhoenixParams,
+    StandardParams,
+    ViewportState,
+)
 from fractal_studio.ui.controllers.viewport_controller import ViewportController
 
 
@@ -119,6 +127,15 @@ class FractalViewportWidget(QWidget):
     def load_aspect_ratio_mode(self, mode: str) -> None:
         self._aspect_ratio_mode = mode
 
+    def _current_formula_params(self) -> FormulaParams:
+        if self._formula == "phoenix":
+            return PhoenixParams(real=self._phoenix_real, imag=self._phoenix_imag)
+        if self._formula == "newton":
+            return NewtonParams(trap_x=self._trap_x, trap_y=self._trap_y)
+        if self._is_julia or self._formula == "julia":
+            return JuliaParams(cx=self._julia_real, cy=self._julia_imag)
+        return StandardParams()
+
     def to_state(self) -> ViewportState:
         return ViewportState(
             formula=self._formula,
@@ -127,14 +144,9 @@ class FractalViewportWidget(QWidget):
             scale=self._scale,
             max_iterations=self._max_iterations,
             is_julia=self._is_julia,
-            julia_real=self._julia_real,
-            julia_imag=self._julia_imag,
+            formula_params=self._current_formula_params(),
             power=self._power,
-            phoenix_real=self._phoenix_real,
-            phoenix_imag=self._phoenix_imag,
             coloring_mode=self._coloring_mode,
-            trap_x=self._trap_x,
-            trap_y=self._trap_y,
             palette_offset=self._palette_offset,
         )
 
@@ -145,14 +157,18 @@ class FractalViewportWidget(QWidget):
         self._scale = state.scale
         self._max_iterations = state.max_iterations
         self._is_julia = state.is_julia
-        self._julia_real = state.julia_real
-        self._julia_imag = state.julia_imag
+        fp = state.formula_params
+        if isinstance(fp, JuliaParams):
+            self._julia_real = fp.cx
+            self._julia_imag = fp.cy
+        elif isinstance(fp, PhoenixParams):
+            self._phoenix_real = fp.real
+            self._phoenix_imag = fp.imag
+        elif isinstance(fp, NewtonParams):
+            self._trap_x = fp.trap_x
+            self._trap_y = fp.trap_y
         self._power = state.power
-        self._phoenix_real = state.phoenix_real
-        self._phoenix_imag = state.phoenix_imag
         self._coloring_mode = state.coloring_mode
-        self._trap_x = state.trap_x
-        self._trap_y = state.trap_y
         self._palette_offset = state.palette_offset
 
     def formula_center(self, formula: str) -> tuple[float, float]:
@@ -466,21 +482,36 @@ class FractalParamsPanel(QGroupBox):
     def to_state(self) -> ParamsState:
         formula = self._FORMULAS[self._formula_combo.currentIndex()][1]
         coloring_mode = self._coloring_combo.currentData()
+        is_julia = self._mode_combo.currentIndex() == 1
+
+        if formula == "phoenix":
+            formula_params: FormulaParams = PhoenixParams(
+                real=self._phoenix_real_spin.value(),
+                imag=self._phoenix_imag_spin.value(),
+            )
+        elif formula == "newton":
+            formula_params = NewtonParams(
+                trap_x=self._trap_x_spin.value(),
+                trap_y=self._trap_y_spin.value(),
+            )
+        elif is_julia or formula == "julia":
+            formula_params = JuliaParams(
+                cx=self._julia_real_spin.value(),
+                cy=self._julia_imag_spin.value(),
+            )
+        else:
+            formula_params = StandardParams()
+
         return ParamsState(
             formula=formula,
-            is_julia=self._mode_combo.currentIndex() == 1,
+            is_julia=is_julia,
             power=self._power_spin.value(),
-            phoenix_real=self._phoenix_real_spin.value(),
-            phoenix_imag=self._phoenix_imag_spin.value(),
-            julia_real=self._julia_real_spin.value(),
-            julia_imag=self._julia_imag_spin.value(),
+            formula_params=formula_params,
             max_iterations=self._iterations_spin.value(),
             scale=self._DEFAULT_SCALE / (10.0 ** self._zoom_spin.value()),
             coloring_mode=str(coloring_mode)
             if coloring_mode is not None
             else "smooth_escape",
-            trap_x=self._trap_x_spin.value(),
-            trap_y=self._trap_y_spin.value(),
             cycle_active=self._cycle_button.isChecked(),
             cycle_speed=self._cycle_speed_spin.value(),
         )
@@ -532,10 +563,14 @@ class FractalParamsPanel(QGroupBox):
             self._mode_combo.setCurrentIndex(1 if params_state.is_julia else 0)
             self._set_julia_visible(params_state.is_julia)
             self._power_spin.setValue(params_state.power)
-            self._phoenix_real_spin.setValue(params_state.phoenix_real)
-            self._phoenix_imag_spin.setValue(params_state.phoenix_imag)
-            self._julia_real_spin.setValue(params_state.julia_real)
-            self._julia_imag_spin.setValue(params_state.julia_imag)
+
+            fp = params_state.formula_params
+            if isinstance(fp, PhoenixParams):
+                self._phoenix_real_spin.setValue(fp.real)
+                self._phoenix_imag_spin.setValue(fp.imag)
+            if isinstance(fp, JuliaParams):
+                self._julia_real_spin.setValue(fp.cx)
+                self._julia_imag_spin.setValue(fp.cy)
             self._iterations_spin.setValue(params_state.max_iterations)
 
             color_index = self._coloring_combo.findData(params_state.coloring_mode)
@@ -543,8 +578,9 @@ class FractalParamsPanel(QGroupBox):
             self._set_trap_point_visible(
                 params_state.coloring_mode == "orbit_trap_point"
             )
-            self._trap_x_spin.setValue(params_state.trap_x)
-            self._trap_y_spin.setValue(params_state.trap_y)
+            if isinstance(fp, NewtonParams):
+                self._trap_x_spin.setValue(fp.trap_x)
+                self._trap_y_spin.setValue(fp.trap_y)
 
             self._cycle_button.setChecked(params_state.cycle_active)
             self._cycle_speed_spin.setValue(params_state.cycle_speed)

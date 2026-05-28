@@ -40,6 +40,9 @@ class FavoriteHoverPresenter:
                 f"</tr>"
             )
 
+        fp = favorite.get("formula_params") or {}
+        fp_type = fp.get("type", "standard") if isinstance(fp, dict) else "standard"
+
         rows = [
             make_row("Formula", favorite["formula"]),
             make_row(
@@ -50,25 +53,26 @@ class FavoriteHoverPresenter:
             make_row("Mode", favorite["coloring_mode"]),
             make_row("Julia", "Yes" if favorite["is_julia"] else "No"),
         ]
-        if favorite["is_julia"]:
+        if favorite["is_julia"] and fp_type == "julia":
             rows.append(
                 make_row(
                     "Julia c",
-                    f"{favorite['julia_real']:.4f}+{favorite['julia_imag']:.4f}i",
+                    f"{fp.get('cx', 0.0):.4f}+{fp.get('cy', 0.0):.4f}i",
                 )
             )
         rows.append(make_row("Power", str(favorite["power"])))
-        if favorite["formula"].lower() in ("phoenix",):
+        if favorite["formula"].lower() in ("phoenix",) and fp_type == "phoenix":
             rows.append(
                 make_row(
                     "Phoenix",
-                    f"{favorite['phoenix_real']:.4f}+{favorite['phoenix_imag']:.4f}i",
+                    f"{fp.get('real', 0.0):.4f}+{fp.get('imag', 0.0):.4f}i",
                 )
             )
-        if favorite["coloring_mode"].lower().startswith("orbit_trap"):
+        if favorite["coloring_mode"].lower().startswith("orbit_trap") and fp_type == "newton":
             rows.append(
                 make_row(
-                    "Trap pt", f"{favorite['trap_x']:.3f}, {favorite['trap_y']:.3f}"
+                    "Trap pt",
+                    f"{fp.get('trap_x', 0.0):.3f}, {fp.get('trap_y', 0.0):.3f}",
                 )
             )
 
