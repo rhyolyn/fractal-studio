@@ -32,5 +32,40 @@ class BackendProfileTests(unittest.TestCase):
         self.assertEqual(profile, default_profile())
 
 
+def _ensure_pyside6_mocked() -> None:
+    """Insert lightweight stubs so Qt-heavy modules can be imported without PySide6."""
+    from types import ModuleType
+    from unittest.mock import MagicMock
+
+    pyside6_submodules = [
+        "PySide6",
+        "PySide6.QtCore",
+        "PySide6.QtGui",
+        "PySide6.QtWidgets",
+    ]
+    for name in pyside6_submodules:
+        if name not in sys.modules:
+            sys.modules[name] = MagicMock()
+
+
+@pytest.mark.unit
+class ValidateTest(unittest.TestCase):
+    def test_validate_raises_when_collaborator_unbound(self) -> None:
+        _ensure_pyside6_mocked()
+        # Re-import after mocking; evict any cached partially-imported modules.
+        for key in list(sys.modules):
+            if key.startswith("fractal_studio.ui.sections") or key in (
+                "fractal_studio.viewport",
+                "fractal_studio.editor",
+            ):
+                del sys.modules[key]
+        from fractal_studio.ui.sections.state import MainWindowSectionsState
+        state = MainWindowSectionsState.__new__(MainWindowSectionsState)
+        state.owner = None
+        with self.assertRaises(RuntimeError) as ctx:
+            state.validate()
+        self.assertIn("owner", str(ctx.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

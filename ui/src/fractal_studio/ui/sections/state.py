@@ -220,3 +220,34 @@ class MainWindowSectionsState:
             viewport_getter=lambda: self.viewport,
             aspect_ratio_mode_getter=lambda: self.aspect_ratio_mode,
         )
+        self.validate()
+
+    def validate(self) -> None:
+        required = [
+            "owner",
+            "favorites_repo",
+            "settings_repo",
+            "settings_service",
+            "startup",
+            "favorites_controller",
+            "favorites_panel",
+            "favorites_workflow",
+            "sections",
+            "theme_controller",
+            "backend",
+            "export_service",
+            "palette_service",
+            "palette_panel",
+            "palette_preview",
+            "sidebar_wiring",
+            "controller",
+            "export_panel",
+            "settings_dialog",
+            "theme_workflow",
+        ]
+        for name in required:
+            if getattr(self, name, None) is None:
+                raise RuntimeError(
+                    f"MainWindowSectionsState.validate(): '{name}' was not bound. "
+                    f"Call bind(owner, context) before validate()."
+                )
