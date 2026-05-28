@@ -51,26 +51,22 @@ if TYPE_CHECKING:
 
 
 class MainWindowViewportState:
-    def __init__(self, sections_state: MainWindowSectionsState) -> None:
+    def __init__(
+        self,
+        sections_state: MainWindowSectionsState,
+        *,
+        controller: ExportController | None = None,
+        export_panel: ExportPanelCoordinator | None = None,
+        refresh_export_presets: Callable[[], None] | None = None,
+    ) -> None:
         self._sections_state = sections_state
-        self._controller: ExportController | None = None
-        self._export_panel: ExportPanelCoordinator | None = None
-        self._refresh_export_presets: Callable[[], None] | None = None
+        self._controller: ExportController | None = controller
+        self._export_panel: ExportPanelCoordinator | None = export_panel
+        self._refresh_export_presets: Callable[[], None] | None = refresh_export_presets
         self.viewport: FractalViewportWidget | None = None
         self.viewport_hint_label: QLabel | None = None
         self.aspect_ratio_combo: QComboBox | None = None
         self.aspect_ratio_mode: str = "square"
-
-    def bind_collaborators(
-        self,
-        *,
-        controller: ExportController | None,
-        export_panel: ExportPanelCoordinator | None,
-        refresh_export_presets: Callable[[], None],
-    ) -> None:
-        self._controller = controller
-        self._export_panel = export_panel
-        self._refresh_export_presets = refresh_export_presets
 
     def set_aspect_ratio_combo(self, combo: QComboBox) -> None:
         self.aspect_ratio_combo = combo
@@ -104,30 +100,28 @@ class MainWindowViewportState:
 
 
 class MainWindowSidebarState:
-    def __init__(self, sections_state: MainWindowSectionsState) -> None:
+    def __init__(
+        self,
+        sections_state: MainWindowSectionsState,
+        *,
+        sidebar_wiring: SidebarWiringCoordinator | None = None,
+        viewport_getter: Callable[[], FractalViewportWidget | None] | None = None,
+        settings_service: SettingsWorkflowService | None = None,
+        backend_loaded_getter: Callable[[], bool] | None = None,
+        backend_available_getter: Callable[[], bool] | None = None,
+    ) -> None:
         self._sections_state = sections_state
-        self._sidebar_wiring: SidebarWiringCoordinator | None = None
-        self._viewport_getter: Callable[[], FractalViewportWidget | None] | None = None
-        self._settings_service: SettingsWorkflowService | None = None
-        self._backend_loaded_getter: Callable[[], bool] | None = None
-        self._backend_available_getter: Callable[[], bool] | None = None
+        self._sidebar_wiring: SidebarWiringCoordinator | None = sidebar_wiring
+        self._viewport_getter: Callable[[], FractalViewportWidget | None] | None = (
+            viewport_getter
+        )
+        self._settings_service: SettingsWorkflowService | None = settings_service
+        self._backend_loaded_getter: Callable[[], bool] | None = backend_loaded_getter
+        self._backend_available_getter: Callable[[], bool] | None = (
+            backend_available_getter
+        )
         self.params_panel: FractalParamsPanel | None = None
         self.backend_state_label: QLabel | None = None
-
-    def bind_collaborators(
-        self,
-        *,
-        sidebar_wiring: SidebarWiringCoordinator | None,
-        viewport_getter: Callable[[], FractalViewportWidget | None],
-        settings_service: SettingsWorkflowService | None,
-        backend_loaded_getter: Callable[[], bool],
-        backend_available_getter: Callable[[], bool],
-    ) -> None:
-        self._sidebar_wiring = sidebar_wiring
-        self._viewport_getter = viewport_getter
-        self._settings_service = settings_service
-        self._backend_loaded_getter = backend_loaded_getter
-        self._backend_available_getter = backend_available_getter
 
     def set_backend_state_label(self, label: QLabel) -> None:
         self.backend_state_label = label
@@ -156,29 +150,26 @@ class MainWindowSidebarState:
 
 
 class MainWindowPaletteState:
-    def __init__(self, sections_state: MainWindowSectionsState) -> None:
+    def __init__(
+        self,
+        sections_state: MainWindowSectionsState,
+        *,
+        palette_preview: PalettePreviewCoordinator | None = None,
+        backend: CoreBackend | None = None,
+        legacy_palette_size_getter: Callable[[], int | None] | None = None,
+        editor_getter: Callable[[], ColorCubeEditor | None] | None = None,
+    ) -> None:
         self._sections_state = sections_state
-        self._palette_preview: PalettePreviewCoordinator | None = None
-        self._backend: CoreBackend | None = None
-        self._legacy_palette_size_getter: Callable[[], int | None] | None = None
-        self._editor_getter: Callable[[], ColorCubeEditor | None] | None = None
+        self._palette_preview: PalettePreviewCoordinator | None = palette_preview
+        self._backend: CoreBackend | None = backend
+        self._legacy_palette_size_getter: Callable[[], int | None] | None = (
+            legacy_palette_size_getter
+        )
+        self._editor_getter: Callable[[], ColorCubeEditor | None] | None = editor_getter
         self.preview_palette: PalettePreviewWidget | None = None
         self.preview_legacy: PalettePreviewWidget | None = None
         self.point_summary: QLabel | None = None
         self.palette_summary: QLabel | None = None
-
-    def bind_collaborators(
-        self,
-        *,
-        palette_preview: PalettePreviewCoordinator | None,
-        backend: CoreBackend | None,
-        legacy_palette_size_getter: Callable[[], int | None],
-        editor_getter: Callable[[], ColorCubeEditor | None],
-    ) -> None:
-        self._palette_preview = palette_preview
-        self._backend = backend
-        self._legacy_palette_size_getter = legacy_palette_size_getter
-        self._editor_getter = editor_getter
 
     def set_preview_widgets(
         self,
@@ -222,26 +213,23 @@ class MainWindowPaletteState:
 
 
 class MainWindowColormapState:
-    def __init__(self, sections_state: MainWindowSectionsState) -> None:
-        self._sections_state = sections_state
-        self._palette_panel: PalettePanelCoordinator | None = None
-        self._backend: CoreBackend | None = None
-        self._owner: MainWindow | None = None
-        self._legacy_palette_size_getter: Callable[[], int | None] | None = None
-        self.editor: ColorCubeEditor | None = None
-
-    def bind_collaborators(
+    def __init__(
         self,
+        sections_state: MainWindowSectionsState,
         *,
-        palette_panel: PalettePanelCoordinator | None,
-        backend: CoreBackend | None,
-        owner: MainWindow | None,
-        legacy_palette_size_getter: Callable[[], int | None],
+        palette_panel: PalettePanelCoordinator | None = None,
+        backend: CoreBackend | None = None,
+        owner: MainWindow | None = None,
+        legacy_palette_size_getter: Callable[[], int | None] | None = None,
     ) -> None:
-        self._palette_panel = palette_panel
-        self._backend = backend
-        self._owner = owner
-        self._legacy_palette_size_getter = legacy_palette_size_getter
+        self._sections_state = sections_state
+        self._palette_panel: PalettePanelCoordinator | None = palette_panel
+        self._backend: CoreBackend | None = backend
+        self._owner: MainWindow | None = owner
+        self._legacy_palette_size_getter: Callable[[], int | None] | None = (
+            legacy_palette_size_getter
+        )
+        self.editor: ColorCubeEditor | None = None
 
     def set_editor(self, editor: ColorCubeEditor) -> None:
         self.editor = editor
@@ -277,56 +265,57 @@ class MainWindowColormapState:
 
 
 class MainWindowFavoritesState:
-    def __init__(self, sections_state: MainWindowSectionsState) -> None:
+    def __init__(
+        self,
+        sections_state: MainWindowSectionsState,
+        *,
+        favorites_controller: FavoritesController | None = None,
+        favorites_panel: FavoritesPanelCoordinator | None = None,
+        favorites_workflow: FavoritesWorkflowCoordinator | None = None,
+        favorites_repo: FavoritesRepository | None = None,
+        owner: MainWindow | None = None,
+        hover_panel_getter: Callable[[], QLabel | None] | None = None,
+        viewport_getter: Callable[[], FractalViewportWidget | None] | None = None,
+        params_panel_getter: Callable[[], FractalParamsPanel | None] | None = None,
+        editor_getter: Callable[[], ColorCubeEditor | None] | None = None,
+        preview_palette_getter: (
+            Callable[[], PalettePreviewWidget | None] | None
+        ) = None,
+        apply_aspect_ratio_mode: Callable[[str, bool], str] | None = None,
+        aspect_ratio_mode_getter: Callable[[], str] | None = None,
+    ) -> None:
         self._sections_state = sections_state
-        self._favorites_controller: FavoritesController | None = None
-        self._favorites_panel: FavoritesPanelCoordinator | None = None
-        self._favorites_workflow: FavoritesWorkflowCoordinator | None = None
-        self._favorites_repo: FavoritesRepository | None = None
-        self._owner: MainWindow | None = None
-        self._hover_panel_getter: Callable[[], QLabel | None] | None = None
-        self._viewport_getter: Callable[[], FractalViewportWidget | None] | None = None
-        self._params_panel_getter: Callable[[], FractalParamsPanel | None] | None = None
-        self._editor_getter: Callable[[], ColorCubeEditor | None] | None = None
+        self._favorites_controller: FavoritesController | None = favorites_controller
+        self._favorites_panel: FavoritesPanelCoordinator | None = favorites_panel
+        self._favorites_workflow: FavoritesWorkflowCoordinator | None = (
+            favorites_workflow
+        )
+        self._favorites_repo: FavoritesRepository | None = favorites_repo
+        self._owner: MainWindow | None = owner
+        self._hover_panel_getter: Callable[[], QLabel | None] | None = (
+            hover_panel_getter
+        )
+        self._viewport_getter: Callable[[], FractalViewportWidget | None] | None = (
+            viewport_getter
+        )
+        self._params_panel_getter: Callable[[], FractalParamsPanel | None] | None = (
+            params_panel_getter
+        )
+        self._editor_getter: Callable[[], ColorCubeEditor | None] | None = editor_getter
         self._preview_palette_getter: (
             Callable[[], PalettePreviewWidget | None] | None
-        ) = None
-        self._apply_aspect_ratio_mode: Callable[[str, bool], str] | None = None
-        self._aspect_ratio_mode_getter: Callable[[], str] | None = None
+        ) = preview_palette_getter
+        self._apply_aspect_ratio_mode: Callable[[str, bool], str] | None = (
+            apply_aspect_ratio_mode
+        )
+        self._aspect_ratio_mode_getter: Callable[[], str] | None = (
+            aspect_ratio_mode_getter
+        )
         self.favorites: list[FavoriteSnapshot] = []
         self.selected_row: FavoriteThumbnailRow | None = None
         self.fav_rows: list[FavoriteThumbnailRow] = []
         self.fav_scroll_widget: QWidget | None = None
         self.fav_scroll_layout: QVBoxLayout | None = None
-
-    def bind_collaborators(
-        self,
-        *,
-        favorites_controller: FavoritesController | None,
-        favorites_panel: FavoritesPanelCoordinator | None,
-        favorites_workflow: FavoritesWorkflowCoordinator | None,
-        favorites_repo: FavoritesRepository | None,
-        owner: MainWindow | None,
-        hover_panel_getter: Callable[[], QLabel | None],
-        viewport_getter: Callable[[], FractalViewportWidget | None],
-        params_panel_getter: Callable[[], FractalParamsPanel | None],
-        editor_getter: Callable[[], ColorCubeEditor | None],
-        preview_palette_getter: Callable[[], PalettePreviewWidget | None],
-        apply_aspect_ratio_mode: Callable[[str, bool], str],
-        aspect_ratio_mode_getter: Callable[[], str],
-    ) -> None:
-        self._favorites_controller = favorites_controller
-        self._favorites_panel = favorites_panel
-        self._favorites_workflow = favorites_workflow
-        self._favorites_repo = favorites_repo
-        self._owner = owner
-        self._hover_panel_getter = hover_panel_getter
-        self._viewport_getter = viewport_getter
-        self._params_panel_getter = params_panel_getter
-        self._editor_getter = editor_getter
-        self._preview_palette_getter = preview_palette_getter
-        self._apply_aspect_ratio_mode = apply_aspect_ratio_mode
-        self._aspect_ratio_mode_getter = aspect_ratio_mode_getter
 
     def set_favorites_scroll_container(
         self, widget: QWidget, layout: QVBoxLayout
@@ -450,34 +439,32 @@ class MainWindowFavoritesState:
 
 
 class MainWindowExportState:
-    def __init__(self, sections_state: MainWindowSectionsState) -> None:
+    def __init__(
+        self,
+        sections_state: MainWindowSectionsState,
+        *,
+        export_panel: ExportPanelCoordinator | None = None,
+        controller: ExportController | None = None,
+        owner: MainWindow | None = None,
+        viewport_getter: Callable[[], FractalViewportWidget | None] | None = None,
+        aspect_ratio_mode_getter: Callable[[], str] | None = None,
+    ) -> None:
         self._sections_state = sections_state
-        self._export_panel: ExportPanelCoordinator | None = None
-        self._controller: ExportController | None = None
-        self._owner: MainWindow | None = None
-        self._viewport_getter: Callable[[], FractalViewportWidget | None] | None = None
-        self._aspect_ratio_mode_getter: Callable[[], str] | None = None
+        self._export_panel: ExportPanelCoordinator | None = export_panel
+        self._controller: ExportController | None = controller
+        self._owner: MainWindow | None = owner
+        self._viewport_getter: Callable[[], FractalViewportWidget | None] | None = (
+            viewport_getter
+        )
+        self._aspect_ratio_mode_getter: Callable[[], str] | None = (
+            aspect_ratio_mode_getter
+        )
         self.export_combo: QComboBox | None = None
         self.export_presets: list[tuple[str, int, int]] = []
         self.custom_width: int = 1080
         self.custom_height: int = 1080
         self.custom_width_box: QSpinBox | None = None
         self.custom_height_box: QSpinBox | None = None
-
-    def bind_collaborators(
-        self,
-        *,
-        export_panel: ExportPanelCoordinator | None,
-        controller: ExportController | None,
-        owner: MainWindow | None,
-        viewport_getter: Callable[[], FractalViewportWidget | None],
-        aspect_ratio_mode_getter: Callable[[], str],
-    ) -> None:
-        self._export_panel = export_panel
-        self._controller = controller
-        self._owner = owner
-        self._viewport_getter = viewport_getter
-        self._aspect_ratio_mode_getter = aspect_ratio_mode_getter
 
     def refresh_export_presets(self) -> None:
         if self._export_panel is None or self._aspect_ratio_mode_getter is None:

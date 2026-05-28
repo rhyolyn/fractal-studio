@@ -86,14 +86,6 @@ class MainWindowSectionsState:
     backend_profile: object | None = None
     hover_panel: QLabel | None = None
 
-    def __post_init__(self) -> None:
-        self._favorites_state = MainWindowFavoritesState(self)
-        self._export_state = MainWindowExportState(self)
-        self._viewport_state = MainWindowViewportState(self)
-        self._sidebar_state = MainWindowSidebarState(self)
-        self._palette_state = MainWindowPaletteState(self)
-        self._colormap_state = MainWindowColormapState(self)
-
     @property
     def viewport(self) -> FractalViewportWidget | None:
         return self._viewport_state.viewport
@@ -165,60 +157,50 @@ class MainWindowSectionsState:
         self.theme_workflow = context.theme_workflow
         self.backend_loaded = context.backend_loaded
         self.backend_profile = context.backend_profile
-        self._viewport_state.bind_collaborators(
-            controller=self.controller,
-            export_panel=self.export_panel,
+        legacy_size = lambda: (
+            None if self.backend_profile is None
+            else self.backend_profile.legacy_palette_size
+        )
+        viewport_getter = lambda: self.viewport
+        aspect_mode_getter = lambda: self.aspect_ratio_mode
+        editor_getter = lambda: self._colormap_state.editor
+        self._export_state = MainWindowExportState(
+            self, export_panel=self.export_panel, controller=self.controller,
+            owner=self.owner, viewport_getter=viewport_getter,
+            aspect_ratio_mode_getter=aspect_mode_getter,
+        )
+        self._viewport_state = MainWindowViewportState(
+            self, controller=self.controller, export_panel=self.export_panel,
             refresh_export_presets=self._export_state.refresh_export_presets,
         )
-        self._sidebar_state.bind_collaborators(
-            sidebar_wiring=self.sidebar_wiring,
-            viewport_getter=lambda: self.viewport,
-            settings_service=self.settings_service,
+        self._sidebar_state = MainWindowSidebarState(
+            self, sidebar_wiring=self.sidebar_wiring,
+            viewport_getter=viewport_getter, settings_service=self.settings_service,
             backend_loaded_getter=lambda: self.backend_loaded,
             backend_available_getter=lambda: (
                 self.backend.available if self.backend is not None else False
             ),
         )
-        self._favorites_state.bind_collaborators(
-            favorites_controller=self.favorites_controller,
+        self._colormap_state = MainWindowColormapState(
+            self, palette_panel=self.palette_panel, backend=self.backend,
+            owner=self.owner, legacy_palette_size_getter=legacy_size,
+        )
+        self._palette_state = MainWindowPaletteState(
+            self, palette_preview=self.palette_preview, backend=self.backend,
+            legacy_palette_size_getter=legacy_size, editor_getter=editor_getter,
+        )
+        self._favorites_state = MainWindowFavoritesState(
+            self, favorites_controller=self.favorites_controller,
             favorites_panel=self.favorites_panel,
             favorites_workflow=self.favorites_workflow,
-            favorites_repo=self.favorites_repo,
-            owner=self.owner,
+            favorites_repo=self.favorites_repo, owner=self.owner,
             hover_panel_getter=lambda: self.hover_panel,
-            viewport_getter=lambda: self.viewport,
+            viewport_getter=viewport_getter,
             params_panel_getter=lambda: self.params_panel,
-            editor_getter=lambda: self._colormap_state.editor,
+            editor_getter=editor_getter,
             preview_palette_getter=lambda: self._palette_state.preview_palette,
             apply_aspect_ratio_mode=self._viewport_state.apply_aspect_ratio_mode,
-            aspect_ratio_mode_getter=lambda: self.aspect_ratio_mode,
-        )
-        self._palette_state.bind_collaborators(
-            palette_preview=self.palette_preview,
-            backend=self.backend,
-            legacy_palette_size_getter=lambda: (
-                None
-                if self.backend_profile is None
-                else self.backend_profile.legacy_palette_size
-            ),
-            editor_getter=lambda: self._colormap_state.editor,
-        )
-        self._colormap_state.bind_collaborators(
-            palette_panel=self.palette_panel,
-            backend=self.backend,
-            owner=self.owner,
-            legacy_palette_size_getter=lambda: (
-                None
-                if self.backend_profile is None
-                else self.backend_profile.legacy_palette_size
-            ),
-        )
-        self._export_state.bind_collaborators(
-            export_panel=self.export_panel,
-            controller=self.controller,
-            owner=self.owner,
-            viewport_getter=lambda: self.viewport,
-            aspect_ratio_mode_getter=lambda: self.aspect_ratio_mode,
+            aspect_ratio_mode_getter=aspect_mode_getter,
         )
         self.validate()
 

@@ -67,14 +67,14 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
         controller = ControllerStub()
         export_panel = ExportPanelStub()
         refreshed: list[str] = []
-        state = MainWindowViewportState(object())
-        state.set_viewport(object())
-        state.set_aspect_ratio_combo(object())
-        state.bind_collaborators(
+        state = MainWindowViewportState(
+            object(),
             controller=controller,
             export_panel=export_panel,
             refresh_export_presets=lambda: refreshed.append("done"),
         )
+        state.set_viewport(object())
+        state.set_aspect_ratio_combo(object())
 
         state.handle_aspect_ratio_changed(2)
 
@@ -101,18 +101,18 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
             ) -> str:
                 return f"loaded={backend_loaded}, available={backend_available}"
 
-        state = MainWindowSidebarState(object())
         params_panel = object()
         viewport = object()
         wiring = WiringStub()
-        state.set_params_panel(params_panel)
-        state.bind_collaborators(
+        state = MainWindowSidebarState(
+            object(),
             sidebar_wiring=wiring,
             viewport_getter=lambda: viewport,
             settings_service=SettingsStub(),
             backend_loaded_getter=lambda: True,
             backend_available_getter=lambda: False,
         )
+        state.set_params_panel(params_panel)
 
         state.connect_params_and_viewport()
 
@@ -161,8 +161,8 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
                 return StatusBar()
 
         preview = PalettePreviewStub()
-        palette_state = MainWindowPaletteState(object())
-        palette_state.bind_collaborators(
+        palette_state = MainWindowPaletteState(
+            object(),
             palette_preview=preview,
             backend="backend",
             legacy_palette_size_getter=lambda: 256,
@@ -179,15 +179,15 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
         self.assertEqual(preview.summary_calls, [("points", [(4, 5, 6)])])
 
         owner = OwnerStub()
-        colormap_state = MainWindowColormapState(object())
-        colormap_state.set_editor("editor")
         panel = PalettePanelStub()
-        colormap_state.bind_collaborators(
+        colormap_state = MainWindowColormapState(
+            object(),
             palette_panel=panel,
             backend="backend",
             owner=owner,
             legacy_palette_size_getter=lambda: 512,
         )
+        colormap_state.set_editor("editor")
         colormap_state.load_palette_json()
         colormap_state.export_legacy_map()
 
@@ -240,15 +240,15 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
         owner = OwnerStub()
         controller = ControllerStub()
         export_panel = ExportPanelStub()
-        state = MainWindowExportState(object())
-        state.set_export_combo(object())
-        state.bind_collaborators(
+        state = MainWindowExportState(
+            object(),
             export_panel=export_panel,
             controller=controller,
             owner=owner,
             viewport_getter=lambda: "viewport",
             aspect_ratio_mode_getter=lambda: "portrait",
         )
+        state.set_export_combo(object())
 
         state.refresh_export_presets()
         state.on_export_clicked()
@@ -337,14 +337,13 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
 
                 return StatusBar()
 
-        state = MainWindowFavoritesState(object())
-        state.set_favorites_scroll_container("widget", "layout")
         controller = FavoritesControllerStub()
         panel = FavoritesPanelStub()
         workflow = FavoritesWorkflowStub()
         repo = RepoStub()
         owner = OwnerStub()
-        state.bind_collaborators(
+        state = MainWindowFavoritesState(
+            object(),
             favorites_controller=controller,
             favorites_panel=panel,
             favorites_workflow=workflow,
@@ -358,6 +357,7 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
             apply_aspect_ratio_mode=lambda mode, update_combo=True: mode,
             aspect_ratio_mode_getter=lambda: "square",
         )
+        state.set_favorites_scroll_container("widget", "layout")
 
         loaded = state.load_favorites()
         state.add_favorite_row(snapshot)
