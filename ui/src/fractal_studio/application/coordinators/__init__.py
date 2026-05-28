@@ -1,3 +1,13 @@
+"""
+Coordinators — boundary layer for each UI panel's use cases.
+
+Rules:
+- One coordinator per UI panel section; it owns all orchestration for that panel.
+- Thin coordinators are intentional: they represent a panel whose use cases haven't
+  grown complex yet. Do not delete them.
+- May reference controllers, services, and port protocols.
+- Must not subclass QWidget or hold direct widget references.
+"""
 from fractal_studio.application.coordinators.export_panel_coordinator import (
     ExportPanelCoordinator,
 )
