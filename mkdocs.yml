@@ -1,0 +1,69 @@
+site_name: Fractal Studio
+site_url: https://rhyolyn.github.io/graphics/
+site_description: Interactive fractal explorer and palette editor
+site_author: rhyolyn
+repo_url: https://github.com/rhyolyn/graphics
+repo_name: rhyolyn/graphics
+docs_dir: docs
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.keys
+  - tables
+  - attr_list
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - User Guide:
+    - Fractal Viewport: user-guide/viewport.md
+    - Palette Editor: user-guide/palette-editor.md
+    - Export: user-guide/export.md
+    - Favorites: user-guide/favorites.md
+    - Settings & Themes: user-guide/settings.md
+  - Changelog: changelog.md
+  - Developer:
+    - Architecture: architecture-design-2026-05-28.md
