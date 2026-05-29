@@ -1,9 +1,9 @@
 site_name: Fractal Studio
-site_url: https://rhyolyn.github.io/graphics/
+site_url: https://rhyolyn.github.io/fractal-studio/
 site_description: Interactive fractal explorer and palette editor
 site_author: rhyolyn
-repo_url: https://github.com/rhyolyn/graphics
-repo_name: rhyolyn/graphics
+repo_url: https://github.com/rhyolyn/fractal-studio
+repo_name: rhyolyn/fractal-studio
 docs_dir: docs
 
 theme:
