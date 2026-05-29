@@ -203,16 +203,11 @@ class TestExportPanel(QtWindowTestCase):
                 self.assertIn(expected, export_combo.itemText(0))
 
     def test_unknown_aspect_ratio_defaults_to_square_presets(self) -> None:
-        from fractal_studio.application.controllers.favorites_controller import (
-            FavoritesController,
-        )
-        from fractal_studio.application.controllers.main_window_controller import (
-            MainWindowController,
+        from fractal_studio.application.controllers.export_controller import (
+            ExportController,
         )
 
-        controller = MainWindowController(
-            export_service=object(), favorites_controller=FavoritesController()
-        )
+        controller = ExportController(export_service=object())
         self.assertEqual(
             controller.build_export_presets_for_mode("unexpected")[0],
             ("1080 × 1080", 1080, 1080),
@@ -384,11 +379,8 @@ class TestViewportRenderScheduling(QtWindowTestCase):
 @pytest.mark.integration
 class TestMainWindowController(unittest.TestCase):
     def test_on_export_clicked_uses_custom_dimensions(self) -> None:
-        from fractal_studio.application.controllers.favorites_controller import (
-            FavoritesController,
-        )
-        from fractal_studio.application.controllers.main_window_controller import (
-            MainWindowController,
+        from fractal_studio.application.controllers.export_controller import (
+            ExportController,
         )
 
         class Box:
@@ -398,9 +390,7 @@ class TestMainWindowController(unittest.TestCase):
             def value(self) -> int:
                 return self._value
 
-        controller = MainWindowController(
-            export_service=object(), favorites_controller=FavoritesController()
-        )
+        controller = ExportController(export_service=object())
         captured: list[tuple[int, int]] = []
         custom_sizes: list[tuple[int, int]] = []
 
@@ -417,16 +407,11 @@ class TestMainWindowController(unittest.TestCase):
         self.assertEqual(captured, [(1234, 567)])
 
     def test_on_export_clicked_uses_selected_preset_dimensions(self) -> None:
-        from fractal_studio.application.controllers.favorites_controller import (
-            FavoritesController,
-        )
-        from fractal_studio.application.controllers.main_window_controller import (
-            MainWindowController,
+        from fractal_studio.application.controllers.export_controller import (
+            ExportController,
         )
 
-        controller = MainWindowController(
-            export_service=object(), favorites_controller=FavoritesController()
-        )
+        controller = ExportController(export_service=object())
         captured: list[tuple[int, int]] = []
         custom_sizes: list[tuple[int, int]] = []
 
@@ -878,21 +863,16 @@ class TestParamsPanel(unittest.TestCase):
         self.assertGreater(self.panel._zoom_spin.value(), 0.0)
 
     def test_to_state_and_apply_state_round_trip(self) -> None:
-        from fractal_studio.state import ParamsState
+        from fractal_studio.state import PhoenixParams, ParamsState
 
         state = ParamsState(
             formula="phoenix",
             is_julia=True,
             power=7,
-            phoenix_real=0.42,
-            phoenix_imag=-0.17,
-            julia_real=-0.73,
-            julia_imag=0.11,
+            formula_params=PhoenixParams(real=0.42, imag=-0.17),
             max_iterations=640,
             scale=0.025,
             coloring_mode="orbit_trap_point",
-            trap_x=0.25,
-            trap_y=-0.5,
             cycle_active=True,
             cycle_speed=24.0,
         )
@@ -902,8 +882,8 @@ class TestParamsPanel(unittest.TestCase):
         self.assertEqual(restored.formula, "phoenix")
         self.assertEqual(restored.power, 7)
         self.assertEqual(restored.coloring_mode, "orbit_trap_point")
-        self.assertAlmostEqual(restored.trap_x, 0.25)
-        self.assertAlmostEqual(restored.trap_y, -0.5)
+        self.assertAlmostEqual(restored.formula_params.real, 0.42)
+        self.assertAlmostEqual(restored.formula_params.imag, -0.17)
         self.assertEqual(restored.max_iterations, 640)
         self.assertTrue(restored.is_julia)
 
@@ -1091,6 +1071,7 @@ class TestViewportController(unittest.TestCase):
 
         class ViewportStub:
             def __init__(self) -> None:
+                from fractal_studio.state import StandardParams
                 self._state = ViewportState(
                     formula="standard",
                     center_x=-0.5,
@@ -1098,14 +1079,9 @@ class TestViewportController(unittest.TestCase):
                     scale=3.0,
                     max_iterations=256,
                     is_julia=False,
-                    julia_real=-0.8,
-                    julia_imag=0.156,
+                    formula_params=StandardParams(),
                     power=3,
-                    phoenix_real=0.5,
-                    phoenix_imag=0.0,
                     coloring_mode="smooth_escape",
-                    trap_x=0.0,
-                    trap_y=0.0,
                     palette_offset=0.0,
                 )
                 self._aspect_ratio_mode = "square"
@@ -1246,10 +1222,14 @@ class TestViewportController(unittest.TestCase):
             (state_after_mode.center_x, state_after_mode.center_y), (0.0, 0.0)
         )
 
+        from fractal_studio.state import JuliaParams, NewtonParams, PhoenixParams
+
         controller.set_power(viewport, 4)
         controller.set_phoenix_constant(viewport, 0.2, -0.3)
+        self.assertEqual(viewport.to_state().formula_params, PhoenixParams(real=0.2, imag=-0.3))
         controller.set_scale(viewport, 0.5)
         controller.set_julia_constant(viewport, -0.2, 0.4)
+        self.assertEqual(viewport.to_state().formula_params, JuliaParams(cx=-0.2, cy=0.4))
         controller.set_max_iterations(viewport, 900)
         controller.set_coloring_mode(viewport, "orbit_trap_point")
         controller.set_trap_point(viewport, 0.25, -0.5)
@@ -1265,13 +1245,9 @@ class TestViewportController(unittest.TestCase):
 
         final_state = viewport.to_state()
         self.assertEqual(final_state.power, 4)
-        self.assertEqual(
-            (final_state.phoenix_real, final_state.phoenix_imag), (0.2, -0.3)
-        )
-        self.assertEqual((final_state.julia_real, final_state.julia_imag), (-0.2, 0.4))
         self.assertEqual(final_state.max_iterations, 900)
         self.assertEqual(final_state.coloring_mode, "orbit_trap_point")
-        self.assertEqual((final_state.trap_x, final_state.trap_y), (0.25, -0.5))
+        self.assertEqual(final_state.formula_params, NewtonParams(trap_x=0.25, trap_y=-0.5))
         self.assertAlmostEqual(final_state.palette_offset, 0.755)
         self.assertAlmostEqual(wheel_scale, final_state.scale)
         self.assertEqual(viewport.cycle_active, True)
@@ -1306,6 +1282,7 @@ class TestViewportController(unittest.TestCase):
 
         class ViewportRenderStub:
             def __init__(self) -> None:
+                from fractal_studio.state import JuliaParams
                 self._state = ViewportState(
                     formula="multibrot",
                     center_x=-0.25,
@@ -1313,14 +1290,9 @@ class TestViewportController(unittest.TestCase):
                     scale=0.125,
                     max_iterations=512,
                     is_julia=True,
-                    julia_real=-0.8,
-                    julia_imag=0.156,
+                    formula_params=JuliaParams(cx=-0.8, cy=0.156),
                     power=5,
-                    phoenix_real=0.5,
-                    phoenix_imag=0.0,
                     coloring_mode="orbit_trap_point",
-                    trap_x=0.25,
-                    trap_y=-0.5,
                     palette_offset=0.5,
                 )
                 self._palette = [(1, 2, 3)]
@@ -2118,14 +2090,9 @@ class TestFavoriteHoverPresenter(unittest.TestCase):
             "scale": 0.003,
             "max_iterations": 256,
             "is_julia": False,
-            "julia_real": 0.0,
-            "julia_imag": 0.0,
             "power": 2,
-            "phoenix_real": 0.0,
-            "phoenix_imag": 0.0,
+            "formula_params": {"type": "standard"},
             "coloring_mode": "smooth",
-            "trap_x": 0.0,
-            "trap_y": 0.0,
         }
         favorite.update(overrides)
         return favorite
@@ -2357,6 +2324,7 @@ class TestViewportSizing(unittest.TestCase):
         from fractal_studio.state import ViewportState
         from fractal_studio.viewport import FractalViewportWidget
 
+        from fractal_studio.state import JuliaParams
         viewport = FractalViewportWidget(load_backend())
         state = ViewportState(
             formula="multibrot",
@@ -2365,14 +2333,9 @@ class TestViewportSizing(unittest.TestCase):
             scale=0.0025,
             max_iterations=700,
             is_julia=True,
-            julia_real=-0.81,
-            julia_imag=0.156,
+            formula_params=JuliaParams(cx=-0.81, cy=0.156),
             power=5,
-            phoenix_real=0.4,
-            phoenix_imag=-0.2,
             coloring_mode="orbit_trap_cross",
-            trap_x=0.1,
-            trap_y=-0.1,
             palette_offset=0.25,
         )
 
@@ -2426,14 +2389,9 @@ class TestFavoriteThumbnailRow(unittest.TestCase):
             "scale": 0.003,
             "max_iterations": 256,
             "is_julia": False,
-            "julia_real": 0.0,
-            "julia_imag": 0.0,
             "power": 2,
-            "phoenix_real": 0.0,
-            "phoenix_imag": 0.0,
+            "formula_params": {"type": "standard"},
             "coloring_mode": "smooth",
-            "trap_x": 0.0,
-            "trap_y": 0.0,
         }
         fav.update(overrides)
         return fav
@@ -2547,18 +2505,19 @@ class TestFavoriteThumbnailRow(unittest.TestCase):
         scenarios = [
             (
                 "Julia",
-                self._favorite(is_julia=True, julia_real=-0.8, julia_imag=0.156),
+                self._favorite(is_julia=True, formula_params={"type": "julia", "cx": -0.8, "cy": 0.156}),
                 "Julia c",
             ),
             (
                 "Phoenix",
-                self._favorite(formula="Phoenix", phoenix_real=0.5, phoenix_imag=0.25),
+                self._favorite(formula="Phoenix", formula_params={"type": "phoenix", "real": 0.5, "imag": 0.25}),
                 "Phoenix",
             ),
             (
                 "Orbit trap",
                 self._favorite(
-                    coloring_mode="orbit_trap_point", trap_x=0.5, trap_y=-0.25
+                    coloring_mode="orbit_trap_point",
+                    formula_params={"type": "newton", "trap_x": 0.5, "trap_y": -0.25},
                 ),
                 "Trap pt",
             ),
@@ -2919,6 +2878,7 @@ class TestFavoritesController(unittest.TestCase):
 
         captured: list[list[object]] = []
         controller = FavoritesController()
+        from fractal_studio.state import StandardParams
         base_viewport = ViewportState(
             formula="Mandelbrot",
             center_x=-0.75,
@@ -2926,14 +2886,9 @@ class TestFavoritesController(unittest.TestCase):
             scale=0.003,
             max_iterations=256,
             is_julia=False,
-            julia_real=0.0,
-            julia_imag=0.0,
+            formula_params=StandardParams(),
             power=2,
-            phoenix_real=0.0,
-            phoenix_imag=0.0,
             coloring_mode="smooth",
-            trap_x=0.0,
-            trap_y=0.0,
             palette_offset=0.0,
         )
         snapshot_one = FavoriteSnapshot(
@@ -2971,6 +2926,7 @@ class TestFavoritesController(unittest.TestCase):
         )
         from fractal_studio.state import FavoriteSnapshot, ViewportState
 
+        from fractal_studio.state import StandardParams
         controller = FavoritesController()
         snapshot = FavoriteSnapshot(
             favorite_id="fav-1",
@@ -2984,14 +2940,9 @@ class TestFavoritesController(unittest.TestCase):
                 scale=0.003,
                 max_iterations=256,
                 is_julia=False,
-                julia_real=0.0,
-                julia_imag=0.0,
+                formula_params=StandardParams(),
                 power=2,
-                phoenix_real=0.0,
-                phoenix_imag=0.0,
                 coloring_mode="smooth",
-                trap_x=0.0,
-                trap_y=0.0,
                 palette_offset=0.0,
             ),
             control_points=[(1, 2, 3)],
@@ -3010,7 +2961,7 @@ class TestFavoritesController(unittest.TestCase):
         from fractal_studio.application.controllers.favorites_controller import (
             FavoritesController,
         )
-        from fractal_studio.state import ViewportState
+        from fractal_studio.state import StandardParams, ViewportState
 
         controller = FavoritesController()
         state = ViewportState(
@@ -3020,14 +2971,9 @@ class TestFavoritesController(unittest.TestCase):
             scale=0.003,
             max_iterations=256,
             is_julia=False,
-            julia_real=0.0,
-            julia_imag=0.0,
+            formula_params=StandardParams(),
             power=2,
-            phoenix_real=0.0,
-            phoenix_imag=0.0,
             coloring_mode=default_profile().coloring_model,
-            trap_x=0.0,
-            trap_y=0.0,
             palette_offset=0.0,
         )
 
@@ -3048,7 +2994,7 @@ class TestFavoritesController(unittest.TestCase):
         from fractal_studio.application.controllers.favorites_controller import (
             FavoritesController,
         )
-        from fractal_studio.state import ViewportState
+        from fractal_studio.state import StandardParams, ViewportState
 
         controller = FavoritesController()
         state = ViewportState(
@@ -3058,14 +3004,9 @@ class TestFavoritesController(unittest.TestCase):
             scale=0.003,
             max_iterations=256,
             is_julia=False,
-            julia_real=0.0,
-            julia_imag=0.0,
+            formula_params=StandardParams(),
             power=2,
-            phoenix_real=0.0,
-            phoenix_imag=0.0,
             coloring_mode=default_profile().coloring_model,
-            trap_x=0.0,
-            trap_y=0.0,
             palette_offset=0.0,
         )
 
@@ -3090,6 +3031,7 @@ class TestFavoritesController(unittest.TestCase):
                 self._palette = [(9, 8, 7)]
 
             def to_state(self) -> ViewportState:
+                from fractal_studio.state import StandardParams
                 return ViewportState(
                     formula="Mandelbrot",
                     center_x=-0.75,
@@ -3097,14 +3039,9 @@ class TestFavoritesController(unittest.TestCase):
                     scale=0.003,
                     max_iterations=256,
                     is_julia=False,
-                    julia_real=0.0,
-                    julia_imag=0.0,
+                    formula_params=StandardParams(),
                     power=2,
-                    phoenix_real=0.0,
-                    phoenix_imag=0.0,
                     coloring_mode=default_profile().coloring_model,
-                    trap_x=0.0,
-                    trap_y=0.0,
                     palette_offset=0.0,
                 )
 
@@ -3176,6 +3113,7 @@ class TestFavoritesController(unittest.TestCase):
             def set_palette(self, palette) -> None:
                 self.palette = list(palette)
 
+        from fractal_studio.state import StandardParams
         controller = FavoritesController()
         viewport = ViewportStub()
         params_panel = ParamsStub()
@@ -3188,14 +3126,9 @@ class TestFavoritesController(unittest.TestCase):
             scale=0.003,
             max_iterations=256,
             is_julia=False,
-            julia_real=0.0,
-            julia_imag=0.0,
+            formula_params=StandardParams(),
             power=2,
-            phoenix_real=0.0,
-            phoenix_imag=0.0,
             coloring_mode=default_profile().coloring_model,
-            trap_x=0.0,
-            trap_y=0.0,
             palette_offset=0.0,
         )
         snapshot = FavoriteSnapshot(
@@ -3598,6 +3531,7 @@ class TestFavoritesWorkflowCoordinator(unittest.TestCase):
             def delete_selected(self, **kwargs):
                 return None
 
+        from fractal_studio.state import StandardParams
         coordinator = FavoritesWorkflowCoordinator(ControllerStub(), PanelStub())
         persisted: list[str] = []
         snapshot = FavoriteSnapshot(
@@ -3612,14 +3546,9 @@ class TestFavoritesWorkflowCoordinator(unittest.TestCase):
                 scale=0.003,
                 max_iterations=256,
                 is_julia=False,
-                julia_real=0.0,
-                julia_imag=0.0,
+                formula_params=StandardParams(),
                 power=2,
-                phoenix_real=0.0,
-                phoenix_imag=0.0,
                 coloring_mode="smooth",
-                trap_x=0.0,
-                trap_y=0.0,
                 palette_offset=0.0,
             ),
             control_points=[],
@@ -3659,6 +3588,7 @@ class TestFavoritesWorkflowCoordinator(unittest.TestCase):
             def delete_selected(self, **kwargs):
                 return kwargs["selected_row"]
 
+        from fractal_studio.state import StandardParams
         controller = ControllerStub()
         coordinator = FavoritesWorkflowCoordinator(controller, PanelStub())
         state = ViewportState(
@@ -3668,14 +3598,9 @@ class TestFavoritesWorkflowCoordinator(unittest.TestCase):
             scale=0.003,
             max_iterations=256,
             is_julia=False,
-            julia_real=0.0,
-            julia_imag=0.0,
+            formula_params=StandardParams(),
             power=2,
-            phoenix_real=0.0,
-            phoenix_imag=0.0,
             coloring_mode="smooth",
-            trap_x=0.0,
-            trap_y=0.0,
             palette_offset=0.0,
         )
 
@@ -3732,6 +3657,7 @@ class TestFavoritesWorkflowCoordinator(unittest.TestCase):
             def delete_selected(self, **kwargs):
                 return kwargs["selected_row"]
 
+        from fractal_studio.state import StandardParams
         controller = ControllerStub()
         coordinator = FavoritesWorkflowCoordinator(controller, PanelStub())
         row = object()
@@ -3749,14 +3675,9 @@ class TestFavoritesWorkflowCoordinator(unittest.TestCase):
                     scale=0.003,
                     max_iterations=256,
                     is_julia=False,
-                    julia_real=0.0,
-                    julia_imag=0.0,
+                    formula_params=StandardParams(),
                     power=2,
-                    phoenix_real=0.0,
-                    phoenix_imag=0.0,
                     coloring_mode="smooth",
-                    trap_x=0.0,
-                    trap_y=0.0,
                     palette_offset=0.0,
                 ),
                 control_points=[],

@@ -13,7 +13,7 @@ sys.path.insert(0, str(SOURCE_ROOT))
 @pytest.mark.integration
 class TestMainWindowSectionPanelStates(unittest.TestCase):
     def _favorite_snapshot(self):
-        from fractal_studio.state import FavoriteSnapshot, ViewportState
+        from fractal_studio.state import FavoriteSnapshot, StandardParams, ViewportState
 
         viewport = ViewportState(
             formula="Mandelbrot",
@@ -22,14 +22,9 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
             scale=0.003,
             max_iterations=256,
             is_julia=False,
-            julia_real=0.0,
-            julia_imag=0.0,
+            formula_params=StandardParams(),
             power=2,
-            phoenix_real=0.0,
-            phoenix_imag=0.0,
             coloring_mode="smooth",
-            trap_x=0.0,
-            trap_y=0.0,
             palette_offset=0.0,
         )
         return FavoriteSnapshot(

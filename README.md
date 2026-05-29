@@ -57,7 +57,7 @@ The HTML document includes rendered diagrams and is the easiest way to read the 
 | Tool | Version | Install |
 |------|---------|---------|
 | Rust toolchain | stable (2021 edition) | [rustup.rs](https://rustup.rs) |
-| maturin | ≥ 1.7, < 2.0 | `pip install maturin` |
+| maturin | ≥ 1.7, < 2.0 | `python -m pip install maturin` |
 
 > **Rust dependencies** (fetched automatically by cargo — no action needed):
 > - `pyo3` 0.28.3 — Python/Rust FFI bridge
@@ -74,7 +74,7 @@ Use this path when working on the Python UI, tests, or anything that doesn't req
 python -m venv .venv
 .venv\Scripts\activate           # Windows PowerShell
 
-pip install -e ./ui
+python -m pip install -e ./ui
 fractal-studio
 ```
 
@@ -83,7 +83,7 @@ fractal-studio
 python3 -m venv .venv
 source .venv/bin/activate
 
-pip install -e ./ui
+python -m pip install -e ./ui
 fractal-studio
 ```
 
@@ -123,14 +123,14 @@ source .venv/bin/activate
 ### 3. Install maturin
 
 ```bash
-pip install "maturin>=1.7,<2.0"
+python -m pip install "maturin>=1.7,<2.0"
 ```
 
 ### 4. Build the Rust core
 
 ```bash
 cd core
-maturin develop --release   # compiles Rust, installs fractal_core into the active venv
+python -m maturin develop --release   # compiles Rust, installs fractal_core into the active venv
 cd ..
 ```
 
@@ -139,7 +139,7 @@ cd ..
 ### 5. Install the Python UI
 
 ```bash
-pip install -e ./ui
+python -m pip install -e ./ui
 ```
 
 ### 6. Run
@@ -158,7 +158,7 @@ Rust source lives in `core/src/lib.rs`. After editing it:
 
 ```bash
 cd core
-maturin develop --release
+python -m maturin develop --release
 cd ..
 fractal-studio
 ```
@@ -235,7 +235,7 @@ Both files use versioned JSON. The app loads gracefully if either file is missin
 
 ## Development Notes
 
-- **Editable install:** `pip install -e ./ui` links the source directory directly. Python changes are live with no reinstall. Only the Rust core requires a `maturin develop` rebuild.
+- **Editable install:** `python -m pip install -e ./ui` links the source directory directly. Python changes are live with no reinstall. Only the Rust core requires a `python -m maturin develop` rebuild.
 
 - **Without the Rust core:** The app launches and is fully navigable. UI-layer work (layout, favorites, palette editor, settings) does not require a Rust build. The `CoreBackend` null object returns safe defaults for all rendering calls.
 

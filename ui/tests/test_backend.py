@@ -70,12 +70,6 @@ class ValidateTest(unittest.TestCase):
 @pytest.mark.unit
 class ViewportStateFormulaParamsTests(unittest.TestCase):
     def test_julia_params_round_trip(self) -> None:
-        _ensure_pyside6_mocked()
-        from importlib import import_module
-        import sys
-        for key in list(sys.modules):
-            if key.startswith(("fractal_studio.state", "fractal_studio.persistence")):
-                del sys.modules[key]
         from fractal_studio.state import ViewportState, JuliaParams
         original = ViewportState(
             formula="standard",
@@ -89,10 +83,6 @@ class ViewportStateFormulaParamsTests(unittest.TestCase):
         self.assertEqual(restored.formula_params, original.formula_params)
 
     def test_phoenix_params_round_trip(self) -> None:
-        _ensure_pyside6_mocked()
-        for key in list(sys.modules):
-            if key.startswith(("fractal_studio.state", "fractal_studio.persistence")):
-                del sys.modules[key]
         from fractal_studio.state import ViewportState, PhoenixParams
         original = ViewportState(
             formula="phoenix",
@@ -106,10 +96,6 @@ class ViewportStateFormulaParamsTests(unittest.TestCase):
         self.assertEqual(restored.formula_params, original.formula_params)
 
     def test_newton_params_round_trip(self) -> None:
-        _ensure_pyside6_mocked()
-        for key in list(sys.modules):
-            if key.startswith(("fractal_studio.state", "fractal_studio.persistence")):
-                del sys.modules[key]
         from fractal_studio.state import ViewportState, NewtonParams
         original = ViewportState(
             formula="newton",
@@ -123,10 +109,6 @@ class ViewportStateFormulaParamsTests(unittest.TestCase):
         self.assertEqual(restored.formula_params, original.formula_params)
 
     def test_standard_params_round_trip(self) -> None:
-        _ensure_pyside6_mocked()
-        for key in list(sys.modules):
-            if key.startswith(("fractal_studio.state", "fractal_studio.persistence")):
-                del sys.modules[key]
         from fractal_studio.state import ViewportState, StandardParams
         original = ViewportState(
             formula="standard",
@@ -140,10 +122,6 @@ class ViewportStateFormulaParamsTests(unittest.TestCase):
         self.assertIsInstance(restored.formula_params, StandardParams)
 
     def test_legacy_flat_format_phoenix_loads_correctly(self) -> None:
-        _ensure_pyside6_mocked()
-        for key in list(sys.modules):
-            if key.startswith(("fractal_studio.state", "fractal_studio.persistence")):
-                del sys.modules[key]
         from fractal_studio.state import ViewportState, PhoenixParams
         legacy = {
             "formula": "phoenix", "center_x": 0.0, "center_y": 0.0,
@@ -158,10 +136,6 @@ class ViewportStateFormulaParamsTests(unittest.TestCase):
         self.assertAlmostEqual(state.formula_params.imag, 0.1)
 
     def test_legacy_flat_format_newton_loads_correctly(self) -> None:
-        _ensure_pyside6_mocked()
-        for key in list(sys.modules):
-            if key.startswith(("fractal_studio.state", "fractal_studio.persistence")):
-                del sys.modules[key]
         from fractal_studio.state import ViewportState, NewtonParams
         legacy = {
             "formula": "newton", "center_x": 0.0, "center_y": 0.0,
@@ -176,10 +150,6 @@ class ViewportStateFormulaParamsTests(unittest.TestCase):
         self.assertAlmostEqual(state.formula_params.trap_y, -0.1)
 
     def test_legacy_flat_format_loads_correctly(self) -> None:
-        _ensure_pyside6_mocked()
-        for key in list(sys.modules):
-            if key.startswith(("fractal_studio.state", "fractal_studio.persistence")):
-                del sys.modules[key]
         from fractal_studio.state import ViewportState, JuliaParams
         legacy = {
             "formula": "standard", "center_x": 0.0, "center_y": 0.0,
