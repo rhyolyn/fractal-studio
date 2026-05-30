@@ -79,3 +79,38 @@ class TestSectionPanel:
         panel.collapse_changed.connect(emitted.append)
         panel._toggle()  # calling directly, header click not applicable
         assert emitted == []
+
+
+@pytest.mark.integration
+class TestViewportWellSizing:
+    def test_well_height_for_width_matches_viewport(self, app):
+        from fractal_studio.backend import load_backend
+        from fractal_studio.theme import DARK_THEME
+        from fractal_studio.ui.widgets.viewport_well import ViewportWell
+        from fractal_studio.viewport import FractalViewportWidget
+        from PySide6.QtWidgets import QLabel
+
+        backend = load_backend()
+        viewport = FractalViewportWidget(backend)
+        hint = QLabel("hint")
+        well = ViewportWell(viewport, DARK_THEME, hint)
+
+        assert well.hasHeightForWidth()
+        for w in (400, 600, 800):
+            assert well.heightForWidth(w) == viewport.heightForWidth(w)
+
+    def test_well_aspect_ratio_modes(self, app):
+        from fractal_studio.backend import load_backend
+        from fractal_studio.theme import DARK_THEME
+        from fractal_studio.ui.widgets.viewport_well import ViewportWell
+        from fractal_studio.viewport import FractalViewportWidget
+        from PySide6.QtWidgets import QLabel
+
+        backend = load_backend()
+        viewport = FractalViewportWidget(backend)
+        hint = QLabel("hint")
+        well = ViewportWell(viewport, DARK_THEME, hint)
+
+        for mode in ("square", "portrait", "landscape"):
+            viewport.set_aspect_ratio_mode(mode)
+            assert well.heightForWidth(600) == viewport.heightForWidth(600)
