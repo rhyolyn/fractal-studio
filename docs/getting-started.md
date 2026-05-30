@@ -1,5 +1,9 @@
 # Getting Started
 
+There are two ways to run Fractal Studio: UI-only if you are working on the interface or palettes, and full mode if you want the Rust renderer doing real work. Both start with a virtual environment.
+
+---
+
 ## Prerequisites
 
 | Requirement | Version | Notes |
@@ -13,11 +17,11 @@
 
 ## Installation
 
-There are two modes. **UI-only** is faster to set up and sufficient for palette editing, favourites, and settings work. **Full** adds the Rust rendering core for fractal render output.
+**UI-only** is the quick path and is enough for palette editing, favorites, and settings work. **Full** adds the Rust rendering core so the viewport and export features can render fractals.
 
-=== "UI-only (no Rust required)"
+=== "UI-only"
 
-    The app launches without the Rust backend. Fractal rendering and PNG export are disabled; all other panels work normally.
+    The app launches without the Rust backend. Fractal rendering and PNG export are disabled, but the rest of the UI still works.
 
     ```powershell
     # Windows — from the fractal-studio/ directory
@@ -35,7 +39,7 @@ There are two modes. **UI-only** is faster to set up and sufficient for palette 
     fractal-studio
     ```
 
-=== "Full (with Rust rendering)"
+=== "Full · with Rust"
 
     **Step 1 — Install Rust**
 
@@ -45,7 +49,7 @@ There are two modes. **UI-only** is faster to set up and sufficient for palette 
     source "$HOME/.cargo/env"
     ```
 
-    On Windows, download and run `rustup-init.exe` from [rustup.rs](https://rustup.rs), then open a new terminal.
+    On Windows, download and run `rustup-init.exe` from [rustup.rs](https://rustup.rs), then open a new terminal so the PATH update takes effect.
 
     **Step 2 — Create a virtual environment**
 
@@ -53,12 +57,13 @@ There are two modes. **UI-only** is faster to set up and sufficient for palette 
     python -m venv .venv
     .venv\Scripts\activate       # Windows
     ```
+
     ```bash
     python3 -m venv .venv
     source .venv/bin/activate    # macOS / Linux
     ```
 
-    **Step 3 — Install maturin and build the Rust core**
+    **Step 3 — Build the Rust core**
 
     ```bash
     pip install "maturin>=1.7,<2.0"
@@ -78,10 +83,10 @@ There are two modes. **UI-only** is faster to set up and sufficient for palette 
 
 ## Verifying the install
 
-When the app opens, the **Backend** panel in the bottom-right corner reports whether the Rust core loaded:
+When the app opens, check the **Backend** panel in the bottom-right corner. It tells you whether the Rust core loaded:
 
 - **Loaded** — rendering is active; all panels are enabled.
-- **Not available** — UI-only mode; the viewport shows a placeholder and export is disabled.
+- **Not available** — UI-only mode; the viewport shows a placeholder and export is disabled. Annoying if unexpected, useful if intentional.
 
 ---
 
@@ -89,8 +94,8 @@ When the app opens, the **Backend** panel in the bottom-right corner reports whe
 
 ```bash
 cd ui
-pytest           # unit tests only — no PySide6 required
-pytest -m unit   # same, explicit
+pytest                 # unit tests only, no PySide6 required
+pytest -m unit         # same, explicit
 pytest -m integration  # requires PySide6 in the venv
 ```
 
@@ -105,13 +110,13 @@ Fractal Studio writes two files to `~/.fractal_studio/` on first run:
 | `settings.json` | Theme preference |
 | `favorites.json` | Saved viewport snapshots |
 
-Both files are versioned JSON. If either is missing or corrupt the app falls back to defaults and shows a diagnostic message in the status bar.
+Both files are versioned JSON. If either file is missing or unreadable, the app falls back to defaults and puts a diagnostic message in the status bar.
 
 ---
 
 ## Updating after code changes
 
-**Python changes** take effect immediately — no reinstall needed (editable install).
+**Python changes** take effect immediately; no reinstall needed because the UI is installed in editable mode.
 
 **Rust changes** require a rebuild:
 

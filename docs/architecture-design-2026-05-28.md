@@ -1,4 +1,4 @@
-# Fractal Studio — Architectural Design Document
+# Fractal Studio — Architectural Design
 
 **Date:** 2026-05-28  
 **Scope:** Python UI layer (`fractal-studio/ui/`) + Rust bridge interface  
@@ -25,11 +25,13 @@
 
 ## 1. Executive Summary
 
-Fractal Studio is a PySide6/Qt desktop application for interactive fractal rendering and palette authoring. It wraps a Rust rendering engine (`fractal_core`) via a lazy-loading Python bridge and presents a seven-panel workspace: fractal viewport, palette editor, colormap editor, parameter controls, export controls, favorites gallery, and sidebar.
+Fractal Studio is a layered PySide6 desktop app wrapped around a Rust renderer through a lazy-loading bridge. This page maps the structure, the design choices, and the debt that still deserves a raised eyebrow.
 
-The codebase has undergone substantial layering work. The current state reflects several completed refactors: `MainWindowController` has been split into `ExportController` and `SettingsController`, adapter files have been consolidated into a dedicated subdirectory, `ViewportState` now uses a discriminated union for formula-specific parameters, and panel state machines receive their collaborators via constructor injection. The result is a codebase with a clearly intentional, largely SOLID architecture — immutable data models, layered business logic, and a Mediator/Ports pattern for UI wiring.
+Fractal Studio is a **PySide6/Qt** desktop application for interactive fractal rendering and palette editing. It wraps a **Rust rendering engine** (`fractal_core`) with a lazy-loading Python bridge and presents a seven-panel workspace: fractal viewport, palette editor, colormap editor, parameter controls, export controls, favorites gallery, and sidebar.
 
-**Overall grade:** B+ — structurally sound, some complexity debt in the middle layers.
+The codebase has had a useful round of layering work. `MainWindowController` was split into `ExportController` and `SettingsController`; adapter files moved into a dedicated subdirectory; `ViewportState` now uses a discriminated union for formula-specific parameters; panel state machines receive collaborators through constructor injection; and `validate()` catches missing wiring at startup instead of waiting for runtime mischief.
+
+**Overall grade:** B+ — structurally sound, with some complexity debt building up in the middle layers. The main risk is `MainWindowSectionsState`, which is drifting toward god-object territory.
 
 ---
 
@@ -112,7 +114,7 @@ fractal_studio/
 
 ## 4. Layered Architecture
 
-The architecture follows a strict top-down dependency rule: lower layers have no knowledge of higher layers.
+The architecture follows a strict unidirectional dependency rule enforced by `test_import_policy.py`: lower layers do not know about higher layers.
 
 ```mermaid
 graph TD
@@ -176,7 +178,7 @@ graph TD
     style Rust fill:#e2d9f3
 ```
 
-**Dependency rules (unidirectional — verified by `test_import_policy.py`):**
+**Dependency rules:**
 - `state.py` imports nothing from the application or UI layers
 - `persistence.py` imports only `state.py`
 - `backend.py` is a pure bridge with no application layer imports
@@ -187,7 +189,7 @@ graph TD
 
 ## 5. Data Model
 
-All domain objects in `state.py` are **frozen dataclasses**: immutable, hashable, and serializable. The key design decision in the current codebase is the discriminated union for formula-specific parameters, eliminating the previous problem of "invalid combinations always representable."
+All domain objects in `state.py` are **frozen dataclasses**: immutable, hashable, and serializable. The important structural choice is the **discriminated union** for formula-specific parameters, which makes invalid combinations unrepresentable at the type level.
 
 ```mermaid
 classDiagram
@@ -267,13 +269,13 @@ classDiagram
     ParamsState ..> ViewportState : derives from / converts to
 ```
 
-**Serialization:** `from_dict()` handles both the current structured format (with a `formula_params.type` discriminator key) and the legacy flat format. This backward compatibility is transparent to callers.
+**Serialization:** `from_dict()` handles both the current structured format, with a `formula_params.type` discriminator key, and the legacy flat format. Callers do not have to know migration happened, which is exactly how migration code should behave when it is behaving itself.
 
 ---
 
 ## 6. Dependency Injection & Factory
 
-`main_window_factory.py` is the composition root. It constructs all collaborators and assembles them into an immutable `MainWindowContext` frozen dataclass before any UI code runs.
+`main_window_factory.py` is the **composition root**. It builds the collaborators and assembles them into an immutable `MainWindowContext` before the UI event loop starts.
 
 ```mermaid
 graph LR
@@ -337,13 +339,13 @@ graph LR
     MWCtx -->|"attach_context()"| MW[MainWindow]
 ```
 
-`MainWindowContext` is a frozen dataclass — once built, no collaborator can be swapped out. This prevents accidental mutation of the wiring after startup and makes the dependency graph inspectable at a glance.
+Once built, the wiring is fixed and inspectable.
 
 ---
 
 ## 7. Mediator / Ports Pattern
 
-The `ui/sections/` layer implements a Ports & Adapters (Hexagonal Architecture) pattern. `sections.py` builds the Qt layout by calling only Protocol methods — it has zero knowledge of business logic, widgets, or adapters.
+The `ui/sections/` layer uses a **Ports & Adapters** pattern. `sections.py` builds the Qt layout by calling Protocol methods, without knowing the business logic, widgets, or adapter implementations.
 
 ```mermaid
 graph LR
@@ -398,13 +400,13 @@ graph LR
     VP & PP & CP & EP & FP & SP & BP -->|consumed by| SEC
 ```
 
-Each panel state machine receives its application-layer collaborators via constructor injection (implemented as part of the recent `bind()` refactor). This makes dependencies explicit and eliminates the silent-`None` failure mode.
+Each panel state machine receives its application-layer collaborators via constructor injection. This makes dependencies explicit and eliminates the silent-`None` failure mode.
 
 ---
 
 ## 8. Data Flow: Save Favorite
 
-Tracing a single user action through all layers illustrates how the architecture hangs together:
+Tracing one user action through the layers shows how the pieces fit together:
 
 ```mermaid
 sequenceDiagram
@@ -431,7 +433,7 @@ sequenceDiagram
     FWC-->>User: show_status("Saved: name")
 ```
 
-**Observation:** Each layer touches only its own collaborators. `sections.py` (the layout builder) never appears — it wired the button callback at startup and is otherwise uninvolved in this flow.
+**Observation:** Each layer touches only its own collaborators. `sections.py` never appears; it wired the button callback at startup and then got out of the way.
 
 ---
 
@@ -568,7 +570,7 @@ sequenceDiagram
 
 ### D1 — `MainWindowSectionsState` Is a Partial God Object
 
-`sections/state.py`'s `MainWindowSectionsState` holds 20+ named collaborators as dataclass fields, then constructs 6 panel state machines inside `bind()`. Its `bind()` method is ~60 lines of wiring code. The class plays two roles simultaneously: dependency container and panel-state factory.
+`sections/state.py`'s `MainWindowSectionsState` holds 20+ named collaborators as dataclass fields, then constructs 6 panel state machines inside `bind()`. Its `bind()` method is ~60 lines of wiring code. That makes it both dependency container and panel-state factory, which is a lot of hats for one class.
 
 **Impact:** Any change to the panel wiring requires modifying this single class. It is the integration point for the entire application and therefore accretes complexity with every new feature.
 
@@ -578,7 +580,7 @@ sequenceDiagram
 
 ### D2 — `validate()` Checks Field Names as Strings
 
-`MainWindowSectionsState.validate()` iterates a hardcoded list of string attribute names and calls `getattr`. While this catches missing collaborators at startup, it will silently miss any collaborator not in the list, and it will not catch typos in the list itself until runtime.
+`MainWindowSectionsState.validate()` iterates a hardcoded list of string attribute names and calls `getattr`, which means it can silently miss any collaborator not in the list.
 
 **Recommendation:** Replace the string-list approach with a dataclass `__post_init__` or a Pydantic model that enforces non-None at construction time. Alternatively, generate the list from `dataclasses.fields()` filtered by type annotation (excluding `Optional` fields).
 
@@ -586,7 +588,7 @@ sequenceDiagram
 
 ### D3 — No Test Markers (pytest.ini)
 
-Six tests currently fail in environments without PySide6. There is no `pytest.ini` defining `unit` and `integration` markers. Running `pytest` from `fractal-studio/ui/` does not produce a green result in a headless environment.
+Six tests fail without PySide6. There is no marker config, so `pytest` is not green in headless CI.
 
 **Impact:** Contributors cannot verify that pure-Python changes are correct without either installing PySide6 or knowing which tests to skip manually.
 
@@ -596,7 +598,7 @@ Six tests currently fail in environments without PySide6. There is no `pytest.in
 
 ### D4 — Some Panel States Accept `MainWindow` Directly
 
-`MainWindowColormapState`, `MainWindowFavoritesState`, and `MainWindowExportState` accept `owner: MainWindow` in their constructors. They use it for `self._owner.statusBar().showMessage` — a status-display operation.
+`MainWindowColormapState`, `MainWindowFavoritesState`, and `MainWindowExportState` accept `owner: MainWindow` in their constructors only so they can call `statusBar().showMessage`.
 
 **Impact:** These state machines are coupled to a concrete Qt class, making them untestable without a real `QMainWindow`. A narrow `show_status: Callable[[str], None]` injection would decouple them.
 
@@ -606,7 +608,7 @@ Six tests currently fail in environments without PySide6. There is no `pytest.in
 
 ### D5 — Backend Null-Object Inconsistently Applied
 
-Some coordinators and services perform `if not self._backend.available` guards before calling backend methods. Others rely on the null-object to return safe defaults. The inconsistency means callers cannot form a uniform mental model.
+Some coordinators guard with `if not self._backend.available`; others rely on the null object. Both can work, but mixing them makes the contract fuzzier than it needs to be.
 
 **Impact:** When adding new backend calls, developers must determine which pattern to follow by convention rather than by the null-object contract.
 
@@ -616,7 +618,7 @@ Some coordinators and services perform `if not self._backend.available` guards b
 
 ### D6 — Render Scheduling Has No Teardown Guard
 
-`FractalViewportWidget` uses a `QTimer` to coalesce render calls. The timer is created once and reused. There is no guard against scheduling renders after the widget is destroyed.
+`FractalViewportWidget` uses a `QTimer` to coalesce render calls. The timer is created once and reused. The viewport's `QTimer` can fire after the widget is destroyed during teardown or a fast close.
 
 **Impact:** During test teardown or rapid window close, the timer can fire after the widget and its Rust backend reference are gone, potentially causing a crash or a no-op that logs confusing output.
 
@@ -626,7 +628,7 @@ Some coordinators and services perform `if not self._backend.available` guards b
 
 ### D7 — `ThemeWorkflowCoordinator` Has Hidden Side Effect
 
-`ThemeWorkflowCoordinator.apply_theme_name()` captures `self._settings_repo` in a lambda and calls `save()` conditionally without a documented parameter.
+`ThemeWorkflowCoordinator.apply_theme_name()` may persist settings without saying so in its signature. Sneaky side effects are rarely as charming as they think they are.
 
 **Impact:** The method name gives no indication that it may persist settings as a side effect. Callers cannot call it for preview-only purposes without auditing the implementation.
 
@@ -704,4 +706,4 @@ This aligns the class name with its actual responsibility: holding panel states.
 
 ---
 
-*Document generated 2026-05-28. Reflects the current post-refactor codebase state including: `ExportController`/`SettingsController` split, `adapters/` subdirectory consolidation, `FormulaParams` discriminated union, constructor-injection panel states, and `validate()` startup check.*
+*Document generated 2026-05-28. Reflects the current post-refactor codebase.*

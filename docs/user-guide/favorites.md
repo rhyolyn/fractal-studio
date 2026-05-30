@@ -1,38 +1,38 @@
-# Favourites
+# Favorites
 
-The Favourites panel lets you save named snapshots of the current viewport state and restore them later. Each favourite captures the formula, position, zoom level, all parameters, and the active palette.
+Save snapshots of views worth keeping. Each favorite captures the formula, position, zoom level, parameters, palette, and a thumbnail.
 
 ---
 
-## Saving a favourite
+## Saving a favorite
 
 1. Navigate the viewport to the position and zoom you want to keep.
 2. Make sure the palette looks as you want it.
-3. Click **Save favourite** in the Favourites panel.
+3. Click **Save favorite** in the Favorites panel.
 
-A thumbnail is captured from the live viewport and the favourite is added to the gallery immediately. The name is generated automatically from the active formula and the current date/time (e.g. `Julia 2026-05-28 14:32`).
+A thumbnail is captured from the live viewport and the favorite is added to the gallery immediately. The name is generated from the active formula and the current date/time, for example `Julia 2026-05-28 14:32`.
 
-Favourites are written to `~/.fractal_studio/favorites.json` immediately — they survive closing and reopening the app.
+Favorites are written to `~/.fractal_studio/favorites.json` immediately, so they survive closing and reopening the app. Which is generally the point of saving things.
 
 ---
 
-## Restoring a favourite
+## Restoring a favorite
 
 | Action | Result |
 |--------|--------|
-| **Single click** | Selects the row (highlights it) |
-| **Double-click** | Restores the favourite — loads formula, position, parameters, and palette into the viewport |
+| **Single click** | Selects the row and highlights it |
+| **Double-click** | Restores the favorite: formula, position, parameters, and palette |
 
-Restoring a favourite replaces the current viewport state completely. If you want to keep your current state first, save it as a favourite before restoring another.
+Restoring a favorite replaces the current viewport state completely. If the current view is worth keeping, save it before loading another one.
 
 ---
 
-## Deleting a favourite
+## Deleting a favorite
 
 1. Single-click to select the row.
-2. Click **Delete** (or the delete button in the panel).
+2. Click **Delete** or the delete button in the panel.
 
-The favourite is removed from the gallery and from `favorites.json`.
+The favorite is removed from the gallery and from `favorites.json`.
 
 ---
 
@@ -47,7 +47,7 @@ The favourite is removed from the gallery and from `favorites.json`.
 | Formula-specific params (Julia cx/cy, Phoenix, Newton) | Yes |
 | Coloring mode | Yes |
 | Palette offset | Yes |
-| Palette (control points + rendered colours) | Yes |
+| Palette (control points + rendered colors) | Yes |
 | Aspect ratio mode | Yes |
 | Thumbnail (base64 PNG) | Yes |
 | Power (Multibrot) | Yes |
@@ -56,6 +56,6 @@ The favourite is removed from the gallery and from `favorites.json`.
 
 ## Tips
 
-- Save a favourite before exploring a deep zoom — navigation can be hard to reproduce precisely.
-- Favourites load the full palette, so you can use them as palette bookmarks even if you navigate away from the stored position.
-- The gallery scrolls vertically; there is no limit on the number of saved favourites beyond disk space.
+- Save a favorite before exploring a deep zoom. Navigation can be annoyingly hard to reproduce precisely.
+- Favorites load the full palette, so they also work as palette bookmarks.
+- The gallery scrolls vertically. There is no fixed limit beyond disk space.
