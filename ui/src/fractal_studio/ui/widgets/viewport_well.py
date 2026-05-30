@@ -55,6 +55,8 @@ class ViewportWell(QWidget):
     def paintEvent(self, event: QPaintEvent) -> None:  # noqa: ARG002
         painter = QPainter(self)
         self._draw_checkerboard(painter)
+        painter.setPen(QColor(self._theme.border))
+        painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
         painter.end()
 
     # --- private ---

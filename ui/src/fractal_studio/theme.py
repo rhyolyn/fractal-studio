@@ -184,9 +184,6 @@ def _base_surface_styles(theme: ThemeSpec) -> str:
             letter-spacing: 1.5px;
             color: {theme.section_heading};
         }}
-        QWidget#sectionPanel {{
-            border: 1px solid {theme.border};
-        }}
         QWidget#sectionHeader {{
             background: {theme.panel_surface};
             border-bottom: 1px solid {theme.border};

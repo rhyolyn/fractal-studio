@@ -37,13 +37,26 @@ class MainWindowSections:
         self._ports = ports
         self._theme: ThemeSpec | None = None
         self._viewport_well: ViewportWell | None = None
+        self._bordered_panels: list[SectionPanel] = []
 
     def set_theme(self, spec: ThemeSpec) -> None:
         self._theme = spec
+        for panel in self._bordered_panels:
+            panel.set_theme(spec)
+        if self._viewport_well is not None:
+            self._viewport_well.set_theme(spec)
 
     @property
     def viewport_well(self) -> ViewportWell | None:
         return self._viewport_well
+
+    def _register(self, panel: SectionPanel) -> SectionPanel:
+        """Track bordered panels for theme propagation; apply current theme immediately."""
+        if panel._bordered:
+            self._bordered_panels.append(panel)
+            if self._theme is not None:
+                panel.set_theme(self._theme)
+        return panel
 
     def build_header(
         self, profile: BackendProfile, on_open_settings: Callable[[], None]
@@ -109,7 +122,7 @@ class MainWindowSections:
 
     def build_palette_panel(self) -> QWidget:
         ports = self._ports.palette
-        panel = SectionPanel("Palette Preview", collapsible=False)
+        panel = SectionPanel("Palette Preview", collapsible=False, bordered=False)
 
         preview_palette = PalettePreviewWidget("Internal palette preview")
         preview_legacy = PalettePreviewWidget("Legacy 256-color export preview")
@@ -129,7 +142,7 @@ class MainWindowSections:
 
     def build_colormap_panel(self) -> QWidget:
         ports = self._ports.colormap
-        panel = SectionPanel("Colormap Editor", collapsible=False)
+        panel = SectionPanel("Colormap Editor", collapsible=False, bordered=False)
 
         editor = ColorCubeEditor(ports.backend, ports.backend_profile)
         editor.palette_changed.connect(ports.update_palette_previews)
@@ -168,7 +181,7 @@ class MainWindowSections:
 
     def _build_export_section(self, collapsed: bool) -> SectionPanel:
         ports = self._ports.export
-        panel = SectionPanel("Export", collapsible=True, collapsed=collapsed)
+        panel = SectionPanel("Export", collapsible=True, collapsed=collapsed, bordered=True)
         # Custom row first so spinboxes are registered before preset init signals fire.
         panel.body_layout().addWidget(self._build_export_custom_row(ports))
         panel.body_layout().addWidget(self._build_export_action_row(ports))
@@ -221,7 +234,7 @@ class MainWindowSections:
 
     def _build_favorites_section(self, collapsed: bool) -> SectionPanel:
         ports = self._ports.favorites
-        panel = SectionPanel("Favorites", collapsible=True, collapsed=collapsed)
+        panel = SectionPanel("Favorites", collapsible=True, collapsed=collapsed, bordered=True)
         panel.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         panel.body_layout().addWidget(self._build_favorites_scroll(ports))
         panel.body_layout().addWidget(self._build_favorites_buttons(ports))
@@ -289,9 +302,9 @@ class MainWindowSections:
         layout.setSpacing(2)
 
         # Parameters (always expanded, not persisted)
-        params_section = SectionPanel(
-            "Fractal Parameters", collapsible=True, collapsed=False
-        )
+        params_section = self._register(SectionPanel(
+            "Fractal Parameters", collapsible=True, collapsed=False, bordered=True
+        ))
         params_section.body_layout().setContentsMargins(8, 12, 8, 8)
         params_panel = FractalParamsPanel()
         ports.set_params_panel(params_panel)
@@ -300,7 +313,7 @@ class MainWindowSections:
         layout.addWidget(params_section)
 
         # Export (collapsed by default, persisted)
-        export_section = self._build_export_section(collapsed.get("export", True))
+        export_section = self._register(self._build_export_section(collapsed.get("export", False)))
         if on_section_collapsed is not None:
             export_section.collapse_changed.connect(
                 lambda c, key="export": on_section_collapsed(key, c)
@@ -308,7 +321,7 @@ class MainWindowSections:
         layout.addWidget(export_section)
 
         # Favorites (expanded by default, persisted)
-        favorites_section = self._build_favorites_section(collapsed.get("favorites", False))
+        favorites_section = self._register(self._build_favorites_section(collapsed.get("favorites", False)))
         if on_section_collapsed is not None:
             favorites_section.collapse_changed.connect(
                 lambda c, key="favorites": on_section_collapsed(key, c)

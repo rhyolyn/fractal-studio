@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from PySide6.QtGui import QPaintEvent, QPainter, QColor
 
 from fractal_studio.theme import ThemeSpec
 
@@ -39,11 +40,14 @@ class SectionPanel(QWidget):
         *,
         collapsible: bool = False,
         collapsed: bool = False,
+        bordered: bool = False,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._collapsible = collapsible
         self._collapsed = collapsed if collapsible else False
+        self._bordered = bordered
+        self._border_color: str = "#444444"
         self._extra_header_widget: QWidget | None = None
         self.setObjectName("sectionPanel")
         self._build_ui(title)
@@ -79,8 +83,18 @@ class SectionPanel(QWidget):
     def is_collapsed(self) -> bool:
         return self._collapsed
 
-    def set_theme(self, spec: ThemeSpec) -> None:  # noqa: ARG002
-        pass  # colours applied via QSS — no per-instance work needed
+    def set_theme(self, spec: ThemeSpec) -> None:
+        self._border_color = spec.border
+        if self._bordered:
+            self.update()
+
+    def paintEvent(self, event: QPaintEvent) -> None:  # noqa: ARG002
+        if not self._bordered:
+            return
+        p = QPainter(self)
+        p.setPen(QColor(self._border_color))
+        p.drawRect(0, 0, self.width() - 1, self.height() - 1)
+        p.end()
 
     # --- private ---
 
