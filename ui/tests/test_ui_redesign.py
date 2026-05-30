@@ -1591,12 +1591,14 @@ class TestWindowStartupCoordinator(unittest.TestCase):
         from fractal_studio.application.workflows.startup_coordinator import (
             WindowStartupCoordinator,
         )
+        from fractal_studio.application.controllers.theme_controller import ThemeController
         from fractal_studio.state import UiSettings
 
         SettingsRepository(self._mwmod._SETTINGS_PATH).save(UiSettings(theme="sepia"))
         coordinator = WindowStartupCoordinator(
             SettingsRepository(self._mwmod._SETTINGS_PATH),
             SettingsWorkflowService(),
+            ThemeController(),
         )
 
         startup = coordinator.bootstrap(application=_get_app())
@@ -1619,11 +1621,13 @@ class TestWindowStartupCoordinator(unittest.TestCase):
         from fractal_studio.application.workflows.startup_coordinator import (
             WindowStartupCoordinator,
         )
+        from fractal_studio.application.controllers.theme_controller import ThemeController
 
         self._mwmod._SETTINGS_PATH.write_text(json.dumps({"theme": "dark"}))
         coordinator = WindowStartupCoordinator(
             SettingsRepository(self._mwmod._SETTINGS_PATH),
             SettingsWorkflowService(),
+            ThemeController(),
         )
 
         startup = coordinator.bootstrap(

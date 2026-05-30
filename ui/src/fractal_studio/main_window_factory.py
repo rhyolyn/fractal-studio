@@ -89,7 +89,8 @@ def build_main_window_context(window: MainWindow) -> MainWindowContext:
     favorites_repo = FavoritesRepository(window._favorites_path)
     settings_repo = SettingsRepository(window._settings_path)
     settings_service = SettingsWorkflowService()
-    startup = WindowStartupCoordinator(settings_repo, settings_service)
+    theme_controller = ThemeController()
+    startup = WindowStartupCoordinator(settings_repo, settings_service, theme_controller)
     favorites_controller = FavoritesController()
     favorites_panel = FavoritesPanelCoordinator(FavoriteHoverPresenter())
     favorites_workflow = FavoritesWorkflowCoordinator(
@@ -98,7 +99,6 @@ def build_main_window_context(window: MainWindow) -> MainWindowContext:
     )
     sections_ports = build_sections_ports(window)
     sections = MainWindowSections(sections_ports)
-    theme_controller = ThemeController()
     backend = load_backend()
     export_service = ExportService(backend)
     palette_service = PaletteWorkflowService()

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from PySide6.QtWidgets import QApplication
 
 from fractal_studio.persistence import SettingsLoadResult, SettingsRepository
 from fractal_studio.services.settings_service import SettingsWorkflowService
-from fractal_studio.theme import ThemeSpec, apply_theme
+from fractal_studio.theme import ThemeSpec
+from fractal_studio.application.controllers.theme_controller import ThemeController
 
 
 @dataclass(frozen=True)
@@ -14,6 +15,7 @@ class WindowStartupState:
     theme_name: str
     theme_spec: ThemeSpec
     load_result: SettingsLoadResult
+    sidebar_collapsed: dict[str, bool] = field(default_factory=dict)
 
 
 class WindowStartupCoordinator:
@@ -21,9 +23,11 @@ class WindowStartupCoordinator:
         self,
         settings_repo: SettingsRepository,
         settings_service: SettingsWorkflowService,
+        theme_controller: ThemeController,
     ) -> None:
         self._settings_repo = settings_repo
         self._settings_service = settings_service
+        self._theme_controller = theme_controller
 
     def bootstrap(
         self,
@@ -32,11 +36,12 @@ class WindowStartupCoordinator:
     ) -> WindowStartupState:
         settings = self._settings_repo.load()
         theme_name = settings.settings.theme
-        theme_spec = apply_theme(application, theme_name)
+        theme_spec = self._theme_controller.apply_theme(application, theme_name)
         return WindowStartupState(
             theme_name=theme_name,
             theme_spec=theme_spec,
             load_result=settings,
+            sidebar_collapsed=dict(settings.settings.sidebar_collapsed),
         )
 
     def compose_startup_message(

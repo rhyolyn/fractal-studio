@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 
@@ -11,6 +11,7 @@ FAVORITES_SCHEMA_VERSION = 1
 @dataclass(frozen=True)
 class UiSettings:
     theme: str = "light"
+    sidebar_collapsed: dict[str, bool] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, raw: dict[str, Any]) -> UiSettings:
@@ -19,10 +20,20 @@ class UiSettings:
             theme = "light"
         if theme not in {"light", "dark", "sepia"}:
             theme = "light"
-        return cls(theme=theme)
+        sidebar_collapsed: dict[str, bool] = {}
+        if isinstance(raw, dict):
+            sc = raw.get("sidebar_collapsed")
+            if isinstance(sc, dict):
+                sidebar_collapsed = {
+                    k: bool(v) for k, v in sc.items() if isinstance(k, str)
+                }
+        return cls(theme=theme, sidebar_collapsed=sidebar_collapsed)
 
-    def to_dict(self) -> dict[str, str]:
-        return {"theme": self.theme}
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "theme": self.theme,
+            "sidebar_collapsed": dict(self.sidebar_collapsed),
+        }
 
 
 @dataclass(frozen=True)
