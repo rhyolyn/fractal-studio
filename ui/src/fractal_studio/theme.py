@@ -26,6 +26,11 @@ class ThemeSpec:
     hover_panel_bg: str
     hover_panel_border: str
     hint_text: str
+    section_heading: str
+    panel_surface: str
+    primary_button: str
+    checker_a: str
+    checker_b: str
 
 
 LIGHT_THEME = ThemeSpec(
@@ -47,6 +52,11 @@ LIGHT_THEME = ThemeSpec(
     hover_panel_bg="#ffffff",
     hover_panel_border="#cbd5e1",
     hint_text="#6b7280",
+    section_heading="#8b91a2",
+    panel_surface="#ffffff",
+    primary_button="#1f9e89",
+    checker_a="#e3e6ec",
+    checker_b="#d8dce4",
 )
 
 DARK_THEME = ThemeSpec(
@@ -68,6 +78,11 @@ DARK_THEME = ThemeSpec(
     hover_panel_bg="#181825",
     hover_panel_border="#45475a",
     hint_text="#9aa7b8",
+    section_heading="#6b7080",
+    panel_surface="#161821",
+    primary_button="#2fd4b8",
+    checker_a="#0a0b0e",
+    checker_b="#101116",
 )
 
 SEPIA_THEME = ThemeSpec(
@@ -89,6 +104,11 @@ SEPIA_THEME = ThemeSpec(
     hover_panel_bg="#f8efe1",
     hover_panel_border="#c9b292",
     hint_text="#7c6349",
+    section_heading="#9a8b7a",
+    panel_surface="#f4ebd9",
+    primary_button="#b3673b",
+    checker_a="#ddd0b5",
+    checker_b="#d2c4a7",
 )
 
 THEMES: dict[str, ThemeSpec] = {
@@ -154,6 +174,12 @@ def _base_surface_styles(theme: ThemeSpec) -> str:
             padding: 0 4px;
             color: {theme.text};
         }}
+        QLabel#sectionTitle {{
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            color: {theme.section_heading};
+        }}
     """
 
 
@@ -195,6 +221,17 @@ def _control_styles(theme: ThemeSpec) -> str:
         }}
         QDialogButtonBox QPushButton {{
             min-width: 84px;
+        }}
+        QPushButton#primaryButton {{
+            background: {theme.primary_button};
+            color: #ffffff;
+            border: none;
+            font-weight: 600;
+            padding: 6px 14px;
+        }}
+        QPushButton#primaryButton:hover {{
+            background: {theme.primary_button};
+            opacity: 0.9;
         }}
     """
 
