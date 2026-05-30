@@ -142,6 +142,7 @@ class MainWindowSections:
         controls = QWidget()
         controls_layout = QHBoxLayout()
         controls_layout.setContentsMargins(0, 0, 0, 0)
+        controls_layout.addStretch()
 
         reset_button = QPushButton("Reset")
         reset_button.clicked.connect(editor.clear_points)
@@ -249,6 +250,7 @@ class MainWindowSections:
 
     def _build_favorites_buttons(self, ports) -> QWidget:
         save_fav_btn = QPushButton("Save")
+        save_fav_btn.setObjectName("primaryButton")
         save_fav_btn.clicked.connect(ports.save_favorite)
         del_fav_btn = QPushButton("Delete")
         del_fav_btn.clicked.connect(ports.delete_selected_favorite)
@@ -284,13 +286,13 @@ class MainWindowSections:
         ports = self._ports.sidebar
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setSpacing(2)
 
         # Parameters (always expanded, not persisted)
         params_section = SectionPanel(
             "Fractal Parameters", collapsible=True, collapsed=False
         )
-        params_section.body_layout().setContentsMargins(8, 8, 8, 8)
+        params_section.body_layout().setContentsMargins(8, 12, 8, 8)
         params_panel = FractalParamsPanel()
         ports.set_params_panel(params_panel)
         ports.connect_params_and_viewport()

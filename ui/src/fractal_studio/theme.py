@@ -53,7 +53,7 @@ LIGHT_THEME = ThemeSpec(
     hover_panel_bg="#ffffff",
     hover_panel_border="#cbd5e1",
     hint_text="#6b7280",
-    section_heading="#8b91a2",
+    section_heading="#6a7fa8",
     panel_surface="#ffffff",
     primary_button="#1f9e89",
     checker_a="#e3e6ec",
@@ -80,7 +80,7 @@ DARK_THEME = ThemeSpec(
     hover_panel_bg="#181825",
     hover_panel_border="#45475a",
     hint_text="#9aa7b8",
-    section_heading="#6b7080",
+    section_heading="#7a93c4",
     panel_surface="#161821",
     primary_button="#2fd4b8",
     checker_a="#0a0b0e",
@@ -183,6 +183,14 @@ def _base_surface_styles(theme: ThemeSpec) -> str:
             font-weight: 700;
             letter-spacing: 1.5px;
             color: {theme.section_heading};
+        }}
+        QWidget#sectionHeader {{
+            background: {theme.panel_surface};
+            border-bottom: 1px solid {theme.border};
+        }}
+        QWidget#palettePreview {{
+            border: 1px solid {theme.border};
+            border-radius: 4px;
         }}
     """
 

@@ -14,6 +14,7 @@ class PalettePreviewWidget(QWidget):
         self._title = title
         self._palette: list[Color] = []
         self.setMinimumHeight(84)
+        self.setObjectName("palettePreview")
 
     def set_palette(self, palette: list[Color]) -> None:
         self._palette = list(palette)
@@ -22,8 +23,6 @@ class PalettePreviewWidget(QWidget):
     def paintEvent(self, event: QPaintEvent) -> None:  # noqa: ARG002
         painter = QPainter(self)
         painter.fillRect(self.rect(), self.palette().window())
-        painter.setPen(self.palette().mid().color())
-        painter.drawRect(self.rect().adjusted(0, 0, -1, -1))
 
         title_rect = QRectF(12, 8, self.width() - 24, 20)
         painter.setPen(self.palette().text().color())

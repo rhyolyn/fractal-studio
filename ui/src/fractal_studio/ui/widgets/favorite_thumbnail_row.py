@@ -42,11 +42,12 @@ class FavoriteThumbnailRow(QWidget):
         self._thumb_label = QLabel()
         self._thumb_label.setObjectName("favoriteThumb")
         self._thumb_label.setFixedSize(48, 48)
+        self._thumb_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._thumb_label.setPixmap(
             pixmap.scaled(
                 48,
                 48,
-                Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation,
             )
         )

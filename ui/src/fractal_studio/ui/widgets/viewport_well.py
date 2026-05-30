@@ -84,7 +84,12 @@ class ViewportWell(QWidget):
         self._hint.move(x, max(0, y))
 
     def _draw_checkerboard(self, painter: QPainter) -> None:
-        """Draw a 45°-rotated checkerboard across the full widget area."""
+        """Draw a 45°-rotated checkerboard across the full widget area.
+
+        Row step is half the tile so diamond tips touch — the previous _TILE
+        spacing left gaps (isolated blobs). Only every other (row+col) position
+        is drawn to produce a two-colour checkerboard; the rest is the ca fill.
+        """
         ca = QColor(self._theme.checker_a)
         cb = QColor(self._theme.checker_b)
         w, h = self.width(), self.height()
@@ -92,7 +97,7 @@ class ViewportWell(QWidget):
         painter.fillRect(0, 0, w, h, ca)
 
         half = _TILE // 2
-        rows = math.ceil(h / _TILE) + 2
+        rows = math.ceil(h / half) + 2   # row step is half, not _TILE
         cols = math.ceil(w / _TILE) + 2
 
         painter.setPen(Qt.PenStyle.NoPen)
@@ -100,8 +105,10 @@ class ViewportWell(QWidget):
 
         for row in range(-1, rows):
             for col in range(-1, cols):
+                if (row + col) % 2 != 1:
+                    continue
                 cx = col * _TILE + (half if row % 2 else 0)
-                cy = row * _TILE
+                cy = row * half            # row step is half for gapless tiling
                 diamond = QPolygon([
                     QPoint(cx, cy - half),
                     QPoint(cx + half, cy),
