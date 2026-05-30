@@ -265,6 +265,7 @@ class MainWindowSections:
 
     def build_workspace(self) -> QWidget:
         layout = QGridLayout()
+        layout.setSpacing(2)   # visible gap between panels acts as separator line
         layout.setColumnStretch(0, 1)
         layout.setColumnStretch(1, 1)
         layout.setRowStretch(0, 1)

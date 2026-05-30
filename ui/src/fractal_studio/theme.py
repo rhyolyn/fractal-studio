@@ -192,6 +192,9 @@ def _base_surface_styles(theme: ThemeSpec) -> str:
             border: 1px solid {theme.border};
             border-radius: 4px;
         }}
+        ViewportWell {{
+            border: 1px solid {theme.border};
+        }}
     """
 
 

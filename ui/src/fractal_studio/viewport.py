@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -310,7 +309,7 @@ class FractalViewportWidget(QWidget):
             )
 
 
-class FractalParamsPanel(QGroupBox):
+class FractalParamsPanel(QWidget):
     formula_changed = Signal(str)
     mode_changed = Signal(bool)  # True = Julia
     power_changed = Signal(int)
@@ -336,7 +335,7 @@ class FractalParamsPanel(QGroupBox):
     ]
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__("Fractal Parameters")
+        super().__init__(parent)
         self._controller = ParamsPanelController()
 
         self._formula_combo = QComboBox()
