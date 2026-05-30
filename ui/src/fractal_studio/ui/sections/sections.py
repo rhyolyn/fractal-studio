@@ -21,6 +21,9 @@ from PySide6.QtWidgets import (
 )
 
 from fractal_studio.editor import ColorCubeEditor, PalettePreviewWidget
+from fractal_studio.theme import ThemeSpec
+from fractal_studio.ui.widgets.section_panel import SectionPanel
+from fractal_studio.ui.widgets.viewport_well import ViewportWell
 from fractal_studio.viewport import FractalParamsPanel, FractalViewportWidget
 
 if TYPE_CHECKING:
@@ -33,6 +36,15 @@ if TYPE_CHECKING:
 class MainWindowSections:
     def __init__(self, ports: MainWindowSectionsPorts) -> None:
         self._ports = ports
+        self._theme: ThemeSpec | None = None
+        self._viewport_well: ViewportWell | None = None
+
+    def set_theme(self, spec: ThemeSpec) -> None:
+        self._theme = spec
+
+    @property
+    def viewport_well(self) -> ViewportWell | None:
+        return self._viewport_well
 
     def build_header(
         self, profile: BackendProfile, on_open_settings: Callable[[], None]
@@ -61,47 +73,45 @@ class MainWindowSections:
 
     def build_viewport_panel(self) -> QWidget:
         ports = self._ports.viewport
-        panel = QGroupBox("Fractal Viewport")
-        layout = QVBoxLayout()
+        panel = SectionPanel("Fractal Viewport", collapsible=False)
 
         aspect_row = QWidget()
         aspect_layout = QHBoxLayout()
         aspect_layout.setContentsMargins(0, 0, 0, 0)
-        aspect_layout.addWidget(QLabel("Aspect ratio:"))
+        aspect_layout.addWidget(QLabel("Aspect:"))
         aspect_ratio_combo = QComboBox()
         aspect_ratio_combo.addItems(
             ["Square (1:1)", "Portrait (3:4)", "Landscape (4:3)"]
         )
         aspect_ratio_combo.currentIndexChanged.connect(ports.on_aspect_ratio_changed)
         ports.set_aspect_ratio_combo(aspect_ratio_combo)
-        aspect_layout.addWidget(aspect_ratio_combo, 1)
+        aspect_layout.addWidget(aspect_ratio_combo)
         aspect_row.setLayout(aspect_layout)
+        panel.set_header_widget(aspect_row)
 
         viewport = FractalViewportWidget(ports.backend)
-        # Match right-column editor/previews default width so both columns start balanced.
         viewport.setMinimumWidth(520)
         viewport.status_changed.connect(ports.show_status)
         ports.set_viewport(viewport)
 
-        viewport_hint_label = QLabel(
+        hint_label = QLabel(
             "Scroll to zoom  ·  drag to pan  ·  double-click to recenter"
         )
-        viewport_hint_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        viewport_hint_label.setObjectName("viewportHint")
-        ports.set_viewport_hint_label(viewport_hint_label)
+        hint_label.setObjectName("viewportHint")
+        ports.set_viewport_hint_label(hint_label)
 
-        layout.addWidget(aspect_row)
-        layout.addStretch()
-        layout.addWidget(viewport)
-        layout.addWidget(viewport_hint_label)
-        layout.addStretch()
-        panel.setLayout(layout)
+        from fractal_studio.theme import get_theme
+        theme = self._theme if self._theme is not None else get_theme("light")
+        well = ViewportWell(viewport, theme, hint_label)
+        self._viewport_well = well
+
+        panel.body_layout().setContentsMargins(0, 0, 0, 0)
+        panel.body_layout().addWidget(well)
         return panel
 
     def build_palette_panel(self) -> QWidget:
         ports = self._ports.palette
-        panel = QGroupBox("Palette Preview")
-        layout = QVBoxLayout()
+        panel = SectionPanel("Palette Preview", collapsible=False)
 
         preview_palette = PalettePreviewWidget("Internal palette preview")
         preview_legacy = PalettePreviewWidget("Legacy 256-color export preview")
@@ -113,17 +123,15 @@ class MainWindowSections:
         ports.set_preview_widgets(preview_palette, preview_legacy)
         ports.set_palette_summary_labels(point_summary, palette_summary)
 
-        layout.addWidget(preview_palette)
-        layout.addWidget(preview_legacy)
-        layout.addWidget(point_summary)
-        layout.addWidget(palette_summary)
-        panel.setLayout(layout)
+        panel.body_layout().addWidget(preview_palette)
+        panel.body_layout().addWidget(preview_legacy)
+        panel.body_layout().addWidget(point_summary)
+        panel.body_layout().addWidget(palette_summary)
         return panel
 
     def build_colormap_panel(self) -> QWidget:
         ports = self._ports.colormap
-        panel = QGroupBox("Colormap Editor")
-        layout = QVBoxLayout()
+        panel = SectionPanel("Colormap Editor", collapsible=False)
 
         editor = ColorCubeEditor(ports.backend, ports.backend_profile)
         editor.palette_changed.connect(ports.update_palette_previews)
@@ -148,20 +156,13 @@ class MainWindowSections:
         export_button = QPushButton("Export .map")
         export_button.clicked.connect(ports.export_legacy_map)
 
-        for button in (
-            reset_button,
-            seed_button,
-            save_button,
-            load_button,
-            export_button,
-        ):
+        for button in (reset_button, seed_button, save_button, load_button, export_button):
             controls_layout.addWidget(button)
         controls_layout.addStretch()
         controls.setLayout(controls_layout)
 
-        layout.addWidget(editor)
-        layout.addWidget(controls)
-        panel.setLayout(layout)
+        panel.body_layout().addWidget(editor)
+        panel.body_layout().addWidget(controls)
 
         editor.seed_points()
         return panel

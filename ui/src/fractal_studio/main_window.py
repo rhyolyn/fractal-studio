@@ -103,9 +103,12 @@ class MainWindow(QMainWindow):
         self._sections_state.hover_panel = self._hover_panel
 
     def _finalize_startup(self, startup: WindowStartupState) -> None:
+        self._sections.set_theme(startup.theme_spec)       # must precede _build_layout
         self.setCentralWidget(self._build_layout())
         self._theme_controller.refresh_dynamic_widgets(
-            self._hover_panel, self._sections_state._favorites_state.fav_rows
+            self._hover_panel,
+            self._sections_state._favorites_state.fav_rows,
+            viewport_well=self._sections.viewport_well,
         )
         self.statusBar().showMessage(
             self._startup.compose_startup_message(
@@ -149,6 +152,7 @@ class MainWindow(QMainWindow):
                 self._theme_controller.refresh_dynamic_widgets(
                     self._hover_panel,
                     self._sections_state._favorites_state.fav_rows,
+                    viewport_well=self._sections.viewport_well,
                 )
             ),
         )
