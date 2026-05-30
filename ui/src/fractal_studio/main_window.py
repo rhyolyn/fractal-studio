@@ -107,7 +107,8 @@ class MainWindow(QMainWindow):
         self._sections_state.hover_panel = self._hover_panel
 
     def _finalize_startup(self, startup: WindowStartupState) -> None:
-        self._startup_sidebar_collapsed = dict(startup.sidebar_collapsed)
+        # Export always starts expanded for discoverability; ignore any saved collapsed state.
+        self._startup_sidebar_collapsed = {k: v for k, v in startup.sidebar_collapsed.items() if k != "export"}
         self._current_ui_settings = startup.load_result.settings
         self._sections.set_theme(startup.theme_spec)       # must precede _build_layout
         self.setCentralWidget(self._build_layout())

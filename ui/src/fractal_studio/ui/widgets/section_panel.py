@@ -91,16 +91,20 @@ class SectionPanel(QWidget):
     def paintEvent(self, event: QPaintEvent) -> None:  # noqa: ARG002
         if not self._bordered:
             return
+        from PySide6.QtCore import QRectF
         p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setPen(QColor(self._border_color))
-        p.drawRect(0, 0, self.width() - 1, self.height() - 1)
+        p.setBrush(Qt.BrushStyle.NoBrush)
+        p.drawRoundedRect(QRectF(0.5, 0.5, self.width() - 1, self.height() - 1), 4, 4)
         p.end()
 
     # --- private ---
 
     def _build_ui(self, title: str) -> None:
         outer = QVBoxLayout()
-        outer.setContentsMargins(0, 0, 0, 0)
+        # 1px inset so children don't paint over the border drawn in paintEvent
+        outer.setContentsMargins(1, 1, 1, 1)
         outer.setSpacing(0)
         outer.addWidget(self._build_header(title))
         outer.addWidget(self._build_body())

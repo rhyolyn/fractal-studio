@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QPainter, QPaintEvent, QResizeEvent
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
@@ -55,8 +55,10 @@ class ViewportWell(QWidget):
     def paintEvent(self, event: QPaintEvent) -> None:  # noqa: ARG002
         painter = QPainter(self)
         self._draw_checkerboard(painter)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.setPen(QColor(self._theme.border))
-        painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(QRectF(0.5, 0.5, self.width() - 1, self.height() - 1), 4, 4)
         painter.end()
 
     # --- private ---
