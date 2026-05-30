@@ -172,6 +172,8 @@ class MainWindowSections:
         custom_row = self._build_export_custom_row(ports)
         panel.body_layout().addWidget(custom_row)
         panel.set_header_widget(self._build_export_action_row(ports))
+        ports.on_export_preset_changed(0)  # initialise with default combo index
+        ports.apply_aspect_ratio_mode(update_combo=False)
         return panel
 
     def _build_export_action_row(self, ports) -> QWidget:
@@ -191,8 +193,6 @@ class MainWindowSections:
         layout.addWidget(export_btn)
         row.setLayout(layout)
 
-        ports.on_export_preset_changed(export_combo.currentIndex())
-        ports.apply_aspect_ratio_mode(update_combo=False)
         return row
 
     def _build_export_custom_row(self, ports) -> QWidget:

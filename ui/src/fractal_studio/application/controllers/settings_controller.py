@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 from typing import Any, Protocol
 
 from PySide6.QtWidgets import QDialog, QWidget
@@ -57,7 +58,6 @@ class SettingsController:
         key: str,
         collapsed: bool,
     ) -> UiSettings:
-        from dataclasses import replace
         updated = replace(
             current,
             sidebar_collapsed={**current.sidebar_collapsed, key: collapsed},
