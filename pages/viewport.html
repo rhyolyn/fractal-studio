@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fractal Viewport — Fractal Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="nav">
+  <nav class="nav-inner">
+    <a href="index.html" class="brand"><span class="mark"></span>Fractal Studio</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Getting&nbsp;Started</a>
+      <a href="viewport.html" class="active">User&nbsp;Guide</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="architecture.html">Developer</a>
+    </div>
+    <a href="https://github.com/rhyolyn/fractal-studio" class="nav-cta">/ GitHub</a>
+  </nav>
+</header>
+
+<div class="docs">
+  <aside class="docs-sidebar">
+    <div class="ds-group">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Getting Started</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">User Guide</span>
+      <a href="viewport.html" class="active">Fractal Viewport</a>
+      <a href="palette-editor.html">Palette Editor</a>
+      <a href="export.html">Export</a>
+      <a href="favorites.html">Favorites</a>
+      <a href="settings.html">Settings &amp; Themes</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">Project</span>
+      <a href="changelog.html">Changelog</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">Developer</span>
+      <a href="architecture.html">Architecture</a>
+    </div>
+  </aside>
+
+  <main class="docs-main">
+    <div class="crumbs"><a href="index.html">Home</a> / <a href="viewport.html">User Guide</a> / Fractal Viewport</div>
+    <h1>Fractal Viewport</h1>
+    <p class="page-lead">The viewport is the main canvas. It shows the active fractal and updates as you move around or change parameters.</p>
+
+    <h2 data-n="01" id="navigation">Navigation</h2>
+    <table>
+      <thead><tr><th>Action</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Left-click drag</strong></td><td>Pan the view</td></tr>
+        <tr><td><strong>Scroll wheel up</strong></td><td>Zoom in (towards cursor position)</td></tr>
+        <tr><td><strong>Scroll wheel down</strong></td><td>Zoom out</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <span class="ico">i</span>
+      <p>Render calls are debounced. The fractal re-renders shortly after you stop moving, so the UI does not try to compute every tiny twitch of the mouse.</p>
+    </div>
+
+    <h2 data-n="02" id="formula-selector">Formula selector</h2>
+    <p>The <strong>Sidebar</strong> controls which formula is active. Choose one from the formula dropdown:</p>
+    <table>
+      <thead><tr><th>Formula</th><th>Extra parameters</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Mandelbrot</strong></td><td>None</td></tr>
+        <tr><td><strong>Julia</strong></td><td>cx, cy (constant)</td></tr>
+        <tr><td><strong>Phoenix</strong></td><td>real, imag (perturbation)</td></tr>
+        <tr><td><strong>Newton</strong></td><td>trap x, trap y</td></tr>
+        <tr><td><strong>Burning Ship</strong></td><td>None</td></tr>
+        <tr><td><strong>Multibrot</strong></td><td>power (integer ≥ 2)</td></tr>
+      </tbody>
+    </table>
+    <p>When you switch formulas, the matching parameter controls appear and the fractal re-renders.</p>
+
+    <h2 data-n="03" id="parameter-controls">Parameter controls</h2>
+    <p>All controls are in the Sidebar panel.</p>
+    <table>
+      <thead><tr><th>Control</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Max iterations</strong></td><td>Higher values reveal more detail in boundary regions; increases render time</td></tr>
+        <tr><td><strong>Scale</strong></td><td>Zoom level (independent of the viewport zoom gesture)</td></tr>
+        <tr><td><strong>Power</strong></td><td>Multibrot exponent — only active when Multibrot is selected</td></tr>
+        <tr><td><strong>Julia cx / cy</strong></td><td>Real and imaginary parts of the Julia constant</td></tr>
+        <tr><td><strong>Phoenix real / imag</strong></td><td>Phoenix perturbation parameters</td></tr>
+        <tr><td><strong>Newton trap x / y</strong></td><td>Trap-point position for Newton coloring</td></tr>
+        <tr><td><strong>Coloring mode</strong></td><td>How escape-time values are mapped to the palette</td></tr>
+        <tr><td><strong>Palette offset</strong></td><td>Rotates the palette across the fractal; animate it for color-cycling effects</td></tr>
+      </tbody>
+    </table>
+
+    <h2 data-n="04" id="coloring-modes">Coloring modes</h2>
+    <table>
+      <thead><tr><th>Mode</th><th>Effect</th></tr></thead>
+      <tbody>
+        <tr><td><code>smooth_escape</code></td><td>Smooth gradient using fractional escape time — eliminates banding</td></tr>
+      </tbody>
+    </table>
+    <p>More modes can be added in the Rust core later.</p>
+
+    <h2 data-n="05" id="julia-mode">Julia mode</h2>
+    <p>Julia mode fixes the iteration constant at the cx / cy value instead of using the pixel coordinate. In practical terms, it turns the Mandelbrot-family view into the corresponding Julia set.</p>
+    <ul>
+      <li>Set cx and cy in the Sidebar to explore different Julia shapes.</li>
+      <li>Values near the Mandelbrot boundary tend to produce the most intricate sets.</li>
+      <li>Common starting points: <code>cx = −0.8</code>, <code>cy = 0.156</code>.</li>
+    </ul>
+
+    <h2 data-n="06" id="tips">Tips</h2>
+    <ul>
+      <li>Deep zooms usually need higher <strong>max iterations</strong>. Start at 256 and increase it if the boundary turns into a suspiciously boring edge.</li>
+      <li><strong>Palette offset</strong> can make the same fractal look completely different without changing the underlying shape.</li>
+      <li>Use <strong>Save favorite</strong> in the Favorites panel before zooming deep into an area you want to revisit.</li>
+    </ul>
+
+    <div class="page-nav">
+      <a href="getting-started.html"><div class="dir">← Previous</div><div class="ttl">Getting Started</div></a>
+      <a href="palette-editor.html" class="next"><div class="dir">Next →</div><div class="ttl">Palette Editor</div></a>
+    </div>
+  </main>
+
+  <aside class="docs-toc">
+    <span class="ds-label">On this page</span>
+    <a href="#navigation" class="active">Navigation</a>
+    <a href="#formula-selector">Formula selector</a>
+    <a href="#parameter-controls">Parameter controls</a>
+    <a href="#coloring-modes">Coloring modes</a>
+    <a href="#julia-mode">Julia mode</a>
+    <a href="#tips">Tips</a>
+  </aside>
+</div>
+
+<div class="spectrum-rule"></div>
+
+<script>
+  const links = [...document.querySelectorAll('.docs-toc a')];
+  const ids = links.map(l => l.getAttribute('href').slice(1));
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.id;
+        links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id));
+      }
+    });
+  }, { rootMargin: '-70px 0px -72% 0px' });
+  ids.forEach(id => { const el = document.getElementById(id); if (el) spy.observe(el); });
+</script>
+</body>
+</html>

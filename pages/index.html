@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fractal Studio — Fractal explorer and palette editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<header class="nav">
+  <nav class="nav-inner">
+    <a href="index.html" class="brand"><span class="mark"></span>Fractal Studio</a>
+    <div class="nav-links">
+      <a href="index.html" class="active">Home</a>
+      <a href="getting-started.html">Getting&nbsp;Started</a>
+      <a href="viewport.html">User&nbsp;Guide</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="architecture.html">Developer</a>
+    </div>
+    <a href="https://github.com/rhyolyn/fractal-studio" class="nav-cta">/ GitHub</a>
+  </nav>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-top">
+      <span class="mono-label">Fractal Studio · v1</span>
+      <span class="idx">DESKTOP · PYTHON + RUST</span>
+    </div>
+    <h1>Explore fractals.<br><span class="line2">Tinker with color.</span></h1>
+    <p class="lead">Fractal Studio is a desktop app for playing with fractals and palettes without losing the thread. The viewport, parameters, color-cube editor, exports, and saved favorites all live in one window.</p>
+    <div class="hero-actions">
+      <a href="getting-started.html" class="btn btn-primary">Get started →</a>
+      <a href="https://github.com/rhyolyn/fractal-studio" class="btn btn-ghost">View source</a>
+    </div>
+
+    <div class="hero-visual">
+      <div class="hv-cell"><span class="k">Formulas</span><span class="v">6</span></div>
+      <div class="hv-cell"><span class="k">Export</span><span class="v">8K</span></div>
+      <div class="hv-cell"><span class="k">Render core</span><span class="v">Rust</span></div>
+      <div class="hv-cell"><span class="k">Palettes</span><span class="v">many</span></div>
+    </div>
+    <div class="hero-render">
+      <span class="ph-label">fractal render — replace with screenshot</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURES ============ -->
+<section class="block" id="features">
+  <div class="block-head">
+    <span class="num">[01]</span>
+    <h2>What you can do</h2>
+    <span class="note">// the useful bits</span>
+  </div>
+  <div class="feat-grid">
+    <div class="feat reveal" style="--fa:var(--magenta)">
+      <div class="feat-top"><span class="tick"></span><h3>Explore fractals</h3></div>
+      <p>Pan and zoom through Mandelbrot, Julia, Phoenix, Newton, and a few other sets. Switch formulas when you want a different kind of weird.</p>
+    </div>
+    <div class="feat reveal" style="--fa:var(--violet)">
+      <div class="feat-top"><span class="tick"></span><h3>Design palettes</h3></div>
+      <p>Build smooth gradients by placing control points on a 3D color cube. The palette preview updates while you work, which is much nicer than guessing.</p>
+    </div>
+    <div class="feat reveal" style="--fa:var(--cyan)">
+      <div class="feat-top"><span class="tick"></span><h3>Save favorites</h3></div>
+      <p>Save a view when you find something worth keeping: formula, position, palette, and thumbnail. Double-click later to get back there.</p>
+    </div>
+    <div class="feat reveal" style="--fa:var(--amber)">
+      <div class="feat-top"><span class="tick"></span><h3>Export high-res</h3></div>
+      <p>Render PNG files at 2K, 4K, 8K, or a custom size. Use square or widescreen, depending on what the fractal seems to be demanding today.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LAYOUT ============ -->
+<section class="block" id="layout">
+  <div class="block-head">
+    <span class="num">[02]</span>
+    <h2>Application layout</h2>
+    <span class="note">// no panel treasure hunt</span>
+  </div>
+  <div class="schematic">
+    <div class="schematic-copy">
+      <p style="color:var(--muted);margin:0 0 8px;">The viewport stays in the middle, with parameters and palette tools close by. Change a control, and the render you are already looking at updates.</p>
+      <div class="spec-row"><span class="sk">viewport</span><span class="sv">Main fractal canvas — pan, zoom, render</span></div>
+      <div class="spec-row"><span class="sk">sidebar</span><span class="sv">Formula and parameter controls</span></div>
+      <div class="spec-row"><span class="sk">palette</span><span class="sv">Six-face color-cube editor, live preview</span></div>
+      <div class="spec-row"><span class="sk">colormap</span><span class="sv">Smooth-escape preview and palette offset</span></div>
+      <div class="spec-row"><span class="sk">export</span><span class="sv">Resolution presets and PNG output</span></div>
+      <div class="spec-row" style="border-bottom:0;"><span class="sk">backend</span><span class="sv">Reports whether the Rust core is loaded</span></div>
+    </div>
+    <div class="diagram">
+      <div class="dg dg-title"><span class="led"></span><span class="dt">Fractal Studio</span></div>
+      <div class="dg dg-side"><span class="dt">Sidebar</span><span class="dd">params</span></div>
+      <div class="dg dg-view"><span class="dd" style="color:var(--text)">Fractal Viewport</span></div>
+      <div class="dg dg-pal"><span class="dt">Palette Editor</span><span class="dd">color cube</span></div>
+      <div class="dg dg-fav"><span class="dt">Favorites</span><span class="dd">gallery</span></div>
+      <div class="dg dg-cmap"><span class="dt">Colormap</span><span class="cmap-strip"></span></div>
+      <div class="dg dg-status"><span class="dd">status · backend: rust core loaded</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FORMULAS ============ -->
+<section class="block" id="formulas">
+  <div class="block-head">
+    <span class="num">[03]</span>
+    <h2>Supported formulas</h2>
+    <span class="note">// escape-time and friends</span>
+  </div>
+  <div class="formula-table">
+    <div class="frow" style="--fa:var(--magenta)"><span class="fi">01</span><span class="fname"><span class="swatch"></span>Mandelbrot</span><span class="feq">z² + c</span><span class="fdesc">Classic z² + c escape-time set.</span></div>
+    <div class="frow" style="--fa:var(--violet)"><span class="fi">02</span><span class="fname"><span class="swatch"></span>Julia</span><span class="feq">fixed c · cx, cy</span><span class="fdesc">Fixed-c variant; set the constant with cx / cy sliders.</span></div>
+    <div class="frow" style="--fa:var(--blue)"><span class="fi">03</span><span class="fname"><span class="swatch"></span>Phoenix</span><span class="feq">+ perturbation</span><span class="fdesc">Julia variant with a perturbation term (real, imag).</span></div>
+    <div class="frow" style="--fa:var(--cyan)"><span class="fi">04</span><span class="fname"><span class="swatch"></span>Newton</span><span class="feq">z³ − 1</span><span class="fdesc">Newton's method on z³ − 1 with trap-point coloring.</span></div>
+    <div class="frow" style="--fa:var(--green)"><span class="fi">05</span><span class="fname"><span class="swatch"></span>Burning Ship</span><span class="feq">|z|² + c</span><span class="fdesc">Absolute-value variant of Mandelbrot.</span></div>
+    <div class="frow" style="--fa:var(--amber)"><span class="fi">06</span><span class="fname"><span class="swatch"></span>Multibrot</span><span class="feq">zⁿ + c · n ≥ 2</span><span class="fdesc">Generalized Mandelbrot with configurable power.</span></div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="cta-block">
+  <span class="mono-label">Open source</span>
+  <h2 style="margin-top:18px;">Two commands<br>to first render.</h2>
+  <p>UI-only mode runs without Rust and is enough for palette and UI work. Add the rendering core when you want actual fractals instead of polite placeholders.</p>
+  <div class="actions">
+    <a href="getting-started.html" class="btn btn-primary">Read the guide →</a>
+    <a href="https://github.com/rhyolyn/fractal-studio" class="btn btn-ghost">Star on GitHub</a>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer class="footer">
+  <div class="footer-grid">
+    <div class="footer-cell">
+      <a href="index.html" class="brand"><span class="mark"></span>Fractal Studio</a>
+      <p>A desktop fractal explorer and palette editor.</p>
+    </div>
+    <div class="footer-cell">
+      <h4>Docs</h4>
+      <a href="getting-started.html">Getting Started</a>
+      <a href="getting-started.html">User Guide</a>
+      <a href="changelog.html">Changelog</a>
+    </div>
+    <div class="footer-cell">
+      <h4>Develop</h4>
+      <a href="architecture.html">Architecture</a>
+      <a href="https://github.com/rhyolyn/fractal-studio">Repository</a>
+      <a href="https://github.com/rhyolyn/fractal-studio/issues">Issues</a>
+    </div>
+    <div class="footer-cell">
+      <h4>Built with</h4>
+      <a href="https://www.python.org/">Python · PySide6</a>
+      <a href="https://www.rust-lang.org/">Rust core</a>
+    </div>
+  </div>
+  <div class="footer-base">
+    <span>© 2026 rhyolyn / Fractal Studio</span>
+    <span>z ← z² + c</span>
+  </div>
+</footer>
+
+<div class="spectrum-rule"></div>
+
+<script>
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach((el, i) => {
+    el.style.transitionDelay = (i % 2 * 70) + 'ms';
+    io.observe(el);
+  });
+</script>
+</body>
+</html>

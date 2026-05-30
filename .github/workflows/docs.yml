@@ -1,11 +1,10 @@
-name: Deploy Docs
+name: Deploy Pages
 
 on:
   push:
     branches: [main]
     paths:
-      - "docs/**"
-      - "mkdocs.yml"
+      - "pages/**"
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
@@ -18,13 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - name: Install MkDocs Material
-        run: pip install mkdocs-material
-
       - name: Deploy to GitHub Pages
-        run: mkdocs gh-deploy --force
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./pages

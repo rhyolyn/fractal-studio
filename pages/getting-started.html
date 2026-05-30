@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Getting Started — Fractal Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="nav">
+  <nav class="nav-inner">
+    <a href="index.html" class="brand"><span class="mark"></span>Fractal Studio</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html" class="active">Getting&nbsp;Started</a>
+      <a href="viewport.html">User&nbsp;Guide</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="architecture.html">Developer</a>
+    </div>
+    <a href="https://github.com/rhyolyn/fractal-studio" class="nav-cta">/ GitHub</a>
+  </nav>
+</header>
+
+<div class="docs">
+
+  <aside class="docs-sidebar">
+    <div class="ds-group">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html" class="active">Getting Started</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">User Guide</span>
+      <a href="viewport.html">Fractal Viewport</a>
+      <a href="palette-editor.html">Palette Editor</a>
+      <a href="export.html">Export</a>
+      <a href="favorites.html">Favorites</a>
+      <a href="settings.html">Settings &amp; Themes</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">Project</span>
+      <a href="changelog.html">Changelog</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">Developer</span>
+      <a href="architecture.html">Architecture</a>
+    </div>
+  </aside>
+
+  <main class="docs-main">
+    <div class="crumbs"><a href="index.html">Home</a> / Getting Started</div>
+    <h1>Getting Started</h1>
+    <p class="page-lead">There are two ways to run Fractal Studio: UI-only if you are working on the interface or palettes, and full mode if you want the Rust renderer doing real work. Both start with a virtual environment.</p>
+
+    <h2 data-n="01" id="prerequisites">Prerequisites</h2>
+    <table>
+      <thead><tr><th>Requirement</th><th>Version</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Python</strong></td><td>3.12 or later</td><td><a class="inline" href="https://www.python.org/downloads/">python.org</a></td></tr>
+        <tr><td><strong>PySide6</strong></td><td>≥ 6.8</td><td>Installed automatically via pip</td></tr>
+        <tr><td><strong>Rust toolchain</strong></td><td>stable</td><td>Only needed for fractal rendering</td></tr>
+        <tr><td><strong>maturin</strong></td><td>≥ 1.7, &lt; 2.0</td><td>Only needed for fractal rendering</td></tr>
+      </tbody>
+    </table>
+
+    <h2 data-n="02" id="installation">Installation</h2>
+    <p><strong>UI-only</strong> is the quick path and is enough for palette editing, favorites, and settings work. <strong>Full</strong> adds the Rust rendering core so the viewport and export features can render fractals.</p>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="ui">UI-only</button>
+      <button class="tab" data-tab="full">Full · with Rust</button>
+    </div>
+
+    <div class="tab-body" data-body="ui">
+      <p>The app launches without the Rust backend. Fractal rendering and PNG export are disabled, but the rest of the UI still works.</p>
+      <pre><code><span class="cm"># Windows — from the fractal-studio/ directory</span>
+<span class="cmd">python</span> -m venv .venv
+.venv\Scripts\activate
+<span class="cmd">pip</span> install -e ./ui
+<span class="cmd">fractal-studio</span></code></pre>
+      <pre><code><span class="cm"># macOS / Linux</span>
+<span class="cmd">python3</span> -m venv .venv
+<span class="cmd">source</span> .venv/bin/activate
+<span class="cmd">pip</span> install -e ./ui
+<span class="cmd">fractal-studio</span></code></pre>
+    </div>
+
+    <div class="tab-body" data-body="full" hidden>
+      <h3>Step 1 — Install Rust</h3>
+      <pre><code><span class="cm"># macOS / Linux</span>
+<span class="cmd">curl</span> --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+<span class="cmd">source</span> "$HOME/.cargo/env"</code></pre>
+      <p>On Windows, download and run <code>rustup-init.exe</code> from <a class="inline" href="https://rustup.rs">rustup.rs</a>, then open a new terminal so the PATH update takes effect.</p>
+      <h3>Step 2 — Create a virtual environment</h3>
+      <pre><code><span class="cmd">python</span> -m venv .venv
+.venv\Scripts\activate       <span class="cm"># Windows</span></code></pre>
+      <h3>Step 3 — Build the Rust core</h3>
+      <pre><code><span class="cmd">pip</span> install "maturin>=1.7,<2.0"
+<span class="cmd">cd</span> core
+<span class="cmd">maturin</span> develop --release    <span class="cm"># first build ~30–60 s</span>
+<span class="cmd">cd</span> ..</code></pre>
+      <h3>Step 4 — Install and run</h3>
+      <pre><code><span class="cmd">pip</span> install -e ./ui
+<span class="cmd">fractal-studio</span></code></pre>
+    </div>
+
+    <h2 data-n="03" id="verifying">Verifying the install</h2>
+    <p>When the app opens, check the <strong>Backend</strong> panel in the bottom-right corner. It tells you whether the Rust core loaded:</p>
+    <ul>
+      <li><strong>Loaded</strong> — rendering is active; all panels are enabled.</li>
+      <li><strong>Not available</strong> — UI-only mode; the viewport shows a placeholder and export is disabled. Annoying if unexpected, useful if intentional.</li>
+    </ul>
+
+    <h2 data-n="04" id="tests">Running tests</h2>
+    <pre><code><span class="cmd">cd</span> ui
+<span class="cmd">pytest</span>                 <span class="cm"># unit tests only — no PySide6</span>
+<span class="cmd">pytest</span> -m unit         <span class="cm"># same, explicit</span>
+<span class="cmd">pytest</span> -m integration  <span class="cm"># requires PySide6 in the venv</span></code></pre>
+
+    <h2 data-n="05" id="stored-data">Stored data</h2>
+    <p>Fractal Studio writes two files to <code>~/.fractal_studio/</code> on first run:</p>
+    <table>
+      <thead><tr><th>File</th><th>Contents</th></tr></thead>
+      <tbody>
+        <tr><td><code>settings.json</code></td><td>Theme preference</td></tr>
+        <tr><td><code>favorites.json</code></td><td>Saved viewport snapshots</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <span class="ico">!</span>
+      <p>Both files are versioned JSON. If either file is missing or unreadable, the app falls back to defaults and puts a diagnostic message in the status bar.</p>
+    </div>
+
+    <h2 data-n="06" id="updating">Updating after code changes</h2>
+    <p><strong>Python changes</strong> take effect immediately — no reinstall needed (editable install). <strong>Rust changes</strong> require a rebuild:</p>
+    <pre><code><span class="cmd">cd</span> core
+<span class="cmd">maturin</span> develop --release</code></pre>
+
+    <div class="page-nav">
+      <a href="index.html"><div class="dir">← Previous</div><div class="ttl">Home</div></a>
+      <a href="viewport.html" class="next"><div class="dir">Next →</div><div class="ttl">Fractal Viewport</div></a>
+    </div>
+  </main>
+
+  <aside class="docs-toc">
+    <span class="ds-label">On this page</span>
+    <a href="#prerequisites" class="active">Prerequisites</a>
+    <a href="#installation">Installation</a>
+    <a href="#verifying">Verifying</a>
+    <a href="#tests">Running tests</a>
+    <a href="#stored-data">Stored data</a>
+    <a href="#updating">Updating</a>
+  </aside>
+
+</div>
+
+<div class="spectrum-rule"></div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      const id = t.dataset.tab;
+      document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+      document.querySelectorAll('.tab-body').forEach(b => b.hidden = (b.dataset.body !== id));
+    });
+  });
+  const links = [...document.querySelectorAll('.docs-toc a')];
+  const ids = links.map(l => l.getAttribute('href').slice(1));
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const id = e.target.id;
+        links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id));
+      }
+    });
+  }, { rootMargin: '-70px 0px -72% 0px' });
+  ids.forEach(id => { const el = document.getElementById(id); if (el) spy.observe(el); });
+</script>
+</body>
+</html>

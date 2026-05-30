@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Export — Fractal Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="nav">
+  <nav class="nav-inner">
+    <a href="index.html" class="brand"><span class="mark"></span>Fractal Studio</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Getting&nbsp;Started</a>
+      <a href="viewport.html" class="active">User&nbsp;Guide</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="architecture.html">Developer</a>
+    </div>
+    <a href="https://github.com/rhyolyn/fractal-studio" class="nav-cta">/ GitHub</a>
+  </nav>
+</header>
+
+<div class="docs">
+  <aside class="docs-sidebar">
+    <div class="ds-group">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Getting Started</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">User Guide</span>
+      <a href="viewport.html">Fractal Viewport</a>
+      <a href="palette-editor.html">Palette Editor</a>
+      <a href="export.html" class="active">Export</a>
+      <a href="favorites.html">Favorites</a>
+      <a href="settings.html">Settings &amp; Themes</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">Project</span>
+      <a href="changelog.html">Changelog</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">Developer</span>
+      <a href="architecture.html">Architecture</a>
+    </div>
+  </aside>
+
+  <main class="docs-main">
+    <div class="crumbs"><a href="index.html">Home</a> / <a href="viewport.html">User Guide</a> / Export</div>
+    <h1>Export</h1>
+    <p class="page-lead">The Export panel renders the current fractal to a PNG file at the size you choose.</p>
+
+    <h2 data-n="01" id="aspect-ratio">Aspect ratio</h2>
+    <p>Before choosing a resolution, select an <strong>aspect ratio mode</strong>. This controls the shape of the output image.</p>
+    <table>
+      <thead><tr><th>Mode</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Square</strong></td><td>Equal width and height (default)</td></tr>
+        <tr><td><strong>Widescreen</strong></td><td>16:9 ratio</td></tr>
+      </tbody>
+    </table>
+    <p>The aspect ratio also affects the viewport proportions and which presets are available.</p>
+
+    <h2 data-n="02" id="resolution-presets">Resolution presets</h2>
+    <p>The <strong>Export preset</strong> dropdown comes from the Rust core and depends on the active aspect ratio:</p>
+    <table>
+      <thead><tr><th>Preset</th><th>Typical resolution</th></tr></thead>
+      <tbody>
+        <tr><td><strong>2K</strong></td><td>2048 × 2048 (square) / 2048 × 1152 (widescreen)</td></tr>
+        <tr><td><strong>4K</strong></td><td>4096 × 4096 / 4096 × 2304</td></tr>
+        <tr><td><strong>8K</strong></td><td>8192 × 8192 / 8192 × 4608</td></tr>
+        <tr><td><strong>Tiled</strong></td><td>Large tiled output</td></tr>
+        <tr><td><strong>Custom</strong></td><td>Enter width and height manually</td></tr>
+      </tbody>
+    </table>
+    <p>Selecting <strong>Custom</strong> reveals width and height spin boxes.</p>
+
+    <h2 data-n="03" id="exporting">Exporting</h2>
+    <ul>
+      <li>Set the aspect ratio and select a preset (or enter custom dimensions).</li>
+      <li>Click <strong>Export</strong>.</li>
+      <li>A file dialog opens — choose a destination and filename (<code>.png</code> is added automatically if omitted).</li>
+      <li>The Rust core renders at the target resolution and saves the file. A status message confirms completion.</li>
+    </ul>
+    <div class="callout">
+      <span class="ico">!</span>
+      <p><strong>Render time.</strong> High-resolution exports with high iteration counts can take several seconds. If the Rust core is running on a background thread, the UI stays responsive. If not, it may pause briefly and pretend this was all part of the plan.</p>
+    </div>
+
+    <h2 data-n="04" id="tips">Tips</h2>
+    <ul>
+      <li>The export uses the same formula, position, palette, and coloring mode shown in the viewport. There is no secret second set of render settings.</li>
+      <li>Export larger than your display and downscale in an image editor if you want a cleaner final image.</li>
+      <li>The <strong>Tiled</strong> preset is for very large prints. It renders the fractal in sections and stitches them together.</li>
+    </ul>
+
+    <div class="page-nav">
+      <a href="palette-editor.html"><div class="dir">← Previous</div><div class="ttl">Palette Editor</div></a>
+      <a href="favorites.html" class="next"><div class="dir">Next →</div><div class="ttl">Favorites</div></a>
+    </div>
+  </main>
+
+  <aside class="docs-toc">
+    <span class="ds-label">On this page</span>
+    <a href="#aspect-ratio" class="active">Aspect ratio</a>
+    <a href="#resolution-presets">Resolution presets</a>
+    <a href="#exporting">Exporting</a>
+    <a href="#tips">Tips</a>
+  </aside>
+</div>
+
+<div class="spectrum-rule"></div>
+
+<script>
+  const links = [...document.querySelectorAll('.docs-toc a')];
+  const ids = links.map(l => l.getAttribute('href').slice(1));
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { const id = e.target.id; links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id)); } });
+  }, { rootMargin: '-70px 0px -72% 0px' });
+  ids.forEach(id => { const el = document.getElementById(id); if (el) spy.observe(el); });
+</script>
+</body>
+</html>
