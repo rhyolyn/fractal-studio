@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from fractal_studio.editor import ColorCubeEditor, PalettePreviewWidget
-from fractal_studio.theme import ThemeSpec
+from fractal_studio.theme import ThemeSpec, get_theme
 from fractal_studio.ui.widgets.section_panel import SectionPanel
 from fractal_studio.ui.widgets.viewport_well import ViewportWell
 from fractal_studio.viewport import FractalParamsPanel, FractalViewportWidget
@@ -100,12 +100,11 @@ class MainWindowSections:
         hint_label.setObjectName("viewportHint")
         ports.set_viewport_hint_label(hint_label)
 
-        from fractal_studio.theme import get_theme
         theme = self._theme if self._theme is not None else get_theme("light")
         well = ViewportWell(viewport, theme, hint_label)
         self._viewport_well = well
 
-        panel.body_layout().setContentsMargins(0, 0, 0, 0)
+        panel.body_layout().setContentsMargins(0, 0, 0, 0)  # ViewportWell bleeds edge-to-edge
         panel.body_layout().addWidget(well)
         return panel
 
