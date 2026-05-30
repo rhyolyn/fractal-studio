@@ -5,6 +5,9 @@ from typing import Any, Protocol
 
 from PySide6.QtWidgets import QDialog, QWidget
 
+from fractal_studio.persistence import SettingsRepository
+from fractal_studio.state import UiSettings
+
 
 class _PreviewSignalLike(Protocol):
     def connect(self, slot: Callable[[str], None]) -> Any: ...
@@ -46,3 +49,18 @@ class SettingsController:
             apply_theme_name(dialog.selected_theme(), True)
         elif dialog.selected_theme() != original_theme:
             apply_theme_name(original_theme, False)
+
+    def save_sidebar_collapsed(
+        self,
+        repo: SettingsRepository,
+        current: UiSettings,
+        key: str,
+        collapsed: bool,
+    ) -> UiSettings:
+        from dataclasses import replace
+        updated = replace(
+            current,
+            sidebar_collapsed={**current.sidebar_collapsed, key: collapsed},
+        )
+        repo.save(updated)
+        return updated

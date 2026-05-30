@@ -7,7 +7,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QFrame,
@@ -166,86 +165,69 @@ class MainWindowSections:
         editor.seed_points()
         return panel
 
-    def build_backend_panel(
-        self, profile: BackendProfile, backend_state_text: str
-    ) -> QWidget:
-        ports = self._ports.backend
-        panel = QGroupBox("Backend Profile")
-        layout = QVBoxLayout()
-
-        backend_state_label = QLabel()
-        backend_state_label.setWordWrap(True)
-        backend_state_label.setText(backend_state_text)
-        ports.set_backend_state_label(backend_state_label)
-
-        for text in (
-            f"Coloring model: {profile.coloring_model}",
-            f"Render strategy: {profile.render_strategy}",
-            f"Export presets: {', '.join(profile.export_presets)}",
-            f"Internal palette size: {profile.palette_size}",
-            f"Legacy export size: {profile.legacy_palette_size}",
-        ):
-            label = QLabel(text)
-            label.setWordWrap(True)
-            layout.addWidget(label)
-
-        layout.insertWidget(0, backend_state_label)
-        panel.setLayout(layout)
+    def _build_export_section(self, collapsed: bool) -> SectionPanel:
+        ports = self._ports.export
+        panel = SectionPanel("Export", collapsible=True, collapsed=collapsed)
+        # Build custom row first so spinboxes are registered before preset init signals fire.
+        custom_row = self._build_export_custom_row(ports)
+        panel.body_layout().addWidget(custom_row)
+        panel.set_header_widget(self._build_export_action_row(ports))
         return panel
 
-    def build_export_panel(self) -> QWidget:
-        ports = self._ports.export
-        panel = QGroupBox("Export")
-        layout = QVBoxLayout()
-
-        top_row = QWidget()
-        top_layout = QHBoxLayout()
-        top_layout.setContentsMargins(0, 0, 0, 0)
-
+    def _build_export_action_row(self, ports) -> QWidget:
         export_combo = QComboBox()
         ports.refresh_export_presets(export_combo)
+        export_combo.currentIndexChanged.connect(ports.on_export_preset_changed)
 
         export_btn = QPushButton("Export")
+        export_btn.setObjectName("primaryButton")
         export_btn.clicked.connect(ports.on_export_clicked)
 
-        top_layout.addWidget(export_combo, 1)
-        top_layout.addWidget(export_btn)
-        top_row.setLayout(top_layout)
+        row = QWidget()
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        layout.addWidget(export_combo, 1)
+        layout.addWidget(export_btn)
+        row.setLayout(layout)
 
-        custom_row = QWidget()
-        custom_layout = QHBoxLayout()
-        custom_layout.setContentsMargins(0, 0, 0, 0)
-        custom_layout.addWidget(QLabel("W:"))
+        ports.on_export_preset_changed(export_combo.currentIndex())
+        ports.apply_aspect_ratio_mode(update_combo=False)
+        return row
+
+    def _build_export_custom_row(self, ports) -> QWidget:
+        custom_width, custom_height = ports.custom_size_values()
+
         custom_width_box = QSpinBox()
         custom_width_box.setRange(64, 16384)
-        custom_width, custom_height = ports.custom_size_values()
         custom_width_box.setValue(custom_width)
-        custom_layout.addWidget(custom_width_box)
-        custom_layout.addWidget(QLabel("H:"))
+
         custom_height_box = QSpinBox()
         custom_height_box.setRange(64, 16384)
         custom_height_box.setValue(custom_height)
-        custom_layout.addWidget(custom_height_box)
-        custom_layout.addStretch()
-        custom_row.setLayout(custom_layout)
+
         ports.set_custom_size_boxes(custom_width_box, custom_height_box)
 
-        export_combo.currentIndexChanged.connect(ports.on_export_preset_changed)
-        ports.on_export_preset_changed(export_combo.currentIndex())
+        row = QWidget()
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(QLabel("W:"))
+        layout.addWidget(custom_width_box)
+        layout.addWidget(QLabel("H:"))
+        layout.addWidget(custom_height_box)
+        layout.addStretch()
+        row.setLayout(layout)
+        return row
 
-        ports.apply_aspect_ratio_mode(update_combo=False)
-
-        layout.addWidget(top_row)
-        layout.addWidget(custom_row)
-        panel.setLayout(layout)
+    def _build_favorites_section(self, collapsed: bool) -> SectionPanel:
+        ports = self._ports.favorites
+        panel = SectionPanel("Favorites", collapsible=True, collapsed=collapsed)
+        panel.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        panel.body_layout().addWidget(self._build_favorites_scroll(ports))
+        panel.body_layout().addWidget(self._build_favorites_buttons(ports))
         return panel
 
-    def build_favorites_panel(self) -> QWidget:
-        ports = self._ports.favorites
-        panel = QGroupBox("Favorites")
-        panel.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
-        layout = QVBoxLayout()
-
+    def _build_favorites_scroll(self, ports) -> QScrollArea:
         fav_scroll_widget = QWidget()
         fav_scroll_layout = QVBoxLayout()
         fav_scroll_layout.setContentsMargins(0, 0, 0, 0)
@@ -254,31 +236,30 @@ class MainWindowSections:
         fav_scroll_widget.setLayout(fav_scroll_layout)
         ports.set_favorites_scroll_container(fav_scroll_widget, fav_scroll_layout)
 
+        for favorite in ports.load_favorites():
+            ports.add_favorite_row(favorite)
+
         scroll = QScrollArea()
         scroll.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         scroll.setWidget(fav_scroll_widget)
         scroll.setWidgetResizable(True)
         scroll.setMinimumHeight(150)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        return scroll
 
-        for favorite in ports.load_favorites():
-            ports.add_favorite_row(favorite)
-
-        btn_row = QWidget()
-        btn_layout = QHBoxLayout()
-        btn_layout.setContentsMargins(0, 0, 0, 0)
+    def _build_favorites_buttons(self, ports) -> QWidget:
         save_fav_btn = QPushButton("Save")
         save_fav_btn.clicked.connect(ports.save_favorite)
         del_fav_btn = QPushButton("Delete")
         del_fav_btn.clicked.connect(ports.delete_selected_favorite)
-        for button in (save_fav_btn, del_fav_btn):
-            btn_layout.addWidget(button)
-        btn_row.setLayout(btn_layout)
 
-        layout.addWidget(scroll)
-        layout.addWidget(btn_row)
-        panel.setLayout(layout)
-        return panel
+        row = QWidget()
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(save_fav_btn)
+        layout.addWidget(del_fav_btn)
+        row.setLayout(layout)
+        return row
 
     def build_workspace(self) -> QWidget:
         layout = QGridLayout()
@@ -294,24 +275,43 @@ class MainWindowSections:
         container.setLayout(layout)
         return container
 
-    def build_sidebar(self) -> QWidget:
+    def build_sidebar(
+        self,
+        sidebar_collapsed: dict[str, bool] | None = None,
+        on_section_collapsed: Callable[[str, bool], None] | None = None,
+    ) -> QWidget:
+        collapsed = sidebar_collapsed or {}
         ports = self._ports.sidebar
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
+        # Parameters (always expanded, not persisted)
+        params_section = SectionPanel(
+            "Fractal Parameters", collapsible=True, collapsed=False
+        )
+        params_section.body_layout().setContentsMargins(8, 8, 8, 8)
         params_panel = FractalParamsPanel()
         ports.set_params_panel(params_panel)
         ports.connect_params_and_viewport()
+        params_section.body_layout().addWidget(params_panel)
+        layout.addWidget(params_section)
 
-        layout.addWidget(params_panel)
-        layout.addWidget(
-            self.build_backend_panel(
-                ports.backend_profile,
-                ports.backend_state_message(),
+        # Export (collapsed by default, persisted)
+        export_section = self._build_export_section(collapsed.get("export", True))
+        if on_section_collapsed is not None:
+            export_section.collapse_changed.connect(
+                lambda c, key="export": on_section_collapsed(key, c)
             )
-        )
-        layout.addWidget(self.build_export_panel())
-        favorites_panel = self.build_favorites_panel()
-        layout.addWidget(favorites_panel, 1)
+        layout.addWidget(export_section)
+
+        # Favorites (expanded by default, persisted)
+        favorites_section = self._build_favorites_section(collapsed.get("favorites", False))
+        if on_section_collapsed is not None:
+            favorites_section.collapse_changed.connect(
+                lambda c, key="favorites": on_section_collapsed(key, c)
+            )
+        layout.addWidget(favorites_section, 1)
 
         container = QWidget()
         container.setLayout(layout)

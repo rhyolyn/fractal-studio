@@ -22,6 +22,7 @@ from fractal_studio.application.workflows.startup_coordinator import WindowStart
 from fractal_studio.ui.dialogs.appearance_settings_dialog import (
     AppearanceSettingsDialog,
 )
+from fractal_studio.state import UiSettings
 from fractal_studio.viewport import FractalViewportWidget
 
 _FAVORITES_PATH = Path.home() / ".fractal_studio" / "favorites.json"
@@ -41,6 +42,8 @@ class MainWindow(QMainWindow):
         self._hover_panel: QLabel | None = None
         self._theme_name = "light"
         self._theme_spec: ThemeSpec = get_theme(self._theme_name)
+        self._startup_sidebar_collapsed: dict[str, bool] = {}
+        self._current_ui_settings = UiSettings()    # replaced in _finalize_startup
 
     def attach_context(self, context: MainWindowContext) -> None:
         self._sections_state.bind(self, context)
@@ -61,6 +64,7 @@ class MainWindow(QMainWindow):
         self._palette_preview = context.palette_preview
         self._sidebar_wiring = context.sidebar_wiring
         self._controller = context.export_controller
+        self._settings_controller = context.settings_controller
         self._export_panel = context.export_panel
         self._settings_dialog = context.settings_dialog
         self._theme_workflow = context.theme_workflow
@@ -103,6 +107,8 @@ class MainWindow(QMainWindow):
         self._sections_state.hover_panel = self._hover_panel
 
     def _finalize_startup(self, startup: WindowStartupState) -> None:
+        self._startup_sidebar_collapsed = dict(startup.sidebar_collapsed)
+        self._current_ui_settings = startup.load_result.settings
         self._sections.set_theme(startup.theme_spec)       # must precede _build_layout
         self.setCentralWidget(self._build_layout())
         self._theme_controller.refresh_dynamic_widgets(
@@ -133,11 +139,19 @@ class MainWindow(QMainWindow):
     def _build_main_splitter(self) -> QSplitter:
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.addWidget(self._sections.build_workspace())
-        splitter.addWidget(self._sections.build_sidebar())
+        splitter.addWidget(self._sections.build_sidebar(
+            sidebar_collapsed=self._startup_sidebar_collapsed,
+            on_section_collapsed=self._on_section_collapsed,
+        ))
         splitter.setStretchFactor(0, 5)
         splitter.setStretchFactor(1, 1)
         splitter.setSizes([1200, 300])
         return splitter
+
+    def _on_section_collapsed(self, section_key: str, collapsed: bool) -> None:
+        self._current_ui_settings = self._settings_controller.save_sidebar_collapsed(
+            self._settings_repo, self._current_ui_settings, section_key, collapsed
+        )
 
     def _open_settings(self) -> None:
         self._theme_name, self._theme_spec = self._theme_workflow.open_settings(
