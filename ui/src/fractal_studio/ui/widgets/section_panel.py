@@ -59,13 +59,17 @@ class SectionPanel(QWidget):
 
     def set_header_widget(self, widget: QWidget) -> None:
         """Place an arbitrary widget right-aligned in the header, before the chevron."""
+        if self._extra_header_widget is not None:
+            self._header_layout.removeWidget(self._extra_header_widget)
+            self._extra_header_widget.setParent(None)  # type: ignore[arg-type]
         self._extra_header_widget = widget
         self._header_layout.insertWidget(
-            self._header_layout.count() - 1,  # insert before toggle button
+            self._header_layout.count() - 1,  # before toggle button (present even when hidden)
             widget,
         )
 
     def set_collapsed(self, collapsed: bool) -> None:
+        # Does not emit collapse_changed — programmatic restore must not trigger persistence saves.
         if not self._collapsible:
             return
         self._collapsed = collapsed
