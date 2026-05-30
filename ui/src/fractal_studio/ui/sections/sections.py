@@ -169,11 +169,10 @@ class MainWindowSections:
     def _build_export_section(self, collapsed: bool) -> SectionPanel:
         ports = self._ports.export
         panel = SectionPanel("Export", collapsible=True, collapsed=collapsed)
-        # Build custom row first so spinboxes are registered before preset init signals fire.
-        custom_row = self._build_export_custom_row(ports)
-        panel.body_layout().addWidget(custom_row)
-        panel.set_header_widget(self._build_export_action_row(ports))
-        ports.on_export_preset_changed(0)  # initialise with default combo index
+        # Custom row first so spinboxes are registered before preset init signals fire.
+        panel.body_layout().addWidget(self._build_export_custom_row(ports))
+        panel.body_layout().addWidget(self._build_export_action_row(ports))
+        ports.on_export_preset_changed(0)
         ports.apply_aspect_ratio_mode(update_combo=False)
         return panel
 

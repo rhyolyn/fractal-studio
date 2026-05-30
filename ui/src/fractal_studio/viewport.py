@@ -336,6 +336,7 @@ class FractalParamsPanel(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setObjectName("sectionPanel")
         self._controller = ParamsPanelController()
 
         self._formula_combo = QComboBox()

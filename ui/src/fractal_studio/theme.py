@@ -184,16 +184,15 @@ def _base_surface_styles(theme: ThemeSpec) -> str:
             letter-spacing: 1.5px;
             color: {theme.section_heading};
         }}
+        QWidget#sectionPanel {{
+            border: 1px solid {theme.border};
+        }}
         QWidget#sectionHeader {{
             background: {theme.panel_surface};
             border-bottom: 1px solid {theme.border};
         }}
         QWidget#palettePreview {{
-            border: 1px solid {theme.border};
-            border-radius: 4px;
-        }}
-        ViewportWell {{
-            border: 1px solid {theme.border};
+            border: none;
         }}
     """
 
@@ -219,8 +218,7 @@ def _control_styles(theme: ThemeSpec) -> str:
         }}
         QScrollArea {{
             background: transparent;
-            border: 1px solid {theme.border};
-            border-radius: 10px;
+            border: none;
         }}
         QToolButton#settingsButton {{
             min-width: 34px;

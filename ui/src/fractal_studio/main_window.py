@@ -138,6 +138,7 @@ class MainWindow(QMainWindow):
 
     def _build_main_splitter(self) -> QSplitter:
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(2)  # match workspace grid spacing
         splitter.addWidget(self._sections.build_workspace())
         splitter.addWidget(self._sections.build_sidebar(
             sidebar_collapsed=self._startup_sidebar_collapsed,

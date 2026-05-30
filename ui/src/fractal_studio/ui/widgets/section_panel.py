@@ -45,6 +45,7 @@ class SectionPanel(QWidget):
         self._collapsible = collapsible
         self._collapsed = collapsed if collapsible else False
         self._extra_header_widget: QWidget | None = None
+        self.setObjectName("sectionPanel")
         self._build_ui(title)
         self._apply_collapse()
 
