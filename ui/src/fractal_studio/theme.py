@@ -31,6 +31,7 @@ class ThemeSpec:
     primary_button: str
     checker_a: str
     checker_b: str
+    primary_button_hover: str
 
 
 LIGHT_THEME = ThemeSpec(
@@ -57,6 +58,7 @@ LIGHT_THEME = ThemeSpec(
     primary_button="#1f9e89",
     checker_a="#e3e6ec",
     checker_b="#d8dce4",
+    primary_button_hover="#1a8574",
 )
 
 DARK_THEME = ThemeSpec(
@@ -83,6 +85,7 @@ DARK_THEME = ThemeSpec(
     primary_button="#2fd4b8",
     checker_a="#0a0b0e",
     checker_b="#101116",
+    primary_button_hover="#29b9a0",
 )
 
 SEPIA_THEME = ThemeSpec(
@@ -109,6 +112,7 @@ SEPIA_THEME = ThemeSpec(
     primary_button="#b3673b",
     checker_a="#ddd0b5",
     checker_b="#d2c4a7",
+    primary_button_hover="#9a5832",
 )
 
 THEMES: dict[str, ThemeSpec] = {
@@ -230,8 +234,7 @@ def _control_styles(theme: ThemeSpec) -> str:
             padding: 6px 14px;
         }}
         QPushButton#primaryButton:hover {{
-            background: {theme.primary_button};
-            opacity: 0.9;
+            background: {theme.primary_button_hover};
         }}
     """
 
