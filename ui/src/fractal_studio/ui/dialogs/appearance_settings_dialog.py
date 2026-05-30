@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QDialog,
@@ -13,12 +15,23 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+if TYPE_CHECKING:
+    from fractal_studio.backend import BackendProfile
+
 
 class AppearanceSettingsDialog(QDialog):
     theme_preview_requested = Signal(str)
 
-    def __init__(self, current_theme: str, parent=None) -> None:
+    def __init__(
+        self,
+        current_theme: str,
+        parent=None,
+        backend_profile: BackendProfile | None = None,
+        backend_loaded: bool = False,
+    ) -> None:
         super().__init__(parent)
+        self._backend_profile = backend_profile
+        self._backend_loaded = backend_loaded
         self._configure_window(current_theme)
         root = self._build_root(current_theme)
         self._set_root_layout(root)
@@ -37,8 +50,19 @@ class AppearanceSettingsDialog(QDialog):
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
 
+        self._appearance_content = self._build_content(current_theme)
+        self._environment_content = self._build_environment_content()
+        self._environment_content.setVisible(False)
+
+        self._content_stack = QWidget()
+        stack_layout = QVBoxLayout()
+        stack_layout.setContentsMargins(0, 0, 0, 0)
+        stack_layout.addWidget(self._appearance_content)
+        stack_layout.addWidget(self._environment_content)
+        self._content_stack.setLayout(stack_layout)
+
         root_layout.addWidget(self._build_sidebar())
-        root_layout.addWidget(self._build_content(current_theme), 1)
+        root_layout.addWidget(self._content_stack, 1)
         root.setLayout(root_layout)
         return root
 
@@ -54,10 +78,16 @@ class AppearanceSettingsDialog(QDialog):
         sidebar_title.setObjectName("settingsSidebarTitle")
         sidebar_layout.addWidget(sidebar_title)
 
-        appearance_tab = QPushButton("Appearance")
-        appearance_tab.setObjectName("settingsNavActive")
-        appearance_tab.setEnabled(False)
-        sidebar_layout.addWidget(appearance_tab)
+        self._appearance_tab = QPushButton("Appearance")
+        self._appearance_tab.setObjectName("settingsNavActive")
+        self._appearance_tab.setEnabled(False)
+        self._appearance_tab.clicked.connect(self._show_appearance)
+        sidebar_layout.addWidget(self._appearance_tab)
+
+        self._environment_tab = QPushButton("Environment")
+        self._environment_tab.setObjectName("settingsNavDisabled")
+        self._environment_tab.clicked.connect(self._show_environment)
+        sidebar_layout.addWidget(self._environment_tab)
 
         for label in ("Rendering", "Export", "Behavior", "Advanced"):
             tab = QPushButton(label)
@@ -130,6 +160,86 @@ class AppearanceSettingsDialog(QDialog):
         if close_button is not None:
             close_button.clicked.connect(self.reject)
         return buttons
+
+    def _build_environment_content(self) -> QWidget:
+        content = QWidget()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(20, 18, 20, 18)
+        layout.setSpacing(14)
+        layout.addWidget(self._env_title())
+        layout.addWidget(self._env_subtitle())
+        for row in self._env_rows():
+            layout.addWidget(row)
+        layout.addStretch()
+        layout.addWidget(self._build_close_buttons())
+        content.setLayout(layout)
+        return content
+
+    def _env_title(self) -> QLabel:
+        lbl = QLabel("Environment")
+        lbl.setObjectName("settingsHeading")
+        return lbl
+
+    def _env_subtitle(self) -> QLabel:
+        lbl = QLabel("Read-only backend profile. Reflects the loaded Rust extension.")
+        lbl.setObjectName("settingsSubtitle")
+        return lbl
+
+    def _env_rows(self) -> list[QWidget]:
+        if self._backend_profile is None:
+            return [QLabel("No backend profile available.")]
+        p = self._backend_profile
+        data = [
+            ("Extension", "Rust · loaded" if self._backend_loaded else "Python fallback"),
+            ("Coloring model", p.coloring_model),
+            ("Render strategy", p.render_strategy),
+            ("Internal palette", f"{p.palette_size} samples"),
+            ("Legacy palette", f"{p.legacy_palette_size} samples"),
+        ]
+        return [self._env_row(label, value) for label, value in data]
+
+    def _env_row(self, label: str, value: str) -> QWidget:
+        row = QWidget()
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        lbl = QLabel(label)
+        lbl.setObjectName("settingsSectionTitle")
+        layout.addWidget(lbl)
+        layout.addStretch()
+        layout.addWidget(QLabel(value))
+        row.setLayout(layout)
+        return row
+
+    def _build_close_buttons(self) -> QDialogButtonBox:
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.setObjectName("settingsButtons")
+        close = buttons.button(QDialogButtonBox.StandardButton.Close)
+        if close is not None:
+            close.clicked.connect(self.reject)
+        return buttons
+
+    def _show_appearance(self) -> None:
+        self._appearance_content.setVisible(True)
+        self._environment_content.setVisible(False)
+        self._appearance_tab.setObjectName("settingsNavActive")
+        self._appearance_tab.setEnabled(False)
+        self._environment_tab.setObjectName("settingsNavDisabled")
+        self._environment_tab.setEnabled(True)
+        self._repolish(self._appearance_tab, self._environment_tab)
+
+    def _show_environment(self) -> None:
+        self._appearance_content.setVisible(False)
+        self._environment_content.setVisible(True)
+        self._appearance_tab.setObjectName("settingsNavDisabled")
+        self._appearance_tab.setEnabled(True)
+        self._environment_tab.setObjectName("settingsNavActive")
+        self._environment_tab.setEnabled(False)
+        self._repolish(self._appearance_tab, self._environment_tab)
+
+    def _repolish(self, *widgets: QWidget) -> None:
+        for w in widgets:
+            w.style().unpolish(w)
+            w.style().polish(w)
 
     def _set_root_layout(self, root: QWidget) -> None:
         layout = QVBoxLayout()

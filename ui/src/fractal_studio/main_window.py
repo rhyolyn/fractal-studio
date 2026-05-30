@@ -159,7 +159,9 @@ class MainWindow(QMainWindow):
             current_theme=self._theme_name,
             current_theme_spec=self._theme_spec,
             dialog_factory=lambda theme, parent: AppearanceSettingsDialog(
-                theme, parent
+                theme, parent,
+                backend_profile=self.backend_profile,
+                backend_loaded=self.backend_loaded,
             ),
             application=QApplication.instance(),
             refresh_dynamic_widgets=lambda: (
