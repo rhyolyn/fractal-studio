@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import math
 
-from PySide6.QtCore import QPoint, Qt
-from PySide6.QtGui import QColor, QPainter, QPaintEvent, QPolygon, QResizeEvent
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QPainter, QPaintEvent, QResizeEvent
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from fractal_studio.theme import ThemeSpec
@@ -84,35 +84,16 @@ class ViewportWell(QWidget):
         self._hint.move(x, max(0, y))
 
     def _draw_checkerboard(self, painter: QPainter) -> None:
-        """Draw a 45°-rotated checkerboard across the full widget area.
-
-        Row step is half the tile so diamond tips touch — the previous _TILE
-        spacing left gaps (isolated blobs). Only every other (row+col) position
-        is drawn to produce a two-colour checkerboard; the rest is the ca fill.
-        """
+        """Draw a small-square checkerboard across the full widget area."""
         ca = QColor(self._theme.checker_a)
         cb = QColor(self._theme.checker_b)
         w, h = self.width(), self.height()
 
-        painter.fillRect(0, 0, w, h, ca)
-
-        half = _TILE // 2
-        rows = math.ceil(h / half) + 2   # row step is half, not _TILE
-        cols = math.ceil(w / _TILE) + 2
-
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(cb)
+        cell = _TILE // 2  # 11 px — small enough to read as texture
+        rows = math.ceil(h / cell) + 2
+        cols = math.ceil(w / cell) + 2
 
         for row in range(-1, rows):
             for col in range(-1, cols):
-                if (row + col) % 2 != 1:
-                    continue
-                cx = col * _TILE + (half if row % 2 else 0)
-                cy = row * half            # row step is half for gapless tiling
-                diamond = QPolygon([
-                    QPoint(cx, cy - half),
-                    QPoint(cx + half, cy),
-                    QPoint(cx, cy + half),
-                    QPoint(cx - half, cy),
-                ])
-                painter.drawPolygon(diamond)
+                color = cb if (row + col) % 2 == 0 else ca
+                painter.fillRect(col * cell, row * cell, cell, cell, color)
