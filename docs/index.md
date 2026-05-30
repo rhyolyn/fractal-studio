@@ -1,6 +1,6 @@
 # Fractal Studio
 
-**Fractal Studio** is a desktop app for playing with fractals and palettes without losing the thread. The viewport, parameters, color-cube editor, exports, and saved favorites all live in one window.
+**Fractal Studio** is a desktop application for exploring fractals, editing their color palettes, and exporting your favorite finds. Experiment with formulas, parameters, and variations, then build your own colormaps by drawing curves through the color cube.
 
 ---
 
