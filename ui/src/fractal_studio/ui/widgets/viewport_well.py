@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import math
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QPainter, QPaintEvent, QResizeEvent
+from PySide6.QtCore import QPoint, Qt
+from PySide6.QtGui import QColor, QPainter, QPaintEvent, QPolygon, QResizeEvent
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from fractal_studio.theme import ThemeSpec
@@ -74,6 +74,7 @@ class ViewportWell(QWidget):
         hint_label.setParent(self)
         hint_label.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         hint_label.raise_()
+        hint_label.show()  # show once on adoption; caller may hide() thereafter
 
     def _reposition_hint(self) -> None:
         margin = 10
@@ -81,13 +82,9 @@ class ViewportWell(QWidget):
         x = margin
         y = self.height() - self._hint.sizeHint().height() - margin
         self._hint.move(x, max(0, y))
-        self._hint.show()
 
     def _draw_checkerboard(self, painter: QPainter) -> None:
         """Draw a 45°-rotated checkerboard across the full widget area."""
-        from PySide6.QtCore import QPoint
-        from PySide6.QtGui import QPolygon
-
         ca = QColor(self._theme.checker_a)
         cb = QColor(self._theme.checker_b)
         w, h = self.width(), self.height()
