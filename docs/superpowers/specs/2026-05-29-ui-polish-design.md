@@ -180,12 +180,12 @@ When collapsed, the Export section shows its full action row (preset dropdown + 
 
 ## Backend Profile → Settings Dialog
 
-**`AppearanceSettingsDialog` gains a second tab:**
+**`AppearanceSettingsDialog` gains an Environment section using the existing sidebar/stack navigation pattern (not QTabWidget):**
 
 ```
-QTabWidget
-├── Tab "Appearance"    — existing theme picker (unchanged)
-└── Tab "Environment"   — new, read-only backend profile display
+AppearanceSettingsDialog (custom sidebar nav)
+├── Nav "Appearance"  — existing theme picker (unchanged)
+└── Nav "Environment" — new, read-only backend profile display
 ```
 
 Environment tab content: labelled read-only rows (monospace value column) for:
@@ -201,9 +201,9 @@ Data passed at dialog construction via a `BackendProfile | None` argument (alrea
 
 ## Favorites Panel
 
-- `FavoriteThumbnailRow`: thumbnail `QLabel` fixed size changes from `32×32` to `48×48`
-- Selected state: `FavoriteRowStylePresenter` adds `border-left: 3px solid {theme.accent}` to selected row QSS output (and `padding-left: 5px` to compensate so content doesn't shift)
-- Timestamp: `favorite_hover_presenter.py` formats timestamps as `HH:MM` using `datetime.strftime("%H:%M")` rather than the current ISO truncation
+- `FavoriteThumbnailRow`: thumbnail size changes from `48×36` to `48×48` (square, `KeepAspectRatioByExpanding`)
+- Selected state: already implemented correctly in `FavoriteRowStylePresenter` (`border-left: 4px solid selected_border` + `selection_bg` fill) — no change needed
+- Timestamps: not displayed in the current UI (`FavoriteThumbnailRow` shows `fav["name"]` only); no change needed
 
 ---
 
