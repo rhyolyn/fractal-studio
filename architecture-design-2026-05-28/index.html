@@ -1,0 +1,2447 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Interactive fractal explorer and palette editor">
+      
+      
+        <meta name="author" content="rhyolyn">
+      
+      
+        <link rel="canonical" href="https://rhyolyn.github.io/fractal-studio/architecture-design-2026-05-28/">
+      
+      
+        <link rel="prev" href="../changelog/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Architecture - Fractal Studio</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="deep-purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#fractal-studio-architectural-design" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Fractal Studio" class="md-header__button md-logo" aria-label="Fractal Studio" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Fractal Studio
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Architecture
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="deep-purple" data-md-color-accent="deep-purple"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="deep-purple" data-md-color-accent="deep-purple"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/rhyolyn/fractal-studio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    rhyolyn/fractal-studio
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../user-guide/viewport/" class="md-tabs__link">
+          
+  
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Developer
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Fractal Studio" class="md-nav__button md-logo" aria-label="Fractal Studio" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Fractal Studio
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/rhyolyn/fractal-studio" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    rhyolyn/fractal-studio
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/viewport/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Fractal Viewport
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/palette-editor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Palette Editor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/export/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/favorites/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Favorites
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Settings & Themes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Developer
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Executive Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-technology-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Technology Stack
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-package-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Package Structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-layered-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Layered Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-data-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Data Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-dependency-injection-factory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Dependency Injection &amp; Factory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-mediator-ports-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Mediator / Ports Pattern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-data-flow-save-favorite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Data Flow: Save Favorite
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-solid-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. SOLID Principles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. SOLID Principles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#s-single-responsibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        S — Single Responsibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#o-openclosed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        O — Open/Closed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#l-liskov-substitution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        L — Liskov Substitution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-interface-segregation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I — Interface Segregation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-dependency-inversion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D — Dependency Inversion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-design-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Design Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Design Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#repository-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repository Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mediator-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mediator Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ports-adapters-hexagonal-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ports &amp; Adapters (Hexagonal Architecture)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#factory-composition-root" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Factory / Composition Root
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#null-object-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Null Object Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#immutable-value-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Immutable Value Object
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#observer-signal-slot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observer / Signal-Slot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Machine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#discriminated-union-sum-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Discriminated Union (Sum Type)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-deficiencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Deficiencies
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Deficiencies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d1-mainwindowsectionsstate-is-a-partial-god-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D1 — MainWindowSectionsState Is a Partial God Object
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d2-validate-checks-field-names-as-strings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D2 — validate() Checks Field Names as Strings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d3-no-test-markers-pytestini" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D3 — No Test Markers (pytest.ini)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d4-some-panel-states-accept-mainwindow-directly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D4 — Some Panel States Accept MainWindow Directly
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d5-backend-null-object-inconsistently-applied" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D5 — Backend Null-Object Inconsistently Applied
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d6-render-scheduling-has-no-teardown-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D6 — Render Scheduling Has No Teardown Guard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d7-themeworkflowcoordinator-has-hidden-side-effect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D7 — ThemeWorkflowCoordinator Has Hidden Side Effect
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-future-direction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Future Direction
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. Future Direction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#f1-async-rendering-high-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F1 — Async Rendering (High Priority)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f2-command-event-bus-for-cross-panel-communication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F2 — Command / Event Bus for Cross-Panel Communication
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f3-fractal_corepyi-type-stub" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F3 — fractal_core.pyi Type Stub
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f4-undoredo-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F4 — Undo/Redo System
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f5-settings-schema-migration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F5 — Settings Schema Migration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f6-property-based-tests-for-state-serialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F6 — Property-Based Tests for State Serialization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f7-reduce-mainwindowsectionsstate-to-a-panel-state-only-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F7 — Reduce MainWindowSectionsState to a Panel-State-Only Container
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Executive Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-technology-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Technology Stack
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-package-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Package Structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-layered-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Layered Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-data-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Data Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-dependency-injection-factory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Dependency Injection &amp; Factory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-mediator-ports-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Mediator / Ports Pattern
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-data-flow-save-favorite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Data Flow: Save Favorite
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-solid-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. SOLID Principles
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. SOLID Principles">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#s-single-responsibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        S — Single Responsibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#o-openclosed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        O — Open/Closed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#l-liskov-substitution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        L — Liskov Substitution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#i-interface-segregation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        I — Interface Segregation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d-dependency-inversion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D — Dependency Inversion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-design-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Design Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="10. Design Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#repository-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Repository Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mediator-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mediator Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ports-adapters-hexagonal-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ports &amp; Adapters (Hexagonal Architecture)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#factory-composition-root" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Factory / Composition Root
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#null-object-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Null Object Pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#immutable-value-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Immutable Value Object
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#observer-signal-slot" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observer / Signal-Slot
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state-machine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Machine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#discriminated-union-sum-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Discriminated Union (Sum Type)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-deficiencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Deficiencies
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Deficiencies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#d1-mainwindowsectionsstate-is-a-partial-god-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D1 — MainWindowSectionsState Is a Partial God Object
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d2-validate-checks-field-names-as-strings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D2 — validate() Checks Field Names as Strings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d3-no-test-markers-pytestini" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D3 — No Test Markers (pytest.ini)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d4-some-panel-states-accept-mainwindow-directly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D4 — Some Panel States Accept MainWindow Directly
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d5-backend-null-object-inconsistently-applied" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D5 — Backend Null-Object Inconsistently Applied
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d6-render-scheduling-has-no-teardown-guard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D6 — Render Scheduling Has No Teardown Guard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#d7-themeworkflowcoordinator-has-hidden-side-effect" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        D7 — ThemeWorkflowCoordinator Has Hidden Side Effect
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-future-direction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Future Direction
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="12. Future Direction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#f1-async-rendering-high-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F1 — Async Rendering (High Priority)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f2-command-event-bus-for-cross-panel-communication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F2 — Command / Event Bus for Cross-Panel Communication
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f3-fractal_corepyi-type-stub" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F3 — fractal_core.pyi Type Stub
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f4-undoredo-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F4 — Undo/Redo System
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f5-settings-schema-migration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F5 — Settings Schema Migration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f6-property-based-tests-for-state-serialization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F6 — Property-Based Tests for State Serialization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#f7-reduce-mainwindowsectionsstate-to-a-panel-state-only-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        F7 — Reduce MainWindowSectionsState to a Panel-State-Only Container
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="fractal-studio-architectural-design">Fractal Studio — Architectural Design<a class="headerlink" href="#fractal-studio-architectural-design" title="Permanent link">&para;</a></h1>
+<p><strong>Date:</strong> 2026-05-28<br />
+<strong>Scope:</strong> Python UI layer (<code>fractal-studio/ui/</code>) + Rust bridge interface<br />
+<strong>Version:</strong> Current codebase (post-refactor)</p>
+<hr />
+<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="#1-executive-summary">Executive Summary</a></li>
+<li><a href="#2-technology-stack">Technology Stack</a></li>
+<li><a href="#3-package-structure">Package Structure</a></li>
+<li><a href="#4-layered-architecture">Layered Architecture</a></li>
+<li><a href="#5-data-model">Data Model</a></li>
+<li><a href="#6-dependency-injection--factory">Dependency Injection &amp; Factory</a></li>
+<li><a href="#7-mediator--ports-pattern">Mediator / Ports Pattern</a></li>
+<li><a href="#8-data-flow-save-favorite">Data Flow: Save Favorite</a></li>
+<li><a href="#9-solid-principles">SOLID Principles</a></li>
+<li><a href="#10-design-patterns">Design Patterns</a></li>
+<li><a href="#11-deficiencies">Deficiencies</a></li>
+<li><a href="#12-future-direction">Future Direction</a></li>
+</ol>
+<hr />
+<h2 id="1-executive-summary">1. Executive Summary<a class="headerlink" href="#1-executive-summary" title="Permanent link">&para;</a></h2>
+<p>Fractal Studio is a layered PySide6 desktop app wrapped around a Rust renderer through a lazy-loading bridge. This page maps the structure, the design choices, and the debt that still deserves a raised eyebrow.</p>
+<p>Fractal Studio is a <strong>PySide6/Qt</strong> desktop application for interactive fractal rendering and palette editing. It wraps a <strong>Rust rendering engine</strong> (<code>fractal_core</code>) with a lazy-loading Python bridge and presents a seven-panel workspace: fractal viewport, palette editor, colormap editor, parameter controls, export controls, favorites gallery, and sidebar.</p>
+<p>The codebase has had a useful round of layering work. <code>MainWindowController</code> was split into <code>ExportController</code> and <code>SettingsController</code>; adapter files moved into a dedicated subdirectory; <code>ViewportState</code> now uses a discriminated union for formula-specific parameters; panel state machines receive collaborators through constructor injection; and <code>validate()</code> catches missing wiring at startup instead of waiting for runtime mischief.</p>
+<p><strong>Overall grade:</strong> B+ — structurally sound, with some complexity debt building up in the middle layers. The main risk is <code>MainWindowSectionsState</code>, which is drifting toward god-object territory.</p>
+<hr />
+<h2 id="2-technology-stack">2. Technology Stack<a class="headerlink" href="#2-technology-stack" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Technology</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UI framework</td>
+<td>PySide6 (Qt 6)</td>
+</tr>
+<tr>
+<td>Language</td>
+<td>Python 3.12+</td>
+</tr>
+<tr>
+<td>Rendering engine</td>
+<td>Rust (via PyO3/maturin)</td>
+</tr>
+<tr>
+<td>State model</td>
+<td>Python frozen <code>dataclass</code></td>
+</tr>
+<tr>
+<td>Persistence</td>
+<td>JSON, <code>~/.fractal_studio/</code></td>
+</tr>
+<tr>
+<td>Tests</td>
+<td>pytest</td>
+</tr>
+<tr>
+<td>Build (Rust)</td>
+<td>cargo / maturin</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-package-structure">3. Package Structure<a class="headerlink" href="#3-package-structure" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>fractal_studio/
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── app.py                          Entry point (QApplication + factory)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── main_window.py                  QMainWindow shell
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── main_window_factory.py          Dependency injection root
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── state.py                        Immutable domain objects
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── persistence.py                  JSON repositories
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── backend.py                      Rust bridge (lazy-load + null object)
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── theme.py                        Theme specs + QSS generation
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── editor.py                       ColorCubeEditor widget
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── viewport.py                     FractalViewportWidget + FractalParamsPanel
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>├── thumbnail_utils.py              Base64 image encode/decode
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>├── application/
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│   ├── controllers/                Stateless domain logic atoms
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   │   ├── export_controller.py
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   │   ├── favorites_controller.py
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│   │   ├── settings_controller.py
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│   │   └── theme_controller.py
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>│   ├── coordinators/               Use-case orchestration per panel
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>│   │   ├── export_panel_coordinator.py
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>│   │   ├── favorites_panel_coordinator.py
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>│   │   ├── palette_panel_coordinator.py
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>│   │   ├── palette_preview_coordinator.py
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>│   │   ├── settings_dialog_coordinator.py
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>│   │   └── sidebar_wiring_coordinator.py
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>│   └── workflows/                  Multi-step user-visible operations
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>│       ├── favorites_workflow_coordinator.py
+<a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>│       ├── startup_coordinator.py
+<a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>│       └── theme_workflow_coordinator.py
+<a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>│
+<a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>├── services/
+<a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>│   ├── export_service.py
+<a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>│   ├── palette_service.py
+<a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a>│   └── settings_service.py
+<a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a>│
+<a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a>└── ui/
+<a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a>    ├── sections/                   Mediator/ports UI wiring layer
+<a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a>    │   ├── ports.py                7 Protocol interfaces
+<a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a>    │   ├── panel_state.py          6 Panel state machines
+<a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a>    │   ├── state.py                MainWindowSectionsState aggregate
+<a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a>    │   ├── mediator.py             Adapter factory
+<a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a>    │   ├── sections.py             Layout builder
+<a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a>    │   └── adapters/               Protocol implementations
+<a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a>    │       ├── __init__.py
+<a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a>    │       ├── base.py
+<a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a>    │       ├── viewport_adapter.py
+<a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a>    │       ├── palette_adapter.py
+<a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a>    │       ├── colormap_adapter.py
+<a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a>    │       ├── backend_adapter.py
+<a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a>    │       ├── export_adapter.py
+<a id="__codelineno-0-51" name="__codelineno-0-51" href="#__codelineno-0-51"></a>    │       ├── favorites_adapter.py
+<a id="__codelineno-0-52" name="__codelineno-0-52" href="#__codelineno-0-52"></a>    │       └── sidebar_adapter.py
+<a id="__codelineno-0-53" name="__codelineno-0-53" href="#__codelineno-0-53"></a>    ├── controllers/                Widget-level event logic
+<a id="__codelineno-0-54" name="__codelineno-0-54" href="#__codelineno-0-54"></a>    ├── dialogs/                    Modal dialogs
+<a id="__codelineno-0-55" name="__codelineno-0-55" href="#__codelineno-0-55"></a>    ├── presenters/                 CSS/tooltip formatting
+<a id="__codelineno-0-56" name="__codelineno-0-56" href="#__codelineno-0-56"></a>    └── widgets/                    Custom QWidget subclasses
+</code></pre></div>
+<hr />
+<h2 id="4-layered-architecture">4. Layered Architecture<a class="headerlink" href="#4-layered-architecture" title="Permanent link">&para;</a></h2>
+<p>The architecture follows a strict unidirectional dependency rule enforced by <code>test_import_policy.py</code>: lower layers do not know about higher layers.</p>
+<pre class="mermaid"><code>graph TD
+    subgraph Entry["Entry Point"]
+        APP[app.py]
+    end
+    subgraph Root["Composition Root"]
+        FACTORY["main_window_factory.py\nMainWindowContext"]
+    end
+    subgraph Shell["Shell"]
+        MW["MainWindow\nmain_window.py"]
+    end
+    subgraph App["Application Layer"]
+        CTRL["controllers/\nStateless domain logic"]
+        COORD["coordinators/\nUse-case orchestration"]
+        WF["workflows/\nMulti-step user ops"]
+    end
+    subgraph Svc["Services"]
+        SVC["ExportService\nPaletteWorkflowService\nSettingsWorkflowService"]
+    end
+    subgraph Data["Data / Infrastructure"]
+        STATE["state.py\nImmutable domain objects"]
+        PERSIST["persistence.py\nRepositories"]
+        BACKEND["backend.py\nRust bridge + null object"]
+    end
+    subgraph UI["UI Sections Layer"]
+        PORTS["ports.py\nProtocol interfaces"]
+        PSTATE["panel_state.py\n6 Panel state machines"]
+        MSTATE["sections/state.py\nMainWindowSectionsState"]
+        ADAPTERS["adapters/\nProtocol implementations"]
+        MEDIATOR["mediator.py\nAdapter factory"]
+        SECTIONS["sections.py\nLayout builder"]
+    end
+    subgraph Widgets["Widget Layer"]
+        WIDGETS["widgets/ dialogs/ presenters/"]
+        UICTL["ui/controllers/\nViewportController etc."]
+    end
+    subgraph Rust["Native Core"]
+        RUSTCORE["fractal_core\nRust renderer"]
+    end
+
+    APP --&gt; FACTORY
+    FACTORY --&gt; MW
+    MW --&gt; MSTATE
+    MSTATE --&gt; PSTATE
+    PSTATE --&gt; ADAPTERS
+    ADAPTERS --&gt;|implements| PORTS
+    PORTS --&gt;|consumed by| SECTIONS
+    MEDIATOR --&gt;|builds| ADAPTERS
+    MSTATE --&gt; CTRL &amp; COORD &amp; WF
+    CTRL &amp; COORD &amp; WF --&gt; SVC
+    SVC --&gt; STATE
+    SVC --&gt; PERSIST
+    SVC --&gt; BACKEND
+    BACKEND --&gt; RUSTCORE
+
+    style Entry fill:#e8f4f8
+    style Root fill:#d4edda
+    style App fill:#fff3cd
+    style Data fill:#f8d7da
+    style Rust fill:#e2d9f3</code></pre>
+<p><strong>Dependency rules:</strong>
+- <code>state.py</code> imports nothing from the application or UI layers
+- <code>persistence.py</code> imports only <code>state.py</code>
+- <code>backend.py</code> is a pure bridge with no application layer imports
+- Controllers import services and state, not widget classes
+- <code>sections.py</code> knows only port Protocol interfaces</p>
+<hr />
+<h2 id="5-data-model">5. Data Model<a class="headerlink" href="#5-data-model" title="Permanent link">&para;</a></h2>
+<p>All domain objects in <code>state.py</code> are <strong>frozen dataclasses</strong>: immutable, hashable, and serializable. The important structural choice is the <strong>discriminated union</strong> for formula-specific parameters, which makes invalid combinations unrepresentable at the type level.</p>
+<pre class="mermaid"><code>classDiagram
+    class ViewportState {
+        &lt;&lt;frozen dataclass&gt;&gt;
+        +str formula
+        +float center_x
+        +float center_y
+        +float scale
+        +int max_iterations
+        +bool is_julia
+        +FormulaParams formula_params
+        +str coloring_mode
+        +float palette_offset
+        +int power
+        +from_dict(raw) ViewportState
+        +to_dict() dict
+        +to_render_kwargs() dict
+    }
+    class StandardParams {
+        &lt;&lt;frozen dataclass&gt;&gt;
+    }
+    class JuliaParams {
+        &lt;&lt;frozen dataclass&gt;&gt;
+        +float cx
+        +float cy
+    }
+    class PhoenixParams {
+        &lt;&lt;frozen dataclass&gt;&gt;
+        +float real
+        +float imag
+    }
+    class NewtonParams {
+        &lt;&lt;frozen dataclass&gt;&gt;
+        +float trap_x
+        +float trap_y
+    }
+    class ParamsState {
+        &lt;&lt;frozen dataclass&gt;&gt;
+        +str formula
+        +bool is_julia
+        +int power
+        +FormulaParams formula_params
+        +int max_iterations
+        +float scale
+        +str coloring_mode
+        +bool cycle_active
+        +float cycle_speed
+        +from_viewport_state() ParamsState
+        +to_viewport_state() ViewportState
+    }
+    class FavoriteSnapshot {
+        &lt;&lt;frozen dataclass&gt;&gt;
+        +str favorite_id
+        +str saved_at
+        +str aspect_ratio_mode
+        +str name
+        +ViewportState viewport
+        +list control_points
+        +list palette
+        +str thumbnail
+        +from_dict(raw) FavoriteSnapshot
+        +to_dict() dict
+    }
+    class UiSettings {
+        &lt;&lt;frozen dataclass&gt;&gt;
+        +str theme
+        +from_dict(raw) UiSettings
+        +to_dict() dict
+    }
+
+    ViewportState "1" *-- "1" StandardParams : formula_params (union)
+    ViewportState "1" *-- "1" JuliaParams : formula_params (union)
+    ViewportState "1" *-- "1" PhoenixParams : formula_params (union)
+    ViewportState "1" *-- "1" NewtonParams : formula_params (union)
+    FavoriteSnapshot "1" *-- "1" ViewportState
+    ParamsState ..&gt; ViewportState : derives from / converts to</code></pre>
+<p><strong>Serialization:</strong> <code>from_dict()</code> handles both the current structured format, with a <code>formula_params.type</code> discriminator key, and the legacy flat format. Callers do not have to know migration happened, which is exactly how migration code should behave when it is behaving itself.</p>
+<hr />
+<h2 id="6-dependency-injection-factory">6. Dependency Injection &amp; Factory<a class="headerlink" href="#6-dependency-injection-factory" title="Permanent link">&para;</a></h2>
+<p><code>main_window_factory.py</code> is the <strong>composition root</strong>. It builds the collaborators and assembles them into an immutable <code>MainWindowContext</code> before the UI event loop starts.</p>
+<pre class="mermaid"><code>graph LR
+    subgraph Factory["build_main_window_context()"]
+        F[main_window_factory.py]
+    end
+
+    subgraph Repos["Repositories"]
+        FR[FavoritesRepository]
+        SR[SettingsRepository]
+    end
+
+    subgraph Services["Services"]
+        SSvc[SettingsWorkflowService]
+        ES[ExportService]
+        PalSvc[PaletteWorkflowService]
+    end
+
+    subgraph Controllers["Controllers"]
+        FC[FavoritesController]
+        EC[ExportController]
+        SC[SettingsController]
+        ThC[ThemeController]
+    end
+
+    subgraph Coordinators["Coordinators &amp; Workflows"]
+        FPC[FavoritesPanelCoordinator]
+        FWC[FavoritesWorkflowCoordinator]
+        PPC[PalettePanelCoordinator]
+        PrC[PalettePreviewCoordinator]
+        SWC[SidebarWiringCoordinator]
+        EPC[ExportPanelCoordinator]
+        SDC[SettingsDialogCoordinator]
+        TWC[ThemeWorkflowCoordinator]
+        Start[WindowStartupCoordinator]
+    end
+
+    subgraph Bridge["Backend"]
+        Back["CoreBackend\nload_backend()"]
+    end
+
+    subgraph UI["UI Wiring"]
+        Sects[MainWindowSections]
+        Ports[MainWindowSectionsPorts]
+    end
+
+    subgraph Output["Output"]
+        MWCtx["MainWindowContext\n(frozen dataclass)"]
+    end
+
+    F --&gt; FR &amp; SR &amp; SSvc &amp; ES &amp; PalSvc
+    F --&gt; FC &amp; EC &amp; SC &amp; ThC
+    F --&gt; FPC &amp; FWC &amp; PPC &amp; PrC &amp; SWC &amp; EPC &amp; SDC &amp; TWC &amp; Start
+    F --&gt; Back
+    F --&gt; Sects &amp; Ports
+    FR &amp; SR &amp; SSvc &amp; ES &amp; PalSvc --&gt; MWCtx
+    FC &amp; EC &amp; SC &amp; ThC --&gt; MWCtx
+    FPC &amp; FWC &amp; PPC &amp; PrC &amp; SWC &amp; EPC &amp; SDC &amp; TWC &amp; Start --&gt; MWCtx
+    Back --&gt; MWCtx
+    Sects &amp; Ports --&gt; MWCtx
+    MWCtx --&gt;|"attach_context()"| MW[MainWindow]</code></pre>
+<p>Once built, the wiring is fixed and inspectable.</p>
+<hr />
+<h2 id="7-mediator-ports-pattern">7. Mediator / Ports Pattern<a class="headerlink" href="#7-mediator-ports-pattern" title="Permanent link">&para;</a></h2>
+<p>The <code>ui/sections/</code> layer uses a <strong>Ports &amp; Adapters</strong> pattern. <code>sections.py</code> builds the Qt layout by calling Protocol methods, without knowing the business logic, widgets, or adapter implementations.</p>
+<pre class="mermaid"><code>graph LR
+    subgraph Protocols["Ports — Protocol Interfaces (ports.py)"]
+        VP[ViewportPanelPorts]
+        PP[PalettePanelPorts]
+        CP[ColormapPanelPorts]
+        EP[ExportPanelPorts]
+        FP[FavoritesPanelPorts]
+        SP[SidebarPanelPorts]
+        BP[BackendPanelPorts]
+    end
+
+    subgraph Adapters["Adapters (adapters/)"]
+        VPA[ViewportPanelPortsAdapter]
+        PPA[PalettePanelPortsAdapter]
+        CPA[ColormapPanelPortsAdapter]
+        EPA[ExportPanelPortsAdapter]
+        FPA[FavoritesPanelPortsAdapter]
+        SPA[SidebarPanelPortsAdapter]
+        BPA[BackendPanelPortsAdapter]
+    end
+
+    subgraph States["Panel State Machines (panel_state.py)"]
+        MVS[MainWindowViewportState]
+        MPS[MainWindowPaletteState]
+        MCS[MainWindowColormapState]
+        MES[MainWindowExportState]
+        MFS[MainWindowFavoritesState]
+        MSS[MainWindowSidebarState]
+    end
+
+    subgraph Layout["Layout Builder"]
+        SEC["MainWindowSections\n(sections.py)"]
+    end
+
+    VPA --&gt;|satisfies| VP
+    PPA --&gt;|satisfies| PP
+    CPA --&gt;|satisfies| CP
+    EPA --&gt;|satisfies| EP
+    FPA --&gt;|satisfies| FP
+    SPA --&gt;|satisfies| SP
+    BPA --&gt;|satisfies| BP
+
+    VPA --&gt;|delegates to| MVS
+    PPA --&gt;|delegates to| MPS
+    CPA --&gt;|delegates to| MCS
+    EPA --&gt;|delegates to| MES
+    FPA --&gt;|delegates to| MFS
+    SPA --&gt;|delegates to| MSS
+
+    VP &amp; PP &amp; CP &amp; EP &amp; FP &amp; SP &amp; BP --&gt;|consumed by| SEC</code></pre>
+<p>Each panel state machine receives its application-layer collaborators via constructor injection. This makes dependencies explicit and eliminates the silent-<code>None</code> failure mode.</p>
+<hr />
+<h2 id="8-data-flow-save-favorite">8. Data Flow: Save Favorite<a class="headerlink" href="#8-data-flow-save-favorite" title="Permanent link">&para;</a></h2>
+<p>Tracing one user action through the layers shows how the pieces fit together:</p>
+<pre class="mermaid"><code>sequenceDiagram
+    participant User
+    participant FPA as FavoritesPanelPortsAdapter
+    participant MFS as MainWindowFavoritesState
+    participant FWC as FavoritesWorkflowCoordinator
+    participant FC as FavoritesController
+    participant FR as FavoritesRepository
+    participant VP as FractalViewportWidget
+
+    User-&gt;&gt;FPA: save_favorite() [button click]
+    FPA-&gt;&gt;MFS: save_favorite()
+    Note over MFS: Guard: checks all collaborators non-None
+    MFS-&gt;&gt;VP: grab() → encode_pixmap() [thumbnail]
+    MFS-&gt;&gt;FWC: save_favorite(viewport, editor, aspect_ratio_mode, ...)
+    FWC-&gt;&gt;FC: build_favorite_name(state, favorites, now)
+    FC--&gt;&gt;FWC: unique_name
+    FWC-&gt;&gt;FC: persist_favorites(favorites, repo.save)
+    FC-&gt;&gt;FR: save(favorites) [JSON write]
+    FR--&gt;&gt;FC: ok
+    FWC-&gt;&gt;MFS: add_row(favorite) [callback]
+    MFS-&gt;&gt;MFS: add_favorite_row(favorite)
+    FWC--&gt;&gt;User: show_status("Saved: name")</code></pre>
+<p><strong>Observation:</strong> Each layer touches only its own collaborators. <code>sections.py</code> never appears; it wired the button callback at startup and then got out of the way.</p>
+<hr />
+<h2 id="9-solid-principles">9. SOLID Principles<a class="headerlink" href="#9-solid-principles" title="Permanent link">&para;</a></h2>
+<h3 id="s-single-responsibility">S — Single Responsibility<a class="headerlink" href="#s-single-responsibility" title="Permanent link">&para;</a></h3>
+<p><strong>Applied well:</strong>
+- <code>ExportController</code>, <code>FavoritesController</code>, <code>ThemeController</code>, <code>SettingsController</code> each own exactly one domain. The recent split of <code>MainWindowController</code> removed a known SRP violation.
+- <code>state.py</code> is pure data — its only responsibility is representing and serializing domain objects.
+- <code>persistence.py</code> contains only file I/O logic; no business rules.
+- <code>sections.py</code> has one job: build a Qt layout from port objects.</p>
+<p><strong>Still imperfect:</strong>
+- <code>MainWindowSectionsState</code> (<code>sections/state.py</code>) is both a dependency bag and a lifecycle coordinator. It holds 20+ collaborator references as fields while also delegating to panel state machines via properties. Two responsibilities are present: "store all collaborators" and "orchestrate panel state construction."
+- <code>MainWindowFavoritesState</code> (<code>panel_state.py</code>) has 13 constructor parameters. While each parameter has a clear role, the aggregate suggests this class does more than one thing (row management, selection, restoration, persistence delegation).</p>
+<hr />
+<h3 id="o-openclosed">O — Open/Closed<a class="headerlink" href="#o-openclosed" title="Permanent link">&para;</a></h3>
+<p><strong>Applied well:</strong>
+- <code>ports.py</code> Protocol interfaces allow new adapter implementations without modifying the protocol definitions or <code>sections.py</code>. A mock adapter for testing requires zero changes to existing code.
+- <code>FormulaParams</code> discriminated union (<code>StandardParams | JuliaParams | PhoenixParams | NewtonParams</code>) is extensible: adding a new formula type requires a new frozen dataclass and an update to <code>from_dict()</code> only. Existing formula logic is untouched.
+- <code>CoreBackend.profile()</code> returns a <code>BackendProfile</code> dataclass; callers don't pattern-match on backend internals.</p>
+<p><strong>Still imperfect:</strong>
+- Adding a new UI panel still requires changes in 5 places: new Protocol in <code>ports.py</code>, new adapter file, new panel state class, registration in <code>mediator.py</code>, and a layout addition in <code>sections.py</code>. The Protocol layer is open for extension, but the wiring infrastructure is not.
+- <code>backend.py</code>'s render methods (<code>render_mandelbrot</code>, <code>render_julia</code>, <code>render_fractal</code>) are formula-specific function calls; adding a new formula requires extending the backend interface.</p>
+<hr />
+<h3 id="l-liskov-substitution">L — Liskov Substitution<a class="headerlink" href="#l-liskov-substitution" title="Permanent link">&para;</a></h3>
+<p><strong>Applied well:</strong>
+- Any class that satisfies a port Protocol can substitute for any other implementation without behavioral changes in <code>sections.py</code>. This is structural subtyping — the layout builder cannot tell (and doesn't care) whether it holds a real adapter or a test double.
+- <code>CoreBackend</code> wraps <code>None</code> with a null-object facade; any code that calls backend methods without checking <code>available</code> still gets safe return values.</p>
+<p><strong>Still imperfect:</strong>
+- The null-object pattern is inconsistently applied: some coordinators and services guard with <code>if not self._backend.available</code> rather than relying on the null object to return safe defaults silently. This inconsistency means callers cannot uniformly trust LSP substitutability.</p>
+<hr />
+<h3 id="i-interface-segregation">I — Interface Segregation<a class="headerlink" href="#i-interface-segregation" title="Permanent link">&para;</a></h3>
+<p><strong>Applied well:</strong>
+- Seven distinct port interfaces instead of one monolithic <code>MainWindowPorts</code>. Each panel receives exactly the interface it needs — <code>BackendPanelPorts</code> has a single method; <code>FavoritesPanelPorts</code> has five.
+- <code>ports.py</code> does not leak Qt internals to callers — return types are typed, not raw <code>QVariant</code>.</p>
+<p><strong>Mildly imperfect:</strong>
+- <code>ColormapPanelPorts</code> has 9 methods including a <code>backend</code> property, <code>backend_profile</code> property, and <code>viewport</code> property. These are likely needed, but the interface is wider than the others and worth reviewing if it grows.</p>
+<hr />
+<h3 id="d-dependency-inversion">D — Dependency Inversion<a class="headerlink" href="#d-dependency-inversion" title="Permanent link">&para;</a></h3>
+<p><strong>Applied well:</strong>
+- The application layer (<code>controllers/</code>, <code>coordinators/</code>, <code>workflows/</code>) depends on injected abstractions. Controllers receive repositories and services, not concrete file handles.
+- <code>main_window_factory.py</code> is the explicit composition root — it is the only place that constructs concrete implementations and wires them together.
+- Panel state machines depend on collaborator protocols/callables, not on concrete Qt widgets or business-logic classes directly.</p>
+<p><strong>Still imperfect:</strong>
+- Several panel state machines accept <code>MainWindow</code> directly (for <code>statusBar().showMessage</code>). This couples them to a concrete Qt class rather than a narrow <code>show_status: Callable[[str], None]</code> abstraction. The fix is to inject the callable instead of the window.
+- <code>MainWindowSectionsState</code> creates lambda closures over <code>self</code> inside <code>bind()</code>. These closures capture the mutable state object by reference — not a DI violation, but a lifecycle dependency that is implicit.</p>
+<hr />
+<h2 id="10-design-patterns">10. Design Patterns<a class="headerlink" href="#10-design-patterns" title="Permanent link">&para;</a></h2>
+<h3 id="repository-pattern">Repository Pattern<a class="headerlink" href="#repository-pattern" title="Permanent link">&para;</a></h3>
+<p><strong>Where:</strong> <code>persistence.py</code> — <code>FavoritesRepository</code>, <code>SettingsRepository</code><br />
+<strong>Purpose:</strong> Encapsulate all JSON file I/O behind a clean load/save interface. Callers never see file paths, error handling, or schema migration logic.<br />
+<strong>SOLID link:</strong> SRP (persistence separated from domain logic), DIP (controllers accept a <code>save</code> callable, not a repository).</p>
+<hr />
+<h3 id="mediator-pattern">Mediator Pattern<a class="headerlink" href="#mediator-pattern" title="Permanent link">&para;</a></h3>
+<p><strong>Where:</strong> <code>ui/sections/mediator.py</code> — <code>build_sections_ports()</code><br />
+<strong>Purpose:</strong> Coordinate communication between panel sections without direct coupling. The mediator builds the <code>MainWindowSectionsPorts</code> aggregate from individual adapters; the layout builder <code>sections.py</code> interacts with the mediator's output rather than with panel state machines directly.<br />
+<strong>SOLID link:</strong> OCP (new panels can be added by registering a new adapter; existing code is unchanged).</p>
+<hr />
+<h3 id="ports-adapters-hexagonal-architecture">Ports &amp; Adapters (Hexagonal Architecture)<a class="headerlink" href="#ports-adapters-hexagonal-architecture" title="Permanent link">&para;</a></h3>
+<p><strong>Where:</strong> <code>ui/sections/ports.py</code>, <code>ui/sections/adapters/</code><br />
+<strong>Purpose:</strong> Isolate the layout-building code (<code>sections.py</code>) from business logic. Protocols define the hexagon boundary; adapters bridge the inside (panel state machines) to the outside (layout builder).<br />
+<strong>SOLID link:</strong> ISP (one small Protocol per panel), DIP (layout builder depends on Protocol, not implementation), LSP (any adapter that satisfies the Protocol is substitutable).</p>
+<hr />
+<h3 id="factory-composition-root">Factory / Composition Root<a class="headerlink" href="#factory-composition-root" title="Permanent link">&para;</a></h3>
+<p><strong>Where:</strong> <code>main_window_factory.py</code> — <code>build_main_window_context()</code><br />
+<strong>Purpose:</strong> Centralize all construction and wiring. This is the only location that holds knowledge of which concrete class implements which interface.<br />
+<strong>SOLID link:</strong> DIP (the rest of the codebase never constructs its own dependencies).</p>
+<hr />
+<h3 id="null-object-pattern">Null Object Pattern<a class="headerlink" href="#null-object-pattern" title="Permanent link">&para;</a></h3>
+<p><strong>Where:</strong> <code>backend.py</code> — <code>CoreBackend</code><br />
+<strong>Purpose:</strong> Allow the full UI to launch and operate without a compiled Rust module. When <code>fractal_core</code> is absent, <code>CoreBackend</code> wraps <code>None</code> and all methods return safe defaults.<br />
+<strong>SOLID link:</strong> LSP (backend callers can treat <code>CoreBackend</code> uniformly whether or not Rust is loaded, as long as the null-object contract is consistently applied).</p>
+<hr />
+<h3 id="immutable-value-object">Immutable Value Object<a class="headerlink" href="#immutable-value-object" title="Permanent link">&para;</a></h3>
+<p><strong>Where:</strong> <code>state.py</code> — all <code>@dataclass(frozen=True)</code> types<br />
+<strong>Purpose:</strong> Prevent accidental mutation of domain state as objects flow through layers. Snapshots, serialization, and equality comparisons are all trivially correct.<br />
+<strong>SOLID link:</strong> SRP (no behavior beyond representation and serialization).</p>
+<hr />
+<h3 id="observer-signal-slot">Observer / Signal-Slot<a class="headerlink" href="#observer-signal-slot" title="Permanent link">&para;</a></h3>
+<p><strong>Where:</strong> PySide6 signals throughout <code>viewport.py</code>, <code>editor.py</code>, <code>ui/controllers/</code><br />
+<strong>Purpose:</strong> Decouple widget event producers from consumers. <code>SidebarWiringCoordinator</code> connects param-panel signals to viewport slots without either widget knowing about the other.<br />
+<strong>SOLID link:</strong> OCP (new signal connections can be added without modifying widget classes).</p>
+<hr />
+<h3 id="state-machine">State Machine<a class="headerlink" href="#state-machine" title="Permanent link">&para;</a></h3>
+<p><strong>Where:</strong> <code>ui/sections/panel_state.py</code> — <code>MainWindowViewportState</code>, <code>MainWindowFavoritesState</code>, etc.<br />
+<strong>Purpose:</strong> Each panel state machine encapsulates the widget references and collaborator methods for one panel's lifecycle. State is managed by the state machine; the adapter is a thin forwarding shell.<br />
+<strong>SOLID link:</strong> SRP (each panel's state is managed in exactly one class).</p>
+<hr />
+<h3 id="discriminated-union-sum-type">Discriminated Union (Sum Type)<a class="headerlink" href="#discriminated-union-sum-type" title="Permanent link">&para;</a></h3>
+<p><strong>Where:</strong> <code>state.py</code> — <code>FormulaParams = StandardParams | JuliaParams | PhoenixParams | NewtonParams</code><br />
+<strong>Purpose:</strong> Make invalid formula parameter combinations unrepresentable at the type level. Before this pattern was introduced, all formula params coexisted as flat fields regardless of which formula was active.<br />
+<strong>SOLID link:</strong> OCP (new formulas extend the union; existing formula code is untouched).</p>
+<hr />
+<h2 id="11-deficiencies">11. Deficiencies<a class="headerlink" href="#11-deficiencies" title="Permanent link">&para;</a></h2>
+<h3 id="d1-mainwindowsectionsstate-is-a-partial-god-object">D1 — <code>MainWindowSectionsState</code> Is a Partial God Object<a class="headerlink" href="#d1-mainwindowsectionsstate-is-a-partial-god-object" title="Permanent link">&para;</a></h3>
+<p><code>sections/state.py</code>'s <code>MainWindowSectionsState</code> holds 20+ named collaborators as dataclass fields, then constructs 6 panel state machines inside <code>bind()</code>. Its <code>bind()</code> method is ~60 lines of wiring code. That makes it both dependency container and panel-state factory, which is a lot of hats for one class.</p>
+<p><strong>Impact:</strong> Any change to the panel wiring requires modifying this single class. It is the integration point for the entire application and therefore accretes complexity with every new feature.</p>
+<p><strong>Recommendation:</strong> Promote <code>main_window_factory.py</code> to construct panel state machines directly. <code>MainWindowSectionsState</code> should hold only panel state machine references, not all upstream collaborators. The factory already constructs all collaborators — it should also construct the panel states that need them.</p>
+<hr />
+<h3 id="d2-validate-checks-field-names-as-strings">D2 — <code>validate()</code> Checks Field Names as Strings<a class="headerlink" href="#d2-validate-checks-field-names-as-strings" title="Permanent link">&para;</a></h3>
+<p><code>MainWindowSectionsState.validate()</code> iterates a hardcoded list of string attribute names and calls <code>getattr</code>, which means it can silently miss any collaborator not in the list.</p>
+<p><strong>Recommendation:</strong> Replace the string-list approach with a dataclass <code>__post_init__</code> or a Pydantic model that enforces non-None at construction time. Alternatively, generate the list from <code>dataclasses.fields()</code> filtered by type annotation (excluding <code>Optional</code> fields).</p>
+<hr />
+<h3 id="d3-no-test-markers-pytestini">D3 — No Test Markers (pytest.ini)<a class="headerlink" href="#d3-no-test-markers-pytestini" title="Permanent link">&para;</a></h3>
+<p>Six tests fail without PySide6. There is no marker config, so <code>pytest</code> is not green in headless CI.</p>
+<p><strong>Impact:</strong> Contributors cannot verify that pure-Python changes are correct without either installing PySide6 or knowing which tests to skip manually.</p>
+<p><strong>Recommendation:</strong> Add <code>pytest.ini</code> with markers <code>unit</code> and <code>integration</code>. Default run executes <code>unit</code> only. All tests importing PySide6 receive <code>@pytest.mark.integration</code>.</p>
+<hr />
+<h3 id="d4-some-panel-states-accept-mainwindow-directly">D4 — Some Panel States Accept <code>MainWindow</code> Directly<a class="headerlink" href="#d4-some-panel-states-accept-mainwindow-directly" title="Permanent link">&para;</a></h3>
+<p><code>MainWindowColormapState</code>, <code>MainWindowFavoritesState</code>, and <code>MainWindowExportState</code> accept <code>owner: MainWindow</code> in their constructors only so they can call <code>statusBar().showMessage</code>.</p>
+<p><strong>Impact:</strong> These state machines are coupled to a concrete Qt class, making them untestable without a real <code>QMainWindow</code>. A narrow <code>show_status: Callable[[str], None]</code> injection would decouple them.</p>
+<p><strong>Recommendation:</strong> Replace <code>owner: MainWindow</code> with <code>show_status: Callable[[str], None]</code> where the only usage is <code>statusBar().showMessage</code>. Reserve <code>owner</code> for cases that genuinely require a parent widget reference (e.g., file dialogs).</p>
+<hr />
+<h3 id="d5-backend-null-object-inconsistently-applied">D5 — Backend Null-Object Inconsistently Applied<a class="headerlink" href="#d5-backend-null-object-inconsistently-applied" title="Permanent link">&para;</a></h3>
+<p>Some coordinators guard with <code>if not self._backend.available</code>; others rely on the null object. Both can work, but mixing them makes the contract fuzzier than it needs to be.</p>
+<p><strong>Impact:</strong> When adding new backend calls, developers must determine which pattern to follow by convention rather than by the null-object contract.</p>
+<p><strong>Recommendation:</strong> Audit all callers and commit to one approach: either the null object always returns safe defaults (and guards are removed), or the null object raises so callers must guard. The null-object-returns-defaults approach is simpler.</p>
+<hr />
+<h3 id="d6-render-scheduling-has-no-teardown-guard">D6 — Render Scheduling Has No Teardown Guard<a class="headerlink" href="#d6-render-scheduling-has-no-teardown-guard" title="Permanent link">&para;</a></h3>
+<p><code>FractalViewportWidget</code> uses a <code>QTimer</code> to coalesce render calls. The timer is created once and reused. The viewport's <code>QTimer</code> can fire after the widget is destroyed during teardown or a fast close.</p>
+<p><strong>Impact:</strong> During test teardown or rapid window close, the timer can fire after the widget and its Rust backend reference are gone, potentially causing a crash or a no-op that logs confusing output.</p>
+<p><strong>Recommendation:</strong> Connect <code>timer.stop()</code> to the widget's <code>destroyed</code> signal, or check <code>self.isVisible()</code> and <code>self.isEnabled()</code> before scheduling.</p>
+<hr />
+<h3 id="d7-themeworkflowcoordinator-has-hidden-side-effect">D7 — <code>ThemeWorkflowCoordinator</code> Has Hidden Side Effect<a class="headerlink" href="#d7-themeworkflowcoordinator-has-hidden-side-effect" title="Permanent link">&para;</a></h3>
+<p><code>ThemeWorkflowCoordinator.apply_theme_name()</code> may persist settings without saying so in its signature. Sneaky side effects are rarely as charming as they think they are.</p>
+<p><strong>Impact:</strong> The method name gives no indication that it may persist settings as a side effect. Callers cannot call it for preview-only purposes without auditing the implementation.</p>
+<p><strong>Recommendation:</strong> Add a <code>persist: bool = False</code> parameter with an explicit conditional. The method name can then remain unchanged with no ambiguity.</p>
+<hr />
+<h2 id="12-future-direction">12. Future Direction<a class="headerlink" href="#12-future-direction" title="Permanent link">&para;</a></h2>
+<h3 id="f1-async-rendering-high-priority">F1 — Async Rendering (High Priority)<a class="headerlink" href="#f1-async-rendering-high-priority" title="Permanent link">&para;</a></h3>
+<p>Currently, <code>CoreBackend.render_fractal()</code> is a synchronous call on the Qt main thread. For high-iteration-count renders or large exports, this will freeze the UI noticeably.</p>
+<p><strong>Recommended approach:</strong> Move render calls to a <code>QThread</code> subclass or <code>QRunnable</code>. Emit a Qt signal carrying the rendered result back to the main thread. The <code>ViewportController</code>'s existing <code>QTimer</code> debouncing already provides the right abstraction boundary — the timer callback becomes a thread dispatch instead of a direct render call.</p>
+<hr />
+<h3 id="f2-command-event-bus-for-cross-panel-communication">F2 — Command / Event Bus for Cross-Panel Communication<a class="headerlink" href="#f2-command-event-bus-for-cross-panel-communication" title="Permanent link">&para;</a></h3>
+<p>Currently, cross-panel actions flow through chains of coordinators and lambda callbacks. As the application grows, these chains become harder to trace and test.</p>
+<p><strong>Recommended approach:</strong> A lightweight in-process event bus (not a full pub/sub framework) where each panel emits typed events and subscribes to events from other panels. This would replace many of the lambda chains in <code>bind()</code> with explicit, testable event subscriptions.</p>
+<hr />
+<h3 id="f3-fractal_corepyi-type-stub">F3 — <code>fractal_core.pyi</code> Type Stub<a class="headerlink" href="#f3-fractal_corepyi-type-stub" title="Permanent link">&para;</a></h3>
+<p>The expected Rust module interface (20+ functions) is inferred entirely from <code>backend.py</code>. There is no type stub that lets mypy or pyright verify that Python calls match Rust exports.</p>
+<p><strong>Recommended approach:</strong> Generate a <code>fractal_core.pyi</code> file using <code>pyo3-stub-gen</code> or hand-write one alongside the Rust source. Commit it to <code>core/src/</code>. This gives the Python side static type checking against Rust exports and documents the API contract explicitly.</p>
+<hr />
+<h3 id="f4-undoredo-system">F4 — Undo/Redo System<a class="headerlink" href="#f4-undoredo-system" title="Permanent link">&para;</a></h3>
+<p>Users cannot step back through viewport changes. Every pan, zoom, or formula change is irreversible without loading a saved favorite.</p>
+<p><strong>Recommended approach:</strong> Maintain a bounded deque of <code>ViewportState</code> snapshots in <code>ViewportController</code>. Expose undo/redo as keybindings that pop from the deque and re-render. Because <code>ViewportState</code> is immutable, the deque holds references cheaply.</p>
+<hr />
+<h3 id="f5-settings-schema-migration">F5 — Settings Schema Migration<a class="headerlink" href="#f5-settings-schema-migration" title="Permanent link">&para;</a></h3>
+<p><code>state.py</code> defines <code>SETTINGS_SCHEMA_VERSION = 1</code> and <code>FAVORITES_SCHEMA_VERSION = 1</code>, but no migration logic exists. When schema version 2 is needed, there is no infrastructure to upgrade existing user data.</p>
+<p><strong>Recommended approach:</strong> Add a <code>migrate(raw: dict, from_version: int, to_version: int) -&gt; dict</code> function in <code>persistence.py</code>. <code>from_dict()</code> calls it whenever the loaded version is older than the current constant. This keeps migration logic out of the main deserialization path.</p>
+<hr />
+<h3 id="f6-property-based-tests-for-state-serialization">F6 — Property-Based Tests for State Serialization<a class="headerlink" href="#f6-property-based-tests-for-state-serialization" title="Permanent link">&para;</a></h3>
+<p>State serialization (<code>to_dict</code> / <code>from_dict</code> round-trips) is currently tested only with fixed fixtures. Property-based tests would catch edge cases (extreme floats, empty lists, unknown keys) automatically.</p>
+<p><strong>Recommended approach:</strong> Add Hypothesis tests for <code>ViewportState</code>, <code>FavoriteSnapshot</code>, and <code>UiSettings</code> round-trips. These are pure-Python tests with no Qt dependency — they belong in the <code>unit</code> marker group and run in CI without PySide6.</p>
+<hr />
+<h3 id="f7-reduce-mainwindowsectionsstate-to-a-panel-state-only-container">F7 — Reduce <code>MainWindowSectionsState</code> to a Panel-State-Only Container<a class="headerlink" href="#f7-reduce-mainwindowsectionsstate-to-a-panel-state-only-container" title="Permanent link">&para;</a></h3>
+<p>As a structural follow-through to <a href="#d1--mainwindowsectionsstate-is-a-partial-god-object">D1</a>, the factory should construct panel state machines directly and inject only panel states into <code>MainWindowSectionsState</code>. The 20+ collaborator fields on <code>MainWindowSectionsState</code> should live only in the factory's scope — not as persistent attributes on a runtime object.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Target state (illustrative)</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nd">@dataclass</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="k">class</span><span class="w"> </span><span class="nc">MainWindowSectionsState</span><span class="p">:</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">viewport</span><span class="p">:</span> <span class="n">MainWindowViewportState</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">sidebar</span><span class="p">:</span> <span class="n">MainWindowSidebarState</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">palette</span><span class="p">:</span> <span class="n">MainWindowPaletteState</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">colormap</span><span class="p">:</span> <span class="n">MainWindowColormapState</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="n">favorites</span><span class="p">:</span> <span class="n">MainWindowFavoritesState</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="n">export</span><span class="p">:</span> <span class="n">MainWindowExportState</span>
+</code></pre></div>
+<p>This aligns the class name with its actual responsibility: holding panel states.</p>
+<hr />
+<p><em>Document generated 2026-05-28. Reflects the current post-refactor codebase.</em></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../changelog/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Changelog">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Changelog
+              </div>
+            </div>
+          </a>
+        
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
