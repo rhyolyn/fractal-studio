@@ -19,29 +19,29 @@ class TestSectionPanel:
 
     def test_tag_hidden_by_default(self, app):
         panel = SectionPanel("X")
-        assert not panel._tag_label.isVisible()
+        assert panel._tag_label.isHidden()
 
     def test_set_tag_shows_label(self, app):
         panel = SectionPanel("X")
         panel.set_tag("5 points")
-        assert panel._tag_label.isVisible()
+        assert not panel._tag_label.isHidden()
         assert panel._tag_label.text() == "5 points"
 
     def test_non_collapsible_has_no_toggle(self, app):
         panel = SectionPanel("X", collapsible=False)
-        assert not panel._toggle_btn.isVisible()
+        assert panel._toggle_btn.isHidden()
 
     def test_collapsible_has_toggle(self, app):
         panel = SectionPanel("X", collapsible=True)
-        assert panel._toggle_btn.isVisible()
+        assert not panel._toggle_btn.isHidden()
 
     def test_body_visible_when_not_collapsed(self, app):
         panel = SectionPanel("X", collapsible=True, collapsed=False)
-        assert panel._body_container.isVisible()
+        assert not panel._body_container.isHidden()
 
     def test_body_hidden_when_collapsed(self, app):
         panel = SectionPanel("X", collapsible=True, collapsed=True)
-        assert not panel._body_container.isVisible()
+        assert panel._body_container.isHidden()
 
     def test_toggle_emits_signal(self, app):
         panel = SectionPanel("X", collapsible=True, collapsed=False)
@@ -60,7 +60,7 @@ class TestSectionPanel:
         panel = SectionPanel("X", collapsible=True, collapsed=False)
         panel.set_collapsed(True)
         assert panel.is_collapsed()
-        assert not panel._body_container.isVisible()
+        assert panel._body_container.isHidden()
 
     def test_body_layout_accepts_children(self, app):
         panel = SectionPanel("X")

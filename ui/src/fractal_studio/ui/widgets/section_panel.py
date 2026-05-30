@@ -47,7 +47,6 @@ class SectionPanel(QWidget):
         self._extra_header_widget: QWidget | None = None
         self._build_ui(title)
         self._apply_collapse()
-        self.show()
 
     # --- public API ---
 
