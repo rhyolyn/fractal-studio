@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Palette Editor — Fractal Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="nav">
+  <nav class="nav-inner">
+    <a href="index.html" class="brand"><span class="mark"></span>Fractal Studio</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Getting&nbsp;Started</a>
+      <a href="viewport.html" class="active">User&nbsp;Guide</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="architecture.html">Developer</a>
+    </div>
+    <a href="https://github.com/rhyolyn/fractal-studio" class="nav-cta">/ GitHub</a>
+  </nav>
+</header>
+
+<div class="docs">
+  <aside class="docs-sidebar">
+    <div class="ds-group">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Getting Started</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">User Guide</span>
+      <a href="viewport.html">Fractal Viewport</a>
+      <a href="palette-editor.html" class="active">Palette Editor</a>
+      <a href="export.html">Export</a>
+      <a href="favorites.html">Favorites</a>
+      <a href="settings.html">Settings &amp; Themes</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">Project</span>
+      <a href="changelog.html">Changelog</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">Developer</span>
+      <a href="architecture.html">Architecture</a>
+    </div>
+  </aside>
+
+  <main class="docs-main">
+    <div class="crumbs"><a href="index.html">Home</a> / <a href="viewport.html">User Guide</a> / Palette Editor</div>
+    <h1>Palette Editor</h1>
+    <p class="page-lead">Build smooth color gradients by placing control points on a virtual color cube. The resulting palette is applied to the fractal as you work.</p>
+
+    <h2 data-n="01" id="how-it-works">How it works</h2>
+    <p>The editor shows six faces of an RGB color cube. Each face is a 2D slice through color space:</p>
+    <table>
+      <thead><tr><th>Face</th><th>Axes</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Front</strong></td><td>Red / Green (Blue = 255)</td></tr>
+        <tr><td><strong>Back</strong></td><td>Red / Green (Blue = 0)</td></tr>
+        <tr><td><strong>Top</strong></td><td>Red / Blue (Green = 255)</td></tr>
+        <tr><td><strong>Bottom</strong></td><td>Red / Blue (Green = 0)</td></tr>
+        <tr><td><strong>Right</strong></td><td>Green / Blue (Red = 255)</td></tr>
+        <tr><td><strong>Left</strong></td><td>Green / Blue (Red = 0)</td></tr>
+      </tbody>
+    </table>
+    <p>Click any face to place a <strong>control point</strong>. The Rust core builds a smooth spline through the points and samples it into the working palette, 2048 colors by default.</p>
+
+    <h2 data-n="02" id="placing">Placing and moving control points</h2>
+    <table>
+      <thead><tr><th>Action</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Left-click on a face</strong></td><td>Place a new control point at that color</td></tr>
+        <tr><td><strong>Left-click drag on a point</strong></td><td>Move the control point</td></tr>
+      </tbody>
+    </table>
+    <p>The palette preview updates while you drag. The fractal viewport re-renders after you release, because making it rerender for every tiny movement would be heroic in the least useful way.</p>
+
+    <h2 data-n="03" id="preview-strips">Preview strips</h2>
+    <p>Two preview strips are shown below the cube editor:</p>
+    <table>
+      <thead><tr><th>Strip</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Palette preview</strong></td><td>Full 2048-color gradient as rendered by the Rust core</td></tr>
+        <tr><td><strong>Legacy preview</strong></td><td>256-color downsampled version used for <code>.map</code> export</td></tr>
+      </tbody>
+    </table>
+    <p>Both update live as you edit control points.</p>
+
+    <h2 data-n="04" id="summary-labels">Summary labels</h2>
+    <p>Above the preview strips:</p>
+    <ul>
+      <li><strong>Control points</strong> — count and positions of active control points</li>
+      <li><strong>Palette summary</strong> — current palette size and coloring method</li>
+    </ul>
+
+    <h2 data-n="05" id="saving">Saving and loading palettes</h2>
+    <h3>Save to JSON</h3>
+    <p>Click <strong>Save palette</strong> to write the current control points and palette to a JSON file. The file stores the full 2048-color palette and the control point list, so it can be loaded back without quietly losing detail.</p>
+    <h3>Load from JSON</h3>
+    <p>Click <strong>Load palette</strong> to open a JSON palette file. The editor replaces the current control points and re-renders.</p>
+    <h3>Export legacy .map</h3>
+    <p>Click <strong>Export .map</strong> to write a 256-color <code>.map</code> file for legacy software. This is a lossy export; the old format simply cannot hold the full internal palette.</p>
+
+    <h2 data-n="06" id="tips">Tips</h2>
+    <ul>
+      <li>Three or four control points spread across different faces usually produce better gradients than a pile of points all sulking in one corner.</li>
+      <li>The spline wraps, so the color after the last control point transitions back to the first. That makes <strong>palette offset</strong> useful for seamless color cycling.</li>
+      <li>Load a palette before saving a favorite if you want the favorite to restore a specific color scheme.</li>
+    </ul>
+
+    <div class="page-nav">
+      <a href="viewport.html"><div class="dir">← Previous</div><div class="ttl">Fractal Viewport</div></a>
+      <a href="export.html" class="next"><div class="dir">Next →</div><div class="ttl">Export</div></a>
+    </div>
+  </main>
+
+  <aside class="docs-toc">
+    <span class="ds-label">On this page</span>
+    <a href="#how-it-works" class="active">How it works</a>
+    <a href="#placing">Control points</a>
+    <a href="#preview-strips">Preview strips</a>
+    <a href="#summary-labels">Summary labels</a>
+    <a href="#saving">Saving &amp; loading</a>
+    <a href="#tips">Tips</a>
+  </aside>
+</div>
+
+<div class="spectrum-rule"></div>
+
+<script>
+  const links = [...document.querySelectorAll('.docs-toc a')];
+  const ids = links.map(l => l.getAttribute('href').slice(1));
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { const id = e.target.id; links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id)); } });
+  }, { rootMargin: '-70px 0px -72% 0px' });
+  ids.forEach(id => { const el = document.getElementById(id); if (el) spy.observe(el); });
+</script>
+</body>
+</html>

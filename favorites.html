@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Favorites — Fractal Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="nav">
+  <nav class="nav-inner">
+    <a href="index.html" class="brand"><span class="mark"></span>Fractal Studio</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Getting&nbsp;Started</a>
+      <a href="viewport.html" class="active">User&nbsp;Guide</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="architecture.html">Developer</a>
+    </div>
+    <a href="https://github.com/rhyolyn/fractal-studio" class="nav-cta">/ GitHub</a>
+  </nav>
+</header>
+
+<div class="docs">
+  <aside class="docs-sidebar">
+    <div class="ds-group">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Getting Started</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">User Guide</span>
+      <a href="viewport.html">Fractal Viewport</a>
+      <a href="palette-editor.html">Palette Editor</a>
+      <a href="export.html">Export</a>
+      <a href="favorites.html" class="active">Favorites</a>
+      <a href="settings.html">Settings &amp; Themes</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">Project</span>
+      <a href="changelog.html">Changelog</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">Developer</span>
+      <a href="architecture.html">Architecture</a>
+    </div>
+  </aside>
+
+  <main class="docs-main">
+    <div class="crumbs"><a href="index.html">Home</a> / <a href="viewport.html">User Guide</a> / Favorites</div>
+    <h1>Favorites</h1>
+    <p class="page-lead">Save snapshots of views worth keeping. Each favorite captures the formula, position, zoom level, parameters, palette, and a thumbnail.</p>
+
+    <h2 data-n="01" id="saving">Saving a favorite</h2>
+    <ul>
+      <li>Navigate the viewport to the position and zoom you want to keep.</li>
+      <li>Make sure the palette looks as you want it.</li>
+      <li>Click <strong>Save favorite</strong> in the Favorites panel.</li>
+    </ul>
+    <p>A thumbnail is captured from the live viewport and the favorite is added to the gallery immediately. The name is generated from the active formula and the current date/time, for example <code>Julia 2026-05-28 14:32</code>.</p>
+    <div class="callout">
+      <span class="ico">i</span>
+      <p>Favorites are written to <code>~/.fractal_studio/favorites.json</code> immediately, so they survive closing and reopening the app. Which is generally the point of saving things.</p>
+    </div>
+
+    <h2 data-n="02" id="restoring">Restoring a favorite</h2>
+    <table>
+      <thead><tr><th>Action</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Single click</strong></td><td>Selects the row (highlights it)</td></tr>
+        <tr><td><strong>Double-click</strong></td><td>Restores the favorite: formula, position, parameters, and palette</td></tr>
+      </tbody>
+    </table>
+    <p>Restoring a favorite replaces the current viewport state completely. If the current view is worth keeping, save it before loading another one.</p>
+
+    <h2 data-n="03" id="deleting">Deleting a favorite</h2>
+    <ul>
+      <li>Single-click to select the row.</li>
+      <li>Click <strong>Delete</strong> (or the delete button in the panel).</li>
+    </ul>
+    <p>The favorite is removed from the gallery and from <code>favorites.json</code>.</p>
+
+    <h2 data-n="04" id="what-is-saved">What is saved</h2>
+    <table>
+      <thead><tr><th>Field</th><th>Saved</th></tr></thead>
+      <tbody>
+        <tr><td>Formula</td><td>Yes</td></tr>
+        <tr><td>Center position (x, y)</td><td>Yes</td></tr>
+        <tr><td>Zoom / scale</td><td>Yes</td></tr>
+        <tr><td>Max iterations</td><td>Yes</td></tr>
+        <tr><td>Formula-specific params (Julia cx/cy, Phoenix, Newton)</td><td>Yes</td></tr>
+        <tr><td>Coloring mode</td><td>Yes</td></tr>
+        <tr><td>Palette offset</td><td>Yes</td></tr>
+        <tr><td>Palette (control points + rendered colors)</td><td>Yes</td></tr>
+        <tr><td>Aspect ratio mode</td><td>Yes</td></tr>
+        <tr><td>Thumbnail (base64 PNG)</td><td>Yes</td></tr>
+        <tr><td>Power (Multibrot)</td><td>Yes</td></tr>
+      </tbody>
+    </table>
+
+    <h2 data-n="05" id="tips">Tips</h2>
+    <ul>
+      <li>Save a favorite before exploring a deep zoom. Navigation can be annoyingly hard to reproduce precisely.</li>
+      <li>Favorites load the full palette, so they also work as palette bookmarks.</li>
+      <li>The gallery scrolls vertically. There is no fixed limit beyond disk space.</li>
+    </ul>
+
+    <div class="page-nav">
+      <a href="export.html"><div class="dir">← Previous</div><div class="ttl">Export</div></a>
+      <a href="settings.html" class="next"><div class="dir">Next →</div><div class="ttl">Settings &amp; Themes</div></a>
+    </div>
+  </main>
+
+  <aside class="docs-toc">
+    <span class="ds-label">On this page</span>
+    <a href="#saving" class="active">Saving a favorite</a>
+    <a href="#restoring">Restoring</a>
+    <a href="#deleting">Deleting</a>
+    <a href="#what-is-saved">What is saved</a>
+    <a href="#tips">Tips</a>
+  </aside>
+</div>
+
+<div class="spectrum-rule"></div>
+
+<script>
+  const links = [...document.querySelectorAll('.docs-toc a')];
+  const ids = links.map(l => l.getAttribute('href').slice(1));
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { const id = e.target.id; links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id)); } });
+  }, { rootMargin: '-70px 0px -72% 0px' });
+  ids.forEach(id => { const el = document.getElementById(id); if (el) spy.observe(el); });
+</script>
+</body>
+</html>

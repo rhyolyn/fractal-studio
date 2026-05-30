@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Changelog — Fractal Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .cl-tag { display:inline-flex; align-items:center; font-family:var(--mono); font-size:11px; letter-spacing:0.12em; text-transform:uppercase; padding:4px 10px; border:1px solid var(--border-2); margin-bottom:14px; }
+  .cl-tag.added { color:var(--green); border-color:oklch(0.80 0.17 152 / 0.5); }
+  .cl-tag.changed { color:var(--blue); border-color:oklch(0.66 0.18 252 / 0.5); }
+  .cl-version { display:flex; align-items:baseline; gap:14px; margin:0 0 6px; }
+  .cl-version .v { font-family:var(--display); font-weight:700; font-size:30px; letter-spacing:-0.02em; }
+  .cl-version .badge { font-family:var(--mono); font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--amber); border:1px solid oklch(0.83 0.15 78 / 0.5); padding:3px 9px; }
+  .cl-block { border-left:1px solid var(--border); padding-left:28px; margin:0 0 8px; position:relative; }
+  .cl-block::before { content:""; position:absolute; left:-5px; top:6px; width:9px; height:9px; background:var(--accent); }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <nav class="nav-inner">
+    <a href="index.html" class="brand"><span class="mark"></span>Fractal Studio</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Getting&nbsp;Started</a>
+      <a href="viewport.html">User&nbsp;Guide</a>
+      <a href="changelog.html" class="active">Changelog</a>
+      <a href="architecture.html">Developer</a>
+    </div>
+    <a href="https://github.com/rhyolyn/fractal-studio" class="nav-cta">/ GitHub</a>
+  </nav>
+</header>
+
+<div class="docs">
+  <aside class="docs-sidebar">
+    <div class="ds-group">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Getting Started</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">User Guide</span>
+      <a href="viewport.html">Fractal Viewport</a>
+      <a href="palette-editor.html">Palette Editor</a>
+      <a href="export.html">Export</a>
+      <a href="favorites.html">Favorites</a>
+      <a href="settings.html">Settings &amp; Themes</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">Project</span>
+      <a href="changelog.html" class="active">Changelog</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">Developer</span>
+      <a href="architecture.html">Architecture</a>
+    </div>
+  </aside>
+
+  <main class="docs-main">
+    <div class="crumbs"><a href="index.html">Home</a> / Changelog</div>
+    <h1>Changelog</h1>
+    <p class="page-lead">Notable changes to Fractal Studio, mostly so future me does not have to reconstruct history from commit messages and vague memories.</p>
+
+    <div style="margin-top:48px;">
+      <div class="cl-version">
+        <span class="v">Unreleased</span>
+        <span class="badge">in progress</span>
+      </div>
+
+      <div class="cl-block" style="margin-top:26px;">
+        <span class="cl-tag added">+ Added</span>
+        <ul style="margin-top:0;">
+          <li>Architectural design document with SOLID analysis and Mermaid diagrams</li>
+          <li>Developer README with full setup instructions for UI-only and Rust modes</li>
+        </ul>
+      </div>
+
+      <div class="cl-block">
+        <span class="cl-tag changed">~ Changed</span>
+        <ul style="margin-top:0;">
+          <li><code>ViewportState</code> formula-specific parameters decomposed into typed sub-structs (<code>JuliaParams</code>, <code>PhoenixParams</code>, <code>NewtonParams</code>, <code>StandardParams</code>) — eliminates invalid parameter combinations</li>
+          <li><code>MainWindowController</code> split into <code>ExportController</code> and <code>SettingsController</code></li>
+          <li>Adapter files consolidated into <code>ui/sections/adapters/</code> subdirectory</li>
+          <li>Panel state machines now receive collaborators via constructor injection</li>
+          <li><code>MainWindowSectionsState.validate()</code> added — catches missing collaborator wiring at startup rather than silently at runtime</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 data-n="·" id="earlier-work">Earlier work</h2>
+    <p>Fractal Studio grew out of several older graphics experiments in this repository:</p>
+    <ul>
+      <li>Rust colormap core</li>
+      <li>Legacy <code>.map</code> palette import/export</li>
+      <li>Modern JSON palette save/load</li>
+      <li>PySide6 six-face colormap editor</li>
+      <li>Live spline and palette preview</li>
+      <li>Mandelbrot and Julia rendering via Rust core</li>
+      <li>Favorites system with thumbnail gallery</li>
+      <li>Export workflow (2K / 4K / 8K / Tiled)</li>
+      <li>Light, dark, and sepia themes</li>
+    </ul>
+
+    <div class="page-nav">
+      <a href="settings.html"><div class="dir">← Previous</div><div class="ttl">Settings &amp; Themes</div></a>
+      <a href="architecture.html" class="next"><div class="dir">Next →</div><div class="ttl">Architecture</div></a>
+    </div>
+  </main>
+
+  <aside class="docs-toc">
+    <span class="ds-label">On this page</span>
+    <a href="#earlier-work">Earlier work</a>
+  </aside>
+</div>
+
+<div class="spectrum-rule"></div>
+
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Settings &amp; Themes — Fractal Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="nav">
+  <nav class="nav-inner">
+    <a href="index.html" class="brand"><span class="mark"></span>Fractal Studio</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Getting&nbsp;Started</a>
+      <a href="viewport.html" class="active">User&nbsp;Guide</a>
+      <a href="changelog.html">Changelog</a>
+      <a href="architecture.html">Developer</a>
+    </div>
+    <a href="https://github.com/rhyolyn/fractal-studio" class="nav-cta">/ GitHub</a>
+  </nav>
+</header>
+
+<div class="docs">
+  <aside class="docs-sidebar">
+    <div class="ds-group">
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Getting Started</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">User Guide</span>
+      <a href="viewport.html">Fractal Viewport</a>
+      <a href="palette-editor.html">Palette Editor</a>
+      <a href="export.html">Export</a>
+      <a href="favorites.html">Favorites</a>
+      <a href="settings.html" class="active">Settings &amp; Themes</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">Project</span>
+      <a href="changelog.html">Changelog</a>
+    </div>
+    <div class="ds-group">
+      <span class="ds-label">Developer</span>
+      <a href="architecture.html">Architecture</a>
+    </div>
+  </aside>
+
+  <main class="docs-main">
+    <div class="crumbs"><a href="index.html">Home</a> / <a href="viewport.html">User Guide</a> / Settings &amp; Themes</div>
+    <h1>Settings &amp; Themes</h1>
+    <p class="page-lead">Choose a theme, see where preferences are stored, and check whether the Rust rendering core loaded.</p>
+
+    <h2 data-n="01" id="opening">Opening settings</h2>
+    <p>Open settings from the application menu or the settings button in the toolbar.</p>
+
+    <h2 data-n="02" id="theme">Theme</h2>
+    <p>Fractal Studio ships with three built-in themes:</p>
+    <table>
+      <thead><tr><th>Theme</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Light</strong></td><td>Default — white background, dark text</td></tr>
+        <tr><td><strong>Dark</strong></td><td>Dark background, light text; easier on the eyes when the room is doing its cave impression</td></tr>
+        <tr><td><strong>Sepia</strong></td><td>Warm off-white background</td></tr>
+      </tbody>
+    </table>
+    <p>Theme changes apply immediately as you select them, so you can preview each option before confirming.</p>
+    <ul>
+      <li>Clicking <strong>OK</strong> saves the theme to <code>~/.fractal_studio/settings.json</code>. The saved theme is restored on next launch.</li>
+      <li>Clicking <strong>Cancel</strong> discards the change and reverts to the theme active when you opened the dialog.</li>
+    </ul>
+
+    <h2 data-n="03" id="stored-settings">Stored settings</h2>
+    <p>Settings are written to <code>~/.fractal_studio/settings.json</code>:</p>
+    <pre><code>{
+  <span class="cmd">"version"</span>: 1,
+  <span class="cmd">"data"</span>: {
+    <span class="cmd">"theme"</span>: "dark"
+  }
+}</code></pre>
+    <div class="callout">
+      <span class="ico">!</span>
+      <p>If this file is missing or unreadable, the app falls back to the <strong>Light</strong> theme and shows a diagnostic in the status bar.</p>
+    </div>
+
+    <h2 data-n="04" id="backend-status">Backend status</h2>
+    <p>The <strong>Backend</strong> panel (bottom-right) shows whether the Rust rendering core loaded:</p>
+    <table>
+      <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Loaded</strong></td><td><code>fractal_core</code> is compiled and available; full rendering is enabled</td></tr>
+        <tr><td><strong>Not available</strong></td><td>Running in UI-only mode; the viewport shows a placeholder</td></tr>
+      </tbody>
+    </table>
+    <p>If you installed the Rust core but the status still says "Not available", check the boring-but-usually-correct things:</p>
+    <ul>
+      <li>You activated the virtual environment that contains the built <code>fractal_core</code> module.</li>
+      <li>You ran <code>maturin develop --release</code> from the <code>core/</code> directory with the same venv active.</li>
+      <li>There are no import errors — run <code>python -c "import fractal_core"</code> in the venv to check.</li>
+    </ul>
+
+    <div class="page-nav">
+      <a href="favorites.html"><div class="dir">← Previous</div><div class="ttl">Favorites</div></a>
+      <a href="changelog.html" class="next"><div class="dir">Next →</div><div class="ttl">Changelog</div></a>
+    </div>
+  </main>
+
+  <aside class="docs-toc">
+    <span class="ds-label">On this page</span>
+    <a href="#opening" class="active">Opening settings</a>
+    <a href="#theme">Theme</a>
+    <a href="#stored-settings">Stored settings</a>
+    <a href="#backend-status">Backend status</a>
+  </aside>
+</div>
+
+<div class="spectrum-rule"></div>
+
+<script>
+  const links = [...document.querySelectorAll('.docs-toc a')];
+  const ids = links.map(l => l.getAttribute('href').slice(1));
+  const spy = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { const id = e.target.id; links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + id)); } });
+  }, { rootMargin: '-70px 0px -72% 0px' });
+  ids.forEach(id => { const el = document.getElementById(id); if (el) spy.observe(el); });
+</script>
+</body>
+</html>
