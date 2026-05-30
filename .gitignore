@@ -12,5 +12,6 @@ core/dist/
 *.egg-info/
 .coverage
 prompt.txt
+no-checkin/
 
 
