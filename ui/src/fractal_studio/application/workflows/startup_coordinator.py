@@ -15,7 +15,7 @@ class WindowStartupState:
     theme_name: str
     theme_spec: ThemeSpec
     load_result: SettingsLoadResult
-    sidebar_collapsed: dict[str, bool] = field(default_factory=dict)
+    sidebar_collapsed: dict[str, bool] = field(default_factory=dict)  # treat as read-only; frozen prevents rebinding but not dict mutation
 
 
 class WindowStartupCoordinator:
