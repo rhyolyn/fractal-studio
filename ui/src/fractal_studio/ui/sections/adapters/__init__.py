@@ -13,21 +13,25 @@ from fractal_studio.ui.sections.adapters.viewport_adapter import ViewportPanelPo
 from fractal_studio.ui.sections.ports import MainWindowSectionsPorts
 
 if TYPE_CHECKING:
+    from fractal_studio.backend import BackendProfile, CoreBackend
     from fractal_studio.ui.sections.state import MainWindowSectionsState
 
 
 def build_sections_ports(
     sections_state: MainWindowSectionsState,
     on_status: Callable[[str], None],
+    backend: CoreBackend,
+    backend_profile: BackendProfile,
 ) -> MainWindowSectionsPorts:
+    args = (sections_state, on_status, backend, backend_profile)
     return MainWindowSectionsPorts(
-        viewport=ViewportPanelPortsAdapter(sections_state, on_status),
-        palette=PalettePanelPortsAdapter(sections_state, on_status),
-        colormap=ColormapPanelPortsAdapter(sections_state, on_status),
-        backend=BackendPanelPortsAdapter(sections_state, on_status),
-        export=ExportPanelPortsAdapter(sections_state, on_status),
-        favorites=FavoritesPanelPortsAdapter(sections_state, on_status),
-        sidebar=SidebarPanelPortsAdapter(sections_state, on_status),
+        viewport=ViewportPanelPortsAdapter(*args),
+        palette=PalettePanelPortsAdapter(*args),
+        colormap=ColormapPanelPortsAdapter(*args),
+        backend=BackendPanelPortsAdapter(*args),
+        export=ExportPanelPortsAdapter(*args),
+        favorites=FavoritesPanelPortsAdapter(*args),
+        sidebar=SidebarPanelPortsAdapter(*args),
     )
 
 

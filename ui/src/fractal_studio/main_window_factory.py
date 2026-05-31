@@ -165,7 +165,7 @@ def create_main_window():
     sections_state.validate()
 
     # ── 5. Build section adapters and sections ──
-    sections_ports = build_sections_ports(sections_state, on_status)
+    sections_ports = build_sections_ports(sections_state, on_status, backend, backend_profile)
     sections = MainWindowSections(sections_ports)
 
     # ── 6. Initialize window ──
