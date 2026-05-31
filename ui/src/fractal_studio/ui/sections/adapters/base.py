@@ -16,22 +16,10 @@ class _BasePortsAdapter:
         self._state = sections_state
         self._on_status = on_status
 
-    @property
-    def backend(self):
-        return self._state.backend
-
-    @property
-    def backend_profile(self):
-        return self._state.backend_profile
-
-    @property
-    def viewport(self):
-        return self._state.viewport
-
     def show_status(self, message: str) -> None:
         self._on_status(message)
 
 
 class _FavoriteActionsMixin:
     def save_favorite(self) -> None:
-        self._state._favorites_state.save_favorite()
+        self._state.favorites.save_favorite()
