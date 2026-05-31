@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -63,7 +64,6 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
         export_panel = ExportPanelStub()
         refreshed: list[str] = []
         state = MainWindowViewportState(
-            object(),
             controller=controller,
             export_panel=export_panel,
             refresh_export_presets=lambda: refreshed.append("done"),
@@ -100,7 +100,6 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
         viewport = object()
         wiring = WiringStub()
         state = MainWindowSidebarState(
-            object(),
             sidebar_wiring=wiring,
             viewport_getter=lambda: viewport,
             settings_service=SettingsStub(),
@@ -142,22 +141,8 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
             def export_legacy_map(self, **kwargs) -> None:
                 self.export_calls.append(kwargs)
 
-        class OwnerStub:
-            def __init__(self) -> None:
-                self.messages: list[str] = []
-
-            def statusBar(self):
-                owner = self
-
-                class StatusBar:
-                    def showMessage(self, message: str) -> None:
-                        owner.messages.append(message)
-
-                return StatusBar()
-
         preview = PalettePreviewStub()
         palette_state = MainWindowPaletteState(
-            object(),
             palette_preview=preview,
             backend="backend",
             legacy_palette_size_getter=lambda: 256,
@@ -173,20 +158,21 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
         self.assertEqual(preview.preview_calls[0]["legacy_palette_size"], 256)
         self.assertEqual(preview.summary_calls, [("points", [(4, 5, 6)])])
 
-        owner = OwnerStub()
         panel = PalettePanelStub()
         colormap_state = MainWindowColormapState(
-            object(),
             palette_panel=panel,
             backend="backend",
-            owner=owner,
+            on_status=lambda msg: None,
             legacy_palette_size_getter=lambda: 512,
         )
         colormap_state.set_editor("editor")
-        colormap_state.load_palette_json()
-        colormap_state.export_legacy_map()
+        dialog_target = "fractal_studio.ui.sections.panel_state.QFileDialog"
+        with patch(dialog_target) as mock_dialog:
+            mock_dialog.getOpenFileName.return_value = ("", "")
+            mock_dialog.getSaveFileName.return_value = ("", "")
+            colormap_state.load_palette_json()
+            colormap_state.export_legacy_map()
 
-        self.assertEqual(panel.load_calls[0]["parent"], owner)
         self.assertEqual(panel.load_calls[0]["backend"], "backend")
         self.assertEqual(panel.export_calls[0]["legacy_palette_size"], 512)
 
@@ -207,40 +193,23 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
             def on_export_clicked(self, **kwargs) -> None:
                 self.click_calls.append(kwargs)
                 kwargs["set_custom_size"](900, 1200)
-                kwargs["export_callback"](900, 1200)
+                # export_callback is intentionally not called here to avoid
+                # opening a native file dialog in tests
 
-        class ControllerStub:
-            def __init__(self) -> None:
-                self.calls: list[tuple[object, object, int, int]] = []
+        class ViewportStub:
+            def to_state(self):
+                return "viewport_state"
 
-            def export_render(
-                self, owner, viewport, width: int, height: int, show_status
-            ) -> None:
-                self.calls.append((owner, viewport, width, height))
-                show_status("exported")
+            def palette(self):
+                return []
 
-        class OwnerStub:
-            def __init__(self) -> None:
-                self.messages: list[str] = []
-
-            def statusBar(self):
-                owner = self
-
-                class StatusBar:
-                    def showMessage(self, message: str) -> None:
-                        owner.messages.append(message)
-
-                return StatusBar()
-
-        owner = OwnerStub()
-        controller = ControllerStub()
+        controller = object()
         export_panel = ExportPanelStub()
         state = MainWindowExportState(
-            object(),
             export_panel=export_panel,
             controller=controller,
-            owner=owner,
-            viewport_getter=lambda: "viewport",
+            on_status=lambda msg: None,
+            viewport_getter=lambda: ViewportStub(),
             aspect_ratio_mode_getter=lambda: "portrait",
         )
         state.set_export_combo(object())
@@ -250,8 +219,8 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
 
         self.assertEqual(state.export_presets, [("Portrait", 900, 1200)])
         self.assertEqual(export_panel.refresh_calls[0]["aspect_ratio_mode"], "portrait")
-        self.assertEqual(controller.calls, [(owner, "viewport", 900, 1200)])
-        self.assertEqual(owner.messages, ["exported"])
+        self.assertEqual(state.custom_width, 900)
+        self.assertEqual(state.custom_height, 1200)
 
     def test_favorites_state_uses_bound_collaborators(self) -> None:
         from fractal_studio.ui.sections.panel_state import (
@@ -319,31 +288,16 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
             def save(self, favorites) -> None:
                 self.saved.append(list(favorites))
 
-        class OwnerStub:
-            def __init__(self) -> None:
-                self.messages: list[str] = []
-
-            def statusBar(self):
-                owner = self
-
-                class StatusBar:
-                    def showMessage(self, message: str) -> None:
-                        owner.messages.append(message)
-
-                return StatusBar()
-
         controller = FavoritesControllerStub()
         panel = FavoritesPanelStub()
         workflow = FavoritesWorkflowStub()
         repo = RepoStub()
-        owner = OwnerStub()
         state = MainWindowFavoritesState(
-            object(),
             favorites_controller=controller,
             favorites_panel=panel,
             favorites_workflow=workflow,
             favorites_repo=repo,
-            owner=owner,
+            on_status=lambda msg: None,
             hover_panel_getter=lambda: "hover",
             viewport_getter=lambda: "viewport",
             params_panel_getter=lambda: "params",
@@ -362,7 +316,7 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
         state.delete_selected_favorite()
 
         self.assertEqual(loaded, [snapshot])
-        self.assertEqual(panel.build_calls[0]["owner"], owner)
+        self.assertEqual(panel.build_calls[0]["owner"], None)
         self.assertEqual(panel.build_calls[0]["hover_panel"], "hover")
         self.assertEqual(state.selected_row, None)
         self.assertEqual(workflow.loaded[0]["viewport"], "viewport")

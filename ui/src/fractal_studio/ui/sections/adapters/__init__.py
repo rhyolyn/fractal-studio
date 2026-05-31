@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from fractal_studio.ui.sections.adapters.backend_adapter import BackendPanelPortsAdapter
@@ -12,18 +13,21 @@ from fractal_studio.ui.sections.adapters.viewport_adapter import ViewportPanelPo
 from fractal_studio.ui.sections.ports import MainWindowSectionsPorts
 
 if TYPE_CHECKING:
-    from fractal_studio.main_window import MainWindow
+    from fractal_studio.ui.sections.state import MainWindowSectionsState
 
 
-def build_sections_ports(owner: MainWindow) -> MainWindowSectionsPorts:
+def build_sections_ports(
+    sections_state: MainWindowSectionsState,
+    on_status: Callable[[str], None],
+) -> MainWindowSectionsPorts:
     return MainWindowSectionsPorts(
-        viewport=ViewportPanelPortsAdapter(owner),
-        palette=PalettePanelPortsAdapter(owner),
-        colormap=ColormapPanelPortsAdapter(owner),
-        backend=BackendPanelPortsAdapter(owner),
-        export=ExportPanelPortsAdapter(owner),
-        favorites=FavoritesPanelPortsAdapter(owner),
-        sidebar=SidebarPanelPortsAdapter(owner),
+        viewport=ViewportPanelPortsAdapter(sections_state, on_status),
+        palette=PalettePanelPortsAdapter(sections_state, on_status),
+        colormap=ColormapPanelPortsAdapter(sections_state, on_status),
+        backend=BackendPanelPortsAdapter(sections_state, on_status),
+        export=ExportPanelPortsAdapter(sections_state, on_status),
+        favorites=FavoritesPanelPortsAdapter(sections_state, on_status),
+        sidebar=SidebarPanelPortsAdapter(sections_state, on_status),
     )
 
 

@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from fractal_studio.main_window import MainWindow
+    from fractal_studio.ui.sections.state import MainWindowSectionsState
 
 
 class _BasePortsAdapter:
-    def __init__(self, owner: MainWindow) -> None:
-        self._owner = owner
-        self._state = owner._sections_state
+    def __init__(
+        self,
+        sections_state: MainWindowSectionsState,
+        on_status: Callable[[str], None],
+    ) -> None:
+        self._state = sections_state
+        self._on_status = on_status
 
     @property
     def backend(self):
@@ -24,7 +29,7 @@ class _BasePortsAdapter:
         return self._state.viewport
 
     def show_status(self, message: str) -> None:
-        self._owner.statusBar().showMessage(message)
+        self._on_status(message)
 
 
 class _FavoriteActionsMixin:
