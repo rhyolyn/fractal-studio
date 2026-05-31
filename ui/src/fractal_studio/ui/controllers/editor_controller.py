@@ -69,14 +69,14 @@ class EditorController:
             self._backend.generate_palette(
                 editor._control_points, self._profile.palette_size
             )
-            if self._backend.available
+            if self._backend.capabilities.can_generate_palette
             else []
         )
         editor.control_points_changed.emit(list(editor._control_points))
         editor.palette_changed.emit(list(editor._palette))
 
     def handle_mouse_press(self, editor: ColorCubeEditor, x: float, y: float) -> None:
-        if not self._backend.available:
+        if not self._backend.capabilities.can_generate_palette:
             return
 
         face, position = self.face_at(editor, QPointF(x, y))
@@ -103,7 +103,7 @@ class EditorController:
         if face is not None and position is not None and editor._drag_state is None:
             red, green, blue = (
                 self._backend.color_from_face(face, position)
-                if self._backend.available
+                if self._backend.capabilities.can_generate_palette
                 else (0, 0, 0)
             )
             editor.status_changed.emit(f"Face {face}: {red}, {green}, {blue}")

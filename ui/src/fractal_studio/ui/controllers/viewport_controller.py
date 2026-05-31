@@ -254,7 +254,7 @@ class ViewportController:
 
     def render(self, widget: _ViewportAdapter) -> ViewportRenderResult:
         palette = widget.palette()
-        if not self._backend.available or not palette:
+        if not self._backend.capabilities.can_render or not palette:
             return ViewportRenderResult(image=None, status=None)
 
         width = max(1, widget.width())

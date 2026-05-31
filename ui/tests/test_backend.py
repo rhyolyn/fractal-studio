@@ -10,7 +10,7 @@ import pytest
 SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SOURCE_ROOT))
 
-from fractal_studio.backend import default_profile, load_backend_profile
+from fractal_studio.backend import CoreBackend, default_profile, load_backend_profile
 
 
 @pytest.mark.unit
@@ -50,7 +50,7 @@ def _ensure_pyside6_mocked() -> None:
 
 @pytest.mark.unit
 class ValidateTest(unittest.TestCase):
-    def test_validate_raises_when_collaborator_unbound(self) -> None:
+    def test_validate_raises_when_panel_state_is_none(self) -> None:
         _ensure_pyside6_mocked()
         # Re-import after mocking; evict any cached partially-imported modules.
         for key in list(sys.modules):
@@ -61,10 +61,16 @@ class ValidateTest(unittest.TestCase):
                 del sys.modules[key]
         from fractal_studio.ui.sections.state import MainWindowSectionsState
         state = MainWindowSectionsState.__new__(MainWindowSectionsState)
-        state.owner = None
+        # Set all panel-state fields to None to simulate an uninitialised instance.
+        state.viewport = None
+        state.sidebar = None
+        state.palette = None
+        state.colormap = None
+        state.favorites = None
+        state.export = None
         with self.assertRaises(RuntimeError) as ctx:
             state.validate()
-        self.assertIn("owner", str(ctx.exception))
+        self.assertIn("viewport", str(ctx.exception))
 
 
 @pytest.mark.unit
@@ -163,6 +169,67 @@ class ViewportStateFormulaParamsTests(unittest.TestCase):
         state = ViewportState.from_dict(legacy)
         self.assertIsInstance(state.formula_params, JuliaParams)
         self.assertAlmostEqual(state.formula_params.cx, -0.8)
+
+
+@pytest.mark.unit
+def test_capabilities_all_false_when_no_module() -> None:
+    backend = CoreBackend(None)
+    caps = backend.capabilities
+    assert caps.can_render is False
+    assert caps.can_generate_palette is False
+    assert caps.can_import_palette is False
+    assert caps.can_export_palette is False
+
+
+@pytest.mark.unit
+def test_capabilities_is_frozen() -> None:
+    from fractal_studio.backend import BackendCapabilities
+    caps = BackendCapabilities(
+        can_render=True,
+        can_generate_palette=True,
+        can_import_palette=True,
+        can_export_palette=True,
+    )
+    import dataclasses
+    assert dataclasses.is_dataclass(caps)
+    with pytest.raises(Exception):
+        caps.can_render = False  # type: ignore[misc]
+
+
+@pytest.mark.unit
+def test_generate_palette_returns_empty_list_when_no_module() -> None:
+    backend = CoreBackend(None)
+    result = backend.generate_palette([(0, 0, 0), (255, 255, 255)], 256)
+    assert result == []
+
+
+@pytest.mark.unit
+def test_color_from_face_returns_black_when_no_module() -> None:
+    backend = CoreBackend(None)
+    result = backend.color_from_face(0, (0.5, 0.5))
+    assert result == (0, 0, 0)
+
+
+@pytest.mark.unit
+def test_render_fractal_returns_empty_bytes_when_no_module() -> None:
+    backend = CoreBackend(None)
+    result = backend.render_fractal("standard", 4, 4)
+    assert isinstance(result, bytes)
+    assert len(result) == 0
+
+
+@pytest.mark.unit
+def test_import_palette_json_returns_empty_when_no_module() -> None:
+    backend = CoreBackend(None)
+    size, points = backend.import_palette_json("fake.json")
+    assert size == 0
+    assert points == []
+
+
+@pytest.mark.unit
+def test_available_property_false_when_no_module() -> None:
+    backend = CoreBackend(None)
+    assert backend.available is False
 
 
 if __name__ == "__main__":

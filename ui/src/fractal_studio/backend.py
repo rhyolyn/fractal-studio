@@ -19,6 +19,14 @@ class BackendProfile:
     export_presets: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class BackendCapabilities:
+    can_render: bool
+    can_generate_palette: bool
+    can_import_palette: bool
+    can_export_palette: bool
+
+
 def default_profile() -> BackendProfile:
     return BackendProfile(
         palette_size=2048,
@@ -40,6 +48,16 @@ class CoreBackend:
     def available(self) -> bool:
         return self._module is not None
 
+    @property
+    def capabilities(self) -> BackendCapabilities:
+        available = self._module is not None
+        return BackendCapabilities(
+            can_render=available,
+            can_generate_palette=available,
+            can_import_palette=available,
+            can_export_palette=available,
+        )
+
     def profile(self) -> BackendProfile:
         if self._module is None:
             return default_profile()
@@ -57,10 +75,14 @@ class CoreBackend:
         )
 
     def color_from_face(self, face: int, position: tuple[float, float]) -> Color:
-        return self._require().color_from_face(face, position)
+        if self._module is None:
+            return (0, 0, 0)
+        return self._module.color_from_face(face, position)
 
     def project_color_to_face(self, face: int, color: Color) -> tuple[float, float]:
-        return self._require().project_color_to_face(face, color)
+        if self._module is None:
+            return (0.0, 0.0)
+        return self._module.project_color_to_face(face, color)
 
     def update_control_point_from_face(
         self,
@@ -68,12 +90,16 @@ class CoreBackend:
         color: Color,
         position: tuple[float, float],
     ) -> Color:
-        return self._require().update_control_point_from_face(face, color, position)
+        if self._module is None:
+            return color
+        return self._module.update_control_point_from_face(face, color, position)
 
     def generate_palette(
         self, control_points: list[Color], palette_size: int
     ) -> list[Color]:
-        return list(self._require().generate_palette(control_points, palette_size))
+        if self._module is None:
+            return []
+        return list(self._module.generate_palette(control_points, palette_size))
 
     def render_fractal(
         self,
@@ -97,26 +123,17 @@ class CoreBackend:
         trap_y: float = 0.0,
         palette_offset: float = 0.0,
     ) -> bytes:
+        if self._module is None:
+            return b""
         return bytes(
-            self._require().render_fractal(
-                formula,
-                width,
-                height,
-                center_x=center_x,
-                center_y=center_y,
-                scale=scale,
-                max_iterations=max_iterations,
-                power=power,
-                julia_real=julia_real,
-                julia_imag=julia_imag,
-                is_julia=is_julia,
-                phoenix_real=phoenix_real,
-                phoenix_imag=phoenix_imag,
-                palette=palette or [],
-                coloring_mode=coloring_mode,
-                trap_x=trap_x,
-                trap_y=trap_y,
-                palette_offset=palette_offset,
+            self._module.render_fractal(
+                formula, width, height,
+                center_x=center_x, center_y=center_y, scale=scale,
+                max_iterations=max_iterations, power=power,
+                julia_real=julia_real, julia_imag=julia_imag, is_julia=is_julia,
+                phoenix_real=phoenix_real, phoenix_imag=phoenix_imag,
+                palette=palette or [], coloring_mode=coloring_mode,
+                trap_x=trap_x, trap_y=trap_y, palette_offset=palette_offset,
             )
         )
 
@@ -130,15 +147,11 @@ class CoreBackend:
         max_iterations: int,
         palette: list[Color],
     ) -> bytes:
+        if self._module is None:
+            return b""
         return bytes(
-            self._require().render_mandelbrot(
-                width,
-                height,
-                center_x,
-                center_y,
-                scale,
-                max_iterations,
-                palette,
+            self._module.render_mandelbrot(
+                width, height, center_x, center_y, scale, max_iterations, palette
             )
         )
 
@@ -154,22 +167,19 @@ class CoreBackend:
         max_iterations: int,
         palette: list[Color],
     ) -> bytes:
+        if self._module is None:
+            return b""
         return bytes(
-            self._require().render_julia(
-                width,
-                height,
-                constant_real,
-                constant_imaginary,
-                center_x,
-                center_y,
-                scale,
-                max_iterations,
-                palette,
+            self._module.render_julia(
+                width, height, constant_real, constant_imaginary,
+                center_x, center_y, scale, max_iterations, palette,
             )
         )
 
     def export_legacy_map(self, path: str, palette: list[Color]) -> None:
-        self._require().export_legacy_map(path, palette)
+        if self._module is None:
+            return
+        self._module.export_legacy_map(path, palette)
 
     def export_palette_json(
         self,
@@ -177,18 +187,15 @@ class CoreBackend:
         control_points: list[Color],
         palette_size: int,
     ) -> None:
-        self._require().export_palette_json(path, control_points, palette_size)
+        if self._module is None:
+            return
+        self._module.export_palette_json(path, control_points, palette_size)
 
     def import_palette_json(self, path: str) -> tuple[int, list[Color]]:
-        palette_size, control_points = self._require().import_palette_json(path)
-        return palette_size, list(control_points)
-
-    def _require(self) -> ModuleType:
         if self._module is None:
-            raise RuntimeError(
-                "Rust backend is not available. Build fractal_core before using the editor."
-            )
-        return self._module
+            return (0, [])
+        palette_size, control_points = self._module.import_palette_json(path)
+        return palette_size, list(control_points)
 
 
 def load_backend() -> CoreBackend:
