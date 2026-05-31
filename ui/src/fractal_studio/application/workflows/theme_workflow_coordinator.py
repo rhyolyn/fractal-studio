@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import replace
 
 from PySide6.QtWidgets import QApplication, QWidget
 
@@ -11,7 +12,6 @@ from fractal_studio.persistence import SettingsRepository
 from fractal_studio.application.coordinators.settings_dialog_coordinator import (
     SettingsDialogCoordinator,
 )
-from fractal_studio.state import UiSettings
 from fractal_studio.theme import ThemeSpec
 from fractal_studio.application.controllers.theme_controller import ThemeController
 
@@ -48,7 +48,9 @@ class ThemeWorkflowCoordinator:
             persist=persist,
             current_theme=current_theme,
             apply_theme_to_app=apply_theme_to_app,
-            persist_theme=lambda name: self._settings_repo.save(UiSettings(theme=name)),
+            persist_theme=lambda name: self._settings_repo.update(
+                lambda s: replace(s, theme=name)
+            ),
             refresh_dynamic_widgets=refresh_dynamic_widgets,
         )
         return updated_theme, theme_spec

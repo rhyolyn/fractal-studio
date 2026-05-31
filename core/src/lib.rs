@@ -1037,15 +1037,7 @@ mod tests {
 
     #[test]
     fn legacy_palette_parser_reads_existing_repo_map() {
-        let contents = fs::read_to_string(
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("..")
-                .join("..")
-                .join("Julia")
-                .join("ColorMaps")
-                .join("china.map"),
-        )
-        .unwrap();
+        let contents = fs::read_to_string(fixture_path("china.map")).unwrap();
 
         let palette = parse_legacy_map(&contents).unwrap();
         let first_line = contents.lines().find(|line| !line.trim().is_empty()).unwrap();

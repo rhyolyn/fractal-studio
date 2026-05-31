@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Literal
@@ -54,6 +55,12 @@ class SettingsRepository:
                 source="default",
                 diagnostic="Ignored unsupported settings payload and loaded defaults.",
             )
+
+    def update(self, transform: Callable[[UiSettings], UiSettings]) -> UiSettings:
+        current = self.load().settings
+        updated = transform(current)
+        self.save(updated)
+        return updated
 
 
 class FavoritesRepository:

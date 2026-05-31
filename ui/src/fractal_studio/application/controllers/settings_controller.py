@@ -7,7 +7,6 @@ from typing import Any, Protocol
 from PySide6.QtWidgets import QDialog, QWidget
 
 from fractal_studio.persistence import SettingsRepository
-from fractal_studio.state import UiSettings
 
 
 class _PreviewSignalLike(Protocol):
@@ -54,13 +53,9 @@ class SettingsController:
     def save_sidebar_collapsed(
         self,
         repo: SettingsRepository,
-        current: UiSettings,
         key: str,
         collapsed: bool,
-    ) -> UiSettings:
-        updated = replace(
-            current,
-            sidebar_collapsed={**current.sidebar_collapsed, key: collapsed},
+    ) -> None:
+        repo.update(
+            lambda s: replace(s, sidebar_collapsed={**s.sidebar_collapsed, key: collapsed})
         )
-        repo.save(updated)
-        return updated

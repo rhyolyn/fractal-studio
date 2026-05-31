@@ -12,17 +12,23 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from fractal_studio.backend import BackendProfile, CoreBackend
 from fractal_studio.editor import ColorCubeEditor
-from fractal_studio.main_window_factory import MainWindowContext
-from fractal_studio.ui.sections.state import (
-    MainWindowSectionsState,
-)
+from fractal_studio.persistence import FavoritesRepository, SettingsRepository
+from fractal_studio.ui.sections.sections import MainWindowSections
+from fractal_studio.ui.sections.state import MainWindowSectionsState
 from fractal_studio.theme import ThemeSpec, get_theme
-from fractal_studio.application.workflows.startup_coordinator import WindowStartupState
+from fractal_studio.application.controllers.favorites_controller import FavoritesController
+from fractal_studio.application.controllers.settings_controller import SettingsController
+from fractal_studio.application.controllers.theme_controller import ThemeController
+from fractal_studio.application.coordinators.favorites_panel_coordinator import FavoritesPanelCoordinator
+from fractal_studio.application.workflows.favorites_workflow_coordinator import FavoritesWorkflowCoordinator
+from fractal_studio.application.workflows.startup_coordinator import WindowStartupCoordinator, WindowStartupState
+from fractal_studio.application.workflows.theme_workflow_coordinator import ThemeWorkflowCoordinator
+from fractal_studio.services.settings_service import SettingsWorkflowService
 from fractal_studio.ui.dialogs.appearance_settings_dialog import (
     AppearanceSettingsDialog,
 )
-from fractal_studio.state import UiSettings
 from fractal_studio.viewport import FractalViewportWidget
 
 _FAVORITES_PATH = Path.home() / ".fractal_studio" / "favorites.json"
@@ -38,38 +44,46 @@ class MainWindow(QMainWindow):
     def _init_window_state(self) -> None:
         self._favorites_path = _FAVORITES_PATH
         self._settings_path = _SETTINGS_PATH
-        self._sections_state = MainWindowSectionsState()
-        self._hover_panel: QLabel | None = None
+        self.hover_panel: QLabel | None = None
         self._theme_name = "light"
         self._theme_spec: ThemeSpec = get_theme(self._theme_name)
         self._startup_sidebar_collapsed: dict[str, bool] = {}
-        self._current_ui_settings = UiSettings()    # replaced in _finalize_startup
 
-    def attach_context(self, context: MainWindowContext) -> None:
-        self._sections_state.bind(self, context)
-        self._favorites_repo = context.favorites_repo
-        self._settings_repo = context.settings_repo
-        self._settings_service = context.settings_service
-        self._startup = context.startup
-        self._favorites_controller = context.favorites_controller
-        self._favorites_panel = context.favorites_panel
-        self._favorites_workflow = context.favorites_workflow
-        self._sections_ports = context.sections_ports
-        self._sections = context.sections
-        self._theme_controller = context.theme_controller
-        self.backend = context.backend
-        self._export_service = context.export_service
-        self._palette_service = context.palette_service
-        self._palette_panel = context.palette_panel
-        self._palette_preview = context.palette_preview
-        self._sidebar_wiring = context.sidebar_wiring
-        self._controller = context.export_controller
-        self._settings_controller = context.settings_controller
-        self._export_panel = context.export_panel
-        self._settings_dialog = context.settings_dialog
-        self._theme_workflow = context.theme_workflow
-        self.backend_loaded = context.backend_loaded
-        self.backend_profile = context.backend_profile
+    def initialize_sections(
+        self,
+        *,
+        sections: MainWindowSections,
+        sections_state: MainWindowSectionsState,
+        favorites_repo: FavoritesRepository,
+        settings_repo: SettingsRepository,
+        settings_controller: SettingsController,
+        settings_service: SettingsWorkflowService,
+        startup: WindowStartupCoordinator,
+        favorites_controller: FavoritesController,
+        favorites_panel: FavoritesPanelCoordinator,
+        favorites_workflow: FavoritesWorkflowCoordinator,
+        theme_controller: ThemeController,
+        backend: CoreBackend,
+        backend_loaded: bool,
+        backend_profile: BackendProfile,
+        theme_workflow: ThemeWorkflowCoordinator,
+    ) -> None:
+        self._sections = sections
+        self._sections_state = sections_state
+        self._favorites_repo = favorites_repo
+        self._settings_repo = settings_repo
+        self._settings_controller = settings_controller
+        self._settings_service = settings_service
+        self._startup = startup
+        self._favorites_controller = favorites_controller
+        self._favorites_panel = favorites_panel
+        self._favorites_workflow = favorites_workflow
+        self._theme_controller = theme_controller
+        self.backend = backend
+        self.backend_loaded = backend_loaded
+        self.backend_profile = backend_profile
+        self._theme_workflow = theme_workflow
+        self.initialize()
 
     def initialize(self) -> None:
         startup = self._bootstrap_startup()
@@ -82,15 +96,15 @@ class MainWindow(QMainWindow):
 
     @property
     def editor(self) -> ColorCubeEditor | None:
-        return self._sections_state._colormap_state.editor
+        return self._sections_state.colormap.editor
 
     @property
     def viewport(self) -> FractalViewportWidget | None:
-        return self._sections_state.viewport
+        return self._sections_state.viewport.viewport
 
     @property
     def viewport_hint_label(self) -> QLabel | None:
-        return self._sections_state.viewport_hint_label
+        return self._sections_state.viewport.viewport_hint_label
 
     def _bootstrap_startup(self) -> WindowStartupState:
         startup = self._startup.bootstrap(
@@ -101,20 +115,18 @@ class MainWindow(QMainWindow):
         return startup
 
     def _init_hover_panel(self) -> None:
-        self._hover_panel = QLabel(self)
-        self._hover_panel.setObjectName("hoverPanel")
-        self._hover_panel.hide()
-        self._sections_state.hover_panel = self._hover_panel
+        self.hover_panel = QLabel(self)
+        self.hover_panel.setObjectName("hoverPanel")
+        self.hover_panel.hide()
 
     def _finalize_startup(self, startup: WindowStartupState) -> None:
         # Export always starts expanded for discoverability; ignore any saved collapsed state.
         self._startup_sidebar_collapsed = {k: v for k, v in startup.sidebar_collapsed.items() if k != "export"}
-        self._current_ui_settings = startup.load_result.settings
         self._sections.set_theme(startup.theme_spec)       # must precede _build_layout
         self.setCentralWidget(self._build_layout())
         self._theme_controller.refresh_dynamic_widgets(
-            self._hover_panel,
-            self._sections_state._favorites_state.fav_rows,
+            self.hover_panel,
+            self._sections_state.favorites.fav_rows,
             viewport_well=self._sections.viewport_well,
         )
         self.statusBar().showMessage(
@@ -151,8 +163,8 @@ class MainWindow(QMainWindow):
         return splitter
 
     def _on_section_collapsed(self, section_key: str, collapsed: bool) -> None:
-        self._current_ui_settings = self._settings_controller.save_sidebar_collapsed(
-            self._settings_repo, self._current_ui_settings, section_key, collapsed
+        self._settings_controller.save_sidebar_collapsed(
+            self._settings_repo, section_key, collapsed
         )
 
     def _open_settings(self) -> None:
@@ -168,8 +180,8 @@ class MainWindow(QMainWindow):
             application=QApplication.instance(),
             refresh_dynamic_widgets=lambda: (
                 self._theme_controller.refresh_dynamic_widgets(
-                    self._hover_panel,
-                    self._sections_state._favorites_state.fav_rows,
+                    self.hover_panel,
+                    self._sections_state.favorites.fav_rows,
                     viewport_well=self._sections.viewport_well,
                 )
             ),
