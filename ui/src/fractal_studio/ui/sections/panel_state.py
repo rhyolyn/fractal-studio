@@ -344,7 +344,7 @@ class MainWindowFavoritesState:
             return
         row = self._favorites_panel.build_row_with_callbacks(
             favorite=favorite.to_dict(),
-            owner=None,
+            owner=self,
             hover_panel=hover_panel,
             on_select_row=lambda mw, row: self.select_favorite_row(row),
             on_activate_row=lambda mw, row: self.activate_favorite_row(row),
