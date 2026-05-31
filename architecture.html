@@ -106,11 +106,11 @@
 
     <h2 data-n="01" id="summary">Executive summary</h2>
     <div class="grade">
-      <span class="letter">B+</span>
-      <span class="gt"><strong>Structurally sound</strong>, with some complexity debt building up in the middle layers. The main risk is <code>MainWindowSectionsState</code>, which is drifting toward god-object territory.</span>
+      <span class="letter">A−</span>
+      <span class="gt"><strong>Boundaries are real now.</strong> The major structural debts — god-object sections state, deferred construction wiring, inconsistent backend contract, Qt coupling in services — have all been resolved. The one remaining architectural risk is synchronous rendering on the UI thread.</span>
     </div>
     <p>Fractal Studio is a <strong>PySide6/Qt</strong> desktop application for interactive fractal rendering and palette editing. It wraps a <strong>Rust rendering engine</strong> (<code>fractal_core</code>) with a lazy-loading Python bridge and presents a seven-panel workspace: fractal viewport, palette editor, colormap editor, parameter controls, export controls, favorites gallery, and sidebar.</p>
-    <p>The codebase has had a useful round of layering work. <code>MainWindowController</code> was split into <code>ExportController</code> and <code>SettingsController</code>; adapter files moved into a dedicated subdirectory; <code>ViewportState</code> now uses a discriminated union for formula-specific parameters; panel state machines receive collaborators through constructor injection; and <code>validate()</code> catches missing wiring at startup instead of waiting for runtime mischief.</p>
+    <p>Two rounds of layering work have cleaned the architecture substantially. The first round split <code>MainWindowController</code>, reorganised adapters, introduced the discriminated union for formula parameters, and added constructor injection for panel states. The second round made all four key boundaries real: a single aggregate settings write path, Qt-free services and application controllers, a single-pass composition root replacing the old deferred <code>bind()</code>/<code>attach_context()</code> wiring, and a consistent <code>CoreBackend</code> null-object contract with an explicit <code>BackendCapabilities</code> type.</p>
 
     <h2 data-n="02" id="stack">Technology stack</h2>
     <table>
@@ -152,7 +152,7 @@
     ├── sections/               <span class="cm">Mediator/ports UI wiring layer</span>
     │   ├── ports.py            <span class="cm">7 Protocol interfaces</span>
     │   ├── panel_state.py      <span class="cm">6 Panel state machines</span>
-    │   ├── state.py            <span class="cm">MainWindowSectionsState aggregate</span>
+    │   ├── state.py            <span class="cm">MainWindowSectionsState plain container (6 panel states)</span>
     │   ├── mediator.py         <span class="cm">Adapter factory</span>
     │   ├── sections.py         <span class="cm">Layout builder</span>
     │   └── adapters/           <span class="cm">Protocol implementations</span>
@@ -175,6 +175,7 @@
         <tr><td><code>persistence.py</code> imports only <code>state.py</code></td><td><code>test_import_policy.py</code></td></tr>
         <tr><td><code>sections.py</code> knows only port Protocol interfaces</td><td>Static inspection</td></tr>
         <tr><td>Controllers import services and state, never widget classes</td><td>Convention</td></tr>
+        <tr><td><code>services/</code> and <code>application/</code> never import from <code>PySide6</code> or <code>ui.widgets</code></td><td><code>test_import_policy.py</code></td></tr>
       </tbody>
     </table>
 
@@ -188,11 +189,11 @@
     <p><code>from_dict()</code> handles both the current structured format, with a <code>formula_params.type</code> discriminator key, and the legacy flat format. Callers do not have to know migration happened, which is exactly how migration code should behave when it is behaving itself.</p>
 
     <h2 data-n="06" id="di">Dependency injection &amp; factory</h2>
-    <p><code>main_window_factory.py</code> is the <strong>composition root</strong>. It builds the collaborators and assembles them into an immutable <code>MainWindowContext</code> before the UI event loop starts. Once built, the wiring is fixed and inspectable.</p>
+    <p><code>main_window_factory.py</code> is the <strong>composition root</strong>. A single <code>create_main_window()</code> function builds everything in one pass — repositories, services, controllers, coordinators, backend, then panel states with explicit collaborators — before attaching the result to the window. There is no deferred wiring phase.</p>
     <div class="diagram-ph">
       <div class="dh"><span class="badge">Diagram 3</span></div>
       <div class="dt">Factory / Composition Root</div>
-      <div class="dd">build_main_window_context() → repositories + services + controllers + coordinators + backend → MainWindowContext → attach_context()</div>
+      <div class="dd">create_main_window() → repos + services + controllers + coordinators + backend → MainWindow shell → on_status → panel states → MainWindowSectionsState → build_sections_ports() → sections → window.initialize_sections()</div>
     </div>
 
     <h2 data-n="07" id="ports">Mediator / ports pattern</h2>
@@ -222,8 +223,8 @@
           <li><code>sections.py</code> has one job: build a Qt layout from port objects.</li>
         </ul></div>
         <div class="solid-col bad"><h4>△ Still imperfect</h4><ul>
-          <li><code>MainWindowSectionsState</code> plays two roles: dependency container and panel-state factory.</li>
-          <li><code>MainWindowFavoritesState</code> has 13 constructor parameters across separate concerns.</li>
+          <li><code>MainWindowFavoritesState</code> has many constructor parameters across separate concerns.</li>
+          <li>Services are Qt-free but some application coordinators still have Qt coupling.</li>
         </ul></div>
       </div>
     </div>
@@ -249,8 +250,8 @@
           <li>Any class satisfying a port can substitute for another — real adapter or test double.</li>
           <li><code>CoreBackend</code> wraps <code>None</code> with a null-object facade returning safe values.</li>
         </ul></div>
-        <div class="solid-col bad"><h4>△ Still imperfect</h4><ul>
-          <li>Null-object pattern inconsistently applied — some coordinators still guard manually.</li>
+        <div class="solid-col good"><h4>✓ Applied well</h4><ul>
+          <li><code>CoreBackend</code> is now a pure null object — <code>_require()</code> deleted, all methods return safe defaults. <code>BackendCapabilities</code> makes the contract explicit.</li>
         </ul></div>
       </div>
     </div>
@@ -276,9 +277,9 @@
           <li><code>main_window_factory.py</code> is the explicit composition root.</li>
           <li>Panel states depend on collaborator protocols, not concrete Qt widgets.</li>
         </ul></div>
-        <div class="solid-col bad"><h4>△ Still imperfect</h4><ul>
-          <li>Some panel states accept <code>MainWindow</code> directly for <code>statusBar()</code> access.</li>
-          <li><code>bind()</code> creates lambda closures over <code>self</code> — implicit lifecycle dependency.</li>
+        <div class="solid-col good"><h4>✓ Applied well</h4><ul>
+          <li>Panel states no longer accept <code>MainWindow</code> — status access injected as <code>on_status: Callable[[str], None]</code>.</li>
+          <li><code>bind()</code> deleted — factory owns all construction; wiring is explicit and inspectable.</li>
         </ul></div>
       </div>
     </div>
@@ -299,61 +300,54 @@
 
     <h2 data-n="11" id="deficiencies">Deficiencies</h2>
     <div class="def">
-      <div class="dc"><span class="dcode">D1</span><span class="dname">MainWindowSectionsState is a partial god object</span></div>
-      <p>Holds 20+ named collaborators as fields, then constructs 6 panel state machines in a ~60-line <code>bind()</code>. That makes it both dependency container and panel-state factory, which is a lot of hats for one class.</p>
-      <div class="rec"><strong>Fix</strong> &nbsp;Promote the factory to construct panel states directly; reduce this class to panel-state references only.</div>
+      <div class="dc"><span class="dcode">D1</span><span class="dname">MainWindowSectionsState was a partial god object <span style="font-family:var(--mono);font-size:11px;color:var(--green);margin-left:8px;">✓ FIXED</span></span></div>
+      <p><code>MainWindowSectionsState</code> is now a plain <code>@dataclass</code> with 6 typed panel-state fields. <code>bind()</code> is deleted. Panel-state construction moved entirely to <code>main_window_factory.py</code>.</p>
     </div>
     <div class="def">
-      <div class="dc"><span class="dcode">D2</span><span class="dname"><code>validate()</code> uses string attribute names</span></div>
-      <p>Iterates a hardcoded list of attribute names with <code>getattr</code>, which means it can silently miss any collaborator not in the list.</p>
-      <div class="rec"><strong>Fix</strong> &nbsp;Generate the list from <code>dataclasses.fields()</code>, filtering by type annotation.</div>
+      <div class="dc"><span class="dcode">D2</span><span class="dname"><code>validate()</code> used string attribute names <span style="font-family:var(--mono);font-size:11px;color:var(--green);margin-left:8px;">✓ FIXED</span></span></div>
+      <p><code>validate()</code> now iterates <code>dataclasses.fields(self)</code> — complete coverage by construction, no hardcoded list.</p>
     </div>
     <div class="def">
-      <div class="dc"><span class="dcode">D3</span><span class="dname">No test markers (<code>pytest.ini</code>)</span></div>
-      <p>Six tests fail without PySide6. There is no marker config, so <code>pytest</code> is not green in headless CI.</p>
-      <div class="rec"><strong>Fix</strong> &nbsp;Add <code>pytest.ini</code> with <code>unit</code>/<code>integration</code> markers; default run executes <code>unit</code> only.</div>
+      <div class="dc"><span class="dcode">D3</span><span class="dname">No test markers <span style="font-family:var(--mono);font-size:11px;color:var(--green);margin-left:8px;">✓ FIXED</span></span></div>
+      <p><code>unit</code> and <code>integration</code> markers configured in <code>pyproject.toml</code>. Default <code>pytest</code> run executes unit tests only, green without PySide6. A startup smoke test catches full-factory wiring regressions.</p>
     </div>
     <div class="def">
-      <div class="dc"><span class="dcode">D4</span><span class="dname">Panel states accept <code>MainWindow</code> directly</span></div>
-      <p>Several states take <code>owner: MainWindow</code> only so they can call <code>statusBar().showMessage</code>.</p>
-      <div class="rec"><strong>Fix</strong> &nbsp;Replace with a narrow <code>show_status: Callable[[str], None]</code> injection.</div>
+      <div class="dc"><span class="dcode">D4</span><span class="dname">Panel states accepted <code>MainWindow</code> directly <span style="font-family:var(--mono);font-size:11px;color:var(--green);margin-left:8px;">✓ FIXED</span></span></div>
+      <p><code>owner: MainWindow</code> removed from all panel state constructors. Status messages go through an injected <code>on_status: Callable[[str], None]</code> extracted from the window's status bar at construction time.</p>
     </div>
     <div class="def">
-      <div class="dc"><span class="dcode">D5</span><span class="dname">Backend null-object inconsistently applied</span></div>
-      <p>Some coordinators guard with <code>if not self._backend.available</code>; others rely on the null object. Both can work, but mixing them makes the contract fuzzier than it needs to be.</p>
-      <div class="rec"><strong>Fix</strong> &nbsp;Commit to one approach and document the contract.</div>
+      <div class="dc"><span class="dcode">D5</span><span class="dname">Backend null-object inconsistently applied <span style="font-family:var(--mono);font-size:11px;color:var(--green);margin-left:8px;">✓ FIXED</span></span></div>
+      <p><code>CoreBackend</code> is now a pure null object — <code>_require()</code> deleted, all operational methods return safe defaults when Rust is absent. <code>BackendCapabilities</code> frozen dataclass exposes explicit capability flags; UI reads capabilities, application/services layers make no availability checks.</p>
     </div>
     <div class="def">
       <div class="dc"><span class="dcode">D6</span><span class="dname">Render timer has no teardown guard</span></div>
       <p>The viewport's <code>QTimer</code> can fire after the widget is destroyed during teardown or a fast close.</p>
-      <div class="rec"><strong>Fix</strong> &nbsp;Stop the timer on the <code>destroyed</code> signal, or check <code>isVisible()</code> before scheduling.</div>
+      <div class="rec"><strong>Fix</strong> &nbsp;Stop the timer on the <code>destroyed</code> signal, or check <code>isVisible()</code> before scheduling. Closely related to the async rendering work (F1).</div>
     </div>
     <div class="def">
-      <div class="dc"><span class="dcode">D7</span><span class="dname"><code>ThemeWorkflowCoordinator</code> has a hidden side effect</span></div>
-      <p><code>apply_theme_name()</code> may persist settings without saying so in its signature. Sneaky side effects are rarely as charming as they think they are.</p>
-      <div class="rec"><strong>Fix</strong> &nbsp;Add an explicit <code>persist: bool = False</code> parameter.</div>
+      <div class="dc"><span class="dcode">D7</span><span class="dname"><code>ThemeWorkflowCoordinator</code> persist side effect <span style="font-family:var(--mono);font-size:11px;color:var(--green);margin-left:8px;">✓ FIXED</span></span></div>
+      <p><code>apply_theme_name()</code> has an explicit <code>persist: bool</code> parameter. Settings writes now go through <code>SettingsRepository.update()</code>, which performs an atomic read-modify-write, eliminating the stale-cache bug where theme changes erased sidebar collapse state.</p>
     </div>
 
     <h2 data-n="12" id="future">Future direction</h2>
     <table>
       <thead><tr><th>Item</th><th>Priority</th><th>Effort</th><th>Description</th></tr></thead>
       <tbody>
-        <tr><td><strong>F1 — Async rendering</strong></td><td><span class="prio high">High</span></td><td>Large</td><td>Move <code>render_fractal()</code> to a <code>QThread</code>; the debounce timer is the right dispatch boundary.</td></tr>
-        <tr><td><strong>F2 — Command / event bus</strong></td><td><span class="prio med">Medium</span></td><td>Medium</td><td>Replace lambda chains in <code>bind()</code> with typed in-process events.</td></tr>
+        <tr><td><strong>F1 — Async rendering</strong></td><td><span class="prio high">High</span></td><td>Large</td><td>Move <code>render_fractal()</code> off the UI thread. Components: <code>RenderRequest</code>, <code>RenderResult</code>, <code>RenderWorker</code>, <code>RenderScheduler</code>, <code>ExportJob</code>. The debounce timer is the right dispatch boundary. Also resolves D6.</td></tr>
+        <tr><td><strong>F2 — Typed event bus</strong></td><td><span class="prio med">Medium</span></td><td>Medium</td><td>Replace the cross-panel lambda closures wired in the factory with typed in-process events. Reduces coupling between panel states.</td></tr>
         <tr><td><strong>F3 — <code>fractal_core.pyi</code> stub</strong></td><td><span class="prio med">Medium</span></td><td>Small</td><td>Type stub so mypy/pyright verify Python calls against Rust exports.</td></tr>
         <tr><td><strong>F4 — Undo / redo</strong></td><td><span class="prio med">Medium</span></td><td>Medium</td><td>Bounded deque of immutable <code>ViewportState</code> snapshots in the controller.</td></tr>
-        <tr><td><strong>F5 — Settings schema migration</strong></td><td><span class="prio med">Medium</span></td><td>Small</td><td>Add <code>migrate(raw, from, to)</code> in <code>persistence.py</code>, called by <code>from_dict()</code>.</td></tr>
+        <tr><td><strong>F5 — Settings schema migration</strong></td><td><span class="prio med">Medium</span></td><td>Small</td><td>Add <code>migrate(raw, from_ver, to_ver)</code> in <code>persistence.py</code>, called by <code>from_dict()</code>.</td></tr>
         <tr><td><strong>F6 — Property-based tests</strong></td><td><span class="prio low">Low</span></td><td>Small</td><td>Hypothesis round-trip tests for the frozen domain types — pure Python, no Qt.</td></tr>
-        <tr><td><strong>F7 — Shrink sections state</strong></td><td><span class="prio med">Medium</span></td><td>Medium</td><td>Move panel-state construction to the factory; thin the container to references.</td></tr>
       </tbody>
     </table>
     <div class="diagram-ph">
       <div class="dh"><span class="badge">Diagram 6 · roadmap</span></div>
       <div class="dt">Architecture Evolution</div>
-      <div class="dd">Now (god object-ish state · sync render · lambda events) → near-term (markers · injected status · field-driven validate · type stub) → medium-term (factory builds states · async render · event bus · undo/redo)</div>
+      <div class="dd">Done (single-pass factory · Qt-free services · pure null-object backend · plain sections container) → next (async render + RenderScheduler · typed event bus) → later (undo/redo · type stub · property tests)</div>
     </div>
 
-    <p style="font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:40px;border-top:1px solid var(--border);padding-top:18px;">Document generated 2026-05-28 · reflects the current post-refactor codebase.</p>
+    <p style="font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:40px;border-top:1px solid var(--border);padding-top:18px;">Updated 2026-05-31 · reflects the post-arch-cleanup codebase.</p>
 
     <div class="page-nav">
       <a href="changelog.html"><div class="dir">← Previous</div><div class="ttl">Changelog</div></a>
