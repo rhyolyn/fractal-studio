@@ -74,19 +74,31 @@
       <div class="cl-block" style="margin-top:26px;">
         <span class="cl-tag added">+ Added</span>
         <ul style="margin-top:0;">
-          <li>Architectural design document with SOLID analysis and Mermaid diagrams</li>
-          <li>Developer README with full setup instructions for UI-only and Rust modes</li>
+          <li>Live documentation site (<code>pages/</code>) with user guide, changelog, and developer architecture pages</li>
+          <li>Independent Codex architectural review with prioritised findings and resolution status</li>
+          <li><code>BackendCapabilities</code> frozen dataclass — explicit capability flags replace scattered <code>backend.available</code> checks</li>
+          <li>Startup smoke tests catch factory wiring regressions without needing a full GUI</li>
+          <li>Favourite thumbnails now 48×48 with aspect-ratio fill</li>
+          <li>Backend profile exposed in Settings dialog — Environment tab shows Rust core details</li>
         </ul>
       </div>
 
       <div class="cl-block">
         <span class="cl-tag changed">~ Changed</span>
         <ul style="margin-top:0;">
-          <li><code>ViewportState</code> formula-specific parameters decomposed into typed sub-structs (<code>JuliaParams</code>, <code>PhoenixParams</code>, <code>NewtonParams</code>, <code>StandardParams</code>) — eliminates invalid parameter combinations</li>
+          <li>UI panels replaced <code>QGroupBox</code> with custom <code>SectionPanel</code> widget — collapsible headers, consistent borders, right sidebar folds away</li>
+          <li>Fractal viewport wrapped in <code>ViewportWell</code> — checkerboard dead space, clean sizing contract</li>
+          <li>Settings writes go through <code>SettingsRepository.update()</code> — single aggregate write path; theme changes no longer erase sidebar collapse state</li>
+          <li><code>ExportService</code>, <code>PaletteWorkflowService</code>, <code>FavoritesController</code> are now Qt-free — services accept typed dataclasses and callbacks, not widget instances; import policy test enforces the boundary</li>
+          <li><code>CoreBackend</code> is now a pure null object — <code>_require()</code> removed; all methods return safe defaults when Rust is absent</li>
+          <li><code>MainWindowSectionsState</code> is now a plain <code>@dataclass</code> container — <code>bind()</code> and <code>attach_context()</code> deleted; factory builds everything in a single construction pass</li>
+          <li>Panel states no longer accept <code>MainWindow</code> directly — status callbacks injected as <code>on_status: Callable[[str], None]</code></li>
+          <li><code>build_sections_ports()</code> accepts <code>MainWindowSectionsState</code> directly — adapters no longer reach into <code>owner._sections_state</code></li>
+          <li><code>validate()</code> uses <code>dataclasses.fields()</code> — complete coverage by construction, no hardcoded string list</li>
+          <li>Rust test suite fixture moved into <code>core/tests/fixtures/</code> — <code>cargo test</code> is reliably green from any working directory</li>
+          <li><code>ViewportState</code> formula-specific parameters decomposed into typed sub-structs (<code>JuliaParams</code>, <code>PhoenixParams</code>, <code>NewtonParams</code>, <code>StandardParams</code>)</li>
           <li><code>MainWindowController</code> split into <code>ExportController</code> and <code>SettingsController</code></li>
           <li>Adapter files consolidated into <code>ui/sections/adapters/</code> subdirectory</li>
-          <li>Panel state machines now receive collaborators via constructor injection</li>
-          <li><code>MainWindowSectionsState.validate()</code> added — catches missing collaborator wiring at startup rather than silently at runtime</li>
         </ul>
       </div>
     </div>

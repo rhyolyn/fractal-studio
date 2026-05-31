@@ -28,6 +28,9 @@
   .sev.high { color:var(--magenta); border-color:var(--magenta); }
   .sev.med-high { color:var(--amber); border-color:var(--amber); }
   .sev.med { color:var(--faint); border-color:var(--border-2); }
+  .status { font-family:var(--mono); font-size:10px; padding:2px 7px; border:1px solid; margin-left:10px; vertical-align:middle; }
+  .status.resolved { color:var(--green); border-color:var(--green); }
+  .status.deferred { color:var(--amber); border-color:var(--amber); }
   @media (max-width:900px){ .rev-meta { gap:18px; } .test-row { flex-direction:column; gap:6px; } }
 </style>
 </head>
@@ -84,11 +87,11 @@
 
     <h2 data-n="01" id="summary">Executive summary</h2>
     <div class="assessment">
-      <span class="icon">MID-REFACTOR</span>
-      <span class="at"><strong>Structurally promising, but currently over-coupled at the UI/application boundary.</strong> The next architectural work should focus less on adding more layers and more on making the existing boundaries real.</span>
+      <span class="icon">RESOLVED</span>
+      <span class="at"><strong>Six of the seven findings from this review have been resolved.</strong> The boundaries are now real: settings have a single aggregate write path, services are Qt-free, the composition root is a single construction pass, and the backend is a consistent null object. The one remaining architectural risk is synchronous rendering on the UI thread (F2).</span>
     </div>
-    <p>Fractal Studio has a promising architectural direction: a Python/PySide6 desktop shell, a Rust rendering core, immutable state objects, a composition root, and an attempted ports/adapters boundary around window sections.</p>
-    <p>The codebase is partway through a refactor. Several names and folders suggest a clean layered architecture, but key dependencies still flow through concrete Qt widgets, private <code>MainWindow</code> state, and synchronous backend calls. The highest-risk issues are settings persistence overwriting sibling fields, rendering/export work blocking the UI thread, and the section ports layer depending on a half-wired <code>MainWindow</code>.</p>
+    <p>This document is an independent, source-code-only review conducted on 2026-05-30. The findings drove a four-plan architecture cleanup (arch-01 through arch-04) completed on 2026-05-31. Status annotations have been added to each finding below.</p>
+    <p><em>Original assessment:</em> The codebase was partway through a refactor. Key dependencies still flowed through concrete Qt widgets, private <code>MainWindow</code> state, and synchronous backend calls. The highest-risk issues were settings persistence overwriting sibling fields, rendering/export work blocking the UI thread, and the section ports layer depending on a half-wired <code>MainWindow</code>.</p>
 
     <h2 data-n="02" id="method">Review method</h2>
     <p>Based on source files under <code>ui/</code> and <code>core/</code> only. Generated docs were not used as inputs.</p>
@@ -96,56 +99,56 @@
       <div class="test-row">
         <span class="test-label">Python</span>
         <code class="test-cmd">cd ui &amp;&amp; python -m pytest -q</code>
-        <span class="test-pass">11 passed, 143 deselected</span>
+        <span class="test-pass">11 passed, 143 deselected <em style="color:var(--faint)">(at review time — now 23 passed)</em></span>
       </div>
       <div class="test-row">
         <span class="test-label">Rust</span>
         <code class="test-cmd">cd core &amp;&amp; cargo test -q</code>
-        <span class="test-fail">23 passed, 1 failed — legacy_palette_parser_reads_existing_repo_map (path not found from core/)</span>
+        <span class="test-pass">24 passed <em style="color:var(--faint)">(fixed by F7 resolution — fixture moved into repo)</em></span>
       </div>
     </div>
 
     <h2 data-n="03" id="findings">Key findings</h2>
 
     <div class="def">
-      <div class="dc"><span class="dcode">F1</span><span class="dname">Settings writes can erase each other<span class="sev high">HIGH</span></span></div>
+      <div class="dc"><span class="dcode">F1</span><span class="dname">Settings writes can erase each other<span class="sev high">HIGH</span><span class="status resolved">RESOLVED</span></span></div>
       <p>Theme persistence writes a fresh <code>UiSettings(theme=name)</code>, losing any existing <code>sidebar_collapsed</code> values. Sidebar collapse persistence reads from <code>MainWindow._current_ui_settings</code>, which is not updated when the theme changes.</p>
       <p>User-visible behavior: changing the theme can erase sidebar state; toggling a sidebar section after a theme change can save the old theme back to disk.</p>
       <div class="rec"><strong>Fix</strong> &nbsp;Centralize settings updates behind one aggregate update path. Each write should load the current full <code>UiSettings</code>, replace exactly one field, and save the whole object: <code>def update_settings(repo, transform: Callable[[UiSettings], UiSettings]) -&gt; UiSettings</code></div>
     </div>
 
     <div class="def">
-      <div class="dc"><span class="dcode">F2</span><span class="dname">Rendering and export block the UI thread<span class="sev high">HIGH</span></span></div>
+      <div class="dc"><span class="dcode">F2</span><span class="dname">Rendering and export block the UI thread<span class="sev high">HIGH</span><span class="status deferred">DEFERRED</span></span></div>
       <p>Viewport rendering calls the Rust backend synchronously from the Qt event path. Export calls <code>QApplication.processEvents()</code> as a workaround. There is no Python-side worker abstraction, no cancellation, no progress reporting, and no render generation token.</p>
       <div class="rec"><strong>Fix</strong> &nbsp;Introduce a render job boundary. Components: <code>RenderRequest</code> (formula, bounds, dimensions, palette), <code>RenderResult</code> (request id, bytes, status), <code>RenderWorker</code> (off-thread Rust calls), <code>RenderScheduler</code> (coalesces viewport requests, drops stale results), <code>ExportJob</code> (long-running workflow with progress and cancellation). The existing debounce timer dispatches work rather than rendering directly.</div>
     </div>
 
     <div class="def">
-      <div class="dc"><span class="dcode">F3</span><span class="dname">Section ports depend on a half-built MainWindow<span class="sev high">HIGH</span></span></div>
+      <div class="dc"><span class="dcode">F3</span><span class="dname">Section ports depend on a half-built MainWindow<span class="sev high">HIGH</span><span class="status resolved">RESOLVED</span></span></div>
       <p>The factory builds section ports from <code>window</code> before context is attached. The base adapter reaches into <code>owner._sections_state</code>, a private object populated later. The composition root is split across <code>main_window_factory.py</code>, <code>MainWindow.attach_context()</code>, and <code>MainWindowSectionsState.bind()</code>.</p>
       <div class="rec"><strong>Fix</strong> &nbsp;Construct repositories, services, controllers, coordinators, backend, and panel states directly in <code>main_window_factory.py</code>. Build section port adapters from explicit panel state objects, not from <code>MainWindow</code>. Keep <code>MainWindow</code> responsible for shell lifecycle only.</div>
     </div>
 
     <div class="def">
-      <div class="dc"><span class="dcode">F4</span><span class="dname">Application and service layers import concrete Qt widgets<span class="sev med-high">MED-HIGH</span></span></div>
+      <div class="dc"><span class="dcode">F4</span><span class="dname">Application and service layers import concrete Qt widgets<span class="sev med-high">MED-HIGH</span><span class="status resolved">RESOLVED</span></span></div>
       <p>The application/service layer accepts or imports <code>QWidget</code>, <code>QFileDialog</code>, <code>QApplication</code>, <code>FractalViewportWidget</code>, <code>FractalParamsPanel</code>, <code>ColorCubeEditor</code>, and <code>PalettePreviewWidget</code>. Export service reads viewport state and palette directly from <code>FractalViewportWidget</code>; palette service owns file dialog calls; favorites controller restores directly into widget instances.</p>
       <div class="rec"><strong>Fix</strong> &nbsp;Push widget reads/writes to the UI edge and pass data transfer objects inward. Better signatures: <code>ExportService.export_render(request: RenderRequest, destination: Path, status: Callable)</code>, <code>PaletteWorkflowService.save_palette(path, control_points, palette_size)</code>.</div>
     </div>
 
     <div class="def">
-      <div class="dc"><span class="dcode">F5</span><span class="dname">Backend availability is a partial facade, not a null object<span class="sev med">MED</span></span></div>
+      <div class="dc"><span class="dcode">F5</span><span class="dname">Backend availability is a partial facade, not a null object<span class="sev med">MED</span><span class="status resolved">RESOLVED</span></span></div>
       <p><code>CoreBackend.profile()</code> returns defaults when Rust is absent, but operational methods call <code>_require()</code> and raise. Other callers check <code>backend.available</code> manually. The contract is inconsistent: is it a null object with safe defaults, or a required dependency that must be guarded before use?</p>
       <div class="rec"><strong>Fix</strong> &nbsp;Split capability description from execution. Introduce <code>BackendCapabilities(can_render, can_generate_palette, ...)</code> and explicit backend protocols (<code>RenderBackend</code>, <code>PaletteBackend</code>). UI enables/disables features from capabilities; execution code depends on protocol types.</div>
     </div>
 
     <div class="def">
-      <div class="dc"><span class="dcode">F6</span><span class="dname">MainWindowSectionsState is state holder and composition sub-root<span class="sev med">MED</span></span></div>
+      <div class="dc"><span class="dcode">F6</span><span class="dname">MainWindowSectionsState is state holder and composition sub-root<span class="sev med">MED</span><span class="status resolved">RESOLVED</span></span></div>
       <p>Stores repositories, services, controllers, coordinators, backend state, section state, and widget references. Its <code>bind()</code> method constructs six panel state machines and wires lambdas between them — at least three distinct jobs for one class. Dependencies become available through broad shared state rather than explicit constructor arguments.</p>
       <div class="rec"><strong>Fix</strong> &nbsp;Reduce to a panel-state container. Construction belongs in the composition root: <code>@dataclass class MainWindowSectionsState: viewport / sidebar / palette / colormap / favorites / export</code></div>
     </div>
 
     <div class="def">
-      <div class="dc"><span class="dcode">F7</span><span class="dname">Rust test suite has a path assumption<span class="sev med">MED</span></span></div>
+      <div class="dc"><span class="dcode">F7</span><span class="dname">Rust test suite has a path assumption<span class="sev med">MED</span><span class="status resolved">RESOLVED</span></span></div>
       <p><code>cargo test -q</code> fails in <code>tests::legacy_palette_parser_reads_existing_repo_map</code> because a referenced path is not found from <code>core/</code>. The Rust core cannot be verified with one standard command.</p>
       <div class="rec"><strong>Fix</strong> &nbsp;Move the fixture into <code>core/tests/fixtures/</code>, or compute the path relative to <code>CARGO_MANIFEST_DIR</code> and skip if the external sample is intentionally optional.</div>
     </div>
@@ -175,9 +178,10 @@
     </table>
 
     <h2 data-n="06" id="bottom-line">Bottom line</h2>
-    <p>The app is not badly architected; it is mid-refactor. The main risk is that architectural names are currently cleaner than the actual dependency flow. The next step is to make the existing boundaries honest: one settings aggregate owner, one render job boundary, one composition root, and application services that operate on data rather than widgets.</p>
+    <p><em>At review time:</em> The app was not badly architected; it was mid-refactor. The main risk was that architectural names were cleaner than the actual dependency flow. The recommended next steps were: one settings aggregate owner, one composition root, application services that operate on data rather than widgets, and a consistent backend contract.</p>
+    <p><em>Current status:</em> All four of those steps are done. The one remaining item from this review — async rendering (F2) — is a separate planned effort. The codebase is no longer mid-refactor.</p>
 
-    <p style="font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:40px;border-top:1px solid var(--border);padding-top:18px;">Codex code-only review · 2026-05-30 · Source files under ui/ and core/ only; generated docs intentionally excluded.</p>
+    <p style="font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:40px;border-top:1px solid var(--border);padding-top:18px;">Codex code-only review · 2026-05-30 · Updated with resolution status 2026-05-31.</p>
 
     <div class="page-nav">
       <a href="architecture.html"><div class="dir">← Previous</div><div class="ttl">Architecture Design</div></a>

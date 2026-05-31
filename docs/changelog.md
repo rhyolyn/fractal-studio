@@ -8,16 +8,28 @@ Notable changes to Fractal Studio, mostly so future me does not have to reconstr
 
 ### Added
 
-- Architectural design document with SOLID analysis and Mermaid diagrams
-- Developer README with full setup instructions for UI-only and Rust modes
+- Live documentation site (`pages/`) with user guide, changelog, and developer architecture pages
+- Independent Codex architectural review with prioritised findings and resolution status
+- `BackendCapabilities` frozen dataclass — explicit capability flags replace scattered `backend.available` checks
+- Startup smoke tests catch factory wiring regressions without needing a full GUI
+- Favourite thumbnails now 48×48 with aspect-ratio fill
+- Backend profile exposed in Settings dialog — Environment tab shows Rust core details
 
 ### Changed
 
-- `ViewportState` formula-specific parameters decomposed into typed sub-structs (`JuliaParams`, `PhoenixParams`, `NewtonParams`, `StandardParams`), eliminating invalid parameter combinations
+- UI panels replaced `QGroupBox` with custom `SectionPanel` widget — collapsible headers, consistent borders, right sidebar folds away
+- Fractal viewport wrapped in `ViewportWell` — checkerboard dead space, clean sizing contract
+- Settings writes go through `SettingsRepository.update()` — single aggregate write path; theme changes no longer erase sidebar collapse state
+- `ExportService`, `PaletteWorkflowService`, `FavoritesController` are now Qt-free — services accept typed dataclasses and callbacks, not widget instances; import policy test enforces the boundary
+- `CoreBackend` is now a pure null object — `_require()` removed; all methods return safe defaults when Rust is absent
+- `MainWindowSectionsState` is now a plain `@dataclass` container — `bind()` and `attach_context()` deleted; factory builds everything in a single construction pass
+- Panel states no longer accept `MainWindow` directly — status callbacks injected as `on_status: Callable[[str], None]`
+- `build_sections_ports()` accepts `MainWindowSectionsState` directly — adapters no longer reach into `owner._sections_state`
+- `validate()` uses `dataclasses.fields()` — complete coverage by construction, no hardcoded string list
+- Rust test suite fixture moved into `core/tests/fixtures/` — `cargo test` is reliably green from any working directory
+- `ViewportState` formula-specific parameters decomposed into typed sub-structs (`JuliaParams`, `PhoenixParams`, `NewtonParams`, `StandardParams`)
 - `MainWindowController` split into `ExportController` and `SettingsController`
 - Adapter files consolidated into `ui/sections/adapters/` subdirectory
-- Panel state machines now receive collaborators via constructor injection
-- `MainWindowSectionsState.validate()` added, catching missing collaborator wiring at startup rather than silently at runtime
 
 ---
 

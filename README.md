@@ -24,11 +24,11 @@ The app brings together several historically separate tools — Mandelbrot/Julia
 
 | Document | Format |
 |----------|--------|
-| [Architectural Design Document](docs/architecture-design-2026-05-28.md) | Markdown + Mermaid |
-| [Architectural Design Document](docs/architecture-design-2026-05-28.html) | Standalone HTML (open in browser) |
-| [Codex Architectural Analysis](docs/codex-architectural-analysis-2026-05-30.md) | Markdown |
+| [Architecture page](pages/architecture.html) | Live site (open in browser) |
+| [Codex Architectural Analysis](pages/codex-analysis.html) | Live site — independent code review with resolution status |
+| [Codex Analysis source](docs/codex-architectural-analysis-2026-05-30.md) | Markdown (GitHub-readable) |
 
-The HTML document includes rendered diagrams and is the easiest way to read the architecture overview as a standalone file. The live documentation site at `pages/` is the canonical developer reference — see the [Developer section](pages/architecture.html) for the architecture page and the [Codex analysis](pages/codex-analysis.html) for an independent code review.
+The `pages/` site is the canonical developer reference. Open any `.html` file directly in a browser — no server needed.
 
 ---
 
@@ -217,9 +217,7 @@ fractal-studio/
 │   ├── codex-analysis.html      Developer — independent Codex code review
 │   └── styles.css               Shared stylesheet
 │
-└── docs/                        Architecture reference documents (GitHub-readable)
-    ├── architecture-design-2026-05-28.md
-    ├── architecture-design-2026-05-28.html
+└── docs/                        Reference documents (GitHub-readable)
     └── codex-architectural-analysis-2026-05-30.md
 ```
 
@@ -244,7 +242,7 @@ Both files use versioned JSON. The app loads gracefully if either file is missin
 
 - **Without the Rust core:** The app launches and is fully navigable. UI-layer work (layout, favorites, palette editor, settings) does not require a Rust build. The `CoreBackend` null object returns safe defaults for all rendering calls.
 
-- **Architecture:** The Python UI follows a layered Ports & Adapters architecture with a Dependency Injection factory root. See the [architecture page](pages/architecture.html) on the live docs site, or open [docs/architecture-design-2026-05-28.html](docs/architecture-design-2026-05-28.html) as a standalone file.
+- **Architecture:** The Python UI follows a layered Ports & Adapters architecture with a single-pass composition root. See the [architecture page](pages/architecture.html) for the full design and SOLID analysis.
 
 - **Import policy test:** `tests/test_import_policy.py` enforces that lower layers (`state.py`, `persistence.py`) do not import from application or UI layers. Run it as part of the unit suite.
 
