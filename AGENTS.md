@@ -140,3 +140,65 @@ If this ordering conflicts with strong local framework conventions, surface the 
 - Letting duplication spread when a real abstraction is already visible.
 - Hiding important tradeoffs instead of surfacing them.
 - Asking unnecessary questions when a recommendation would unblock the work.
+
+## Documentation Site (`pages/`)
+
+The live documentation site is `pages/` — static HTML deployed to GitHub Pages by `.github/workflows/docs.yml` via `peaceiris/actions-gh-pages`. There is no build step; the HTML files are the source. The CI trigger path is `pages/**`.
+
+### Structure
+
+```
+pages/
+├── index.html            Home (hero + feature cards)
+├── getting-started.html  Quick start guide
+├── viewport.html         User guide — fractal viewport
+├── palette-editor.html   User guide — palette editor
+├── export.html           User guide — export
+├── favorites.html        User guide — favorites
+├── settings.html         User guide — settings and themes
+├── changelog.html        Changelog
+├── architecture.html     Developer — architecture design (B+ grade, SOLID analysis)
+├── codex-analysis.html   Developer — independent Codex code review
+└── styles.css            Shared stylesheet (CSS custom properties + component classes)
+```
+
+### Page anatomy
+
+Every docs page shares this three-column layout:
+
+```html
+<header class="nav">…</header>
+<div class="docs">
+  <aside class="docs-sidebar">…</aside>   <!-- left nav, duplicated in every file -->
+  <main class="docs-main">…</main>        <!-- page content -->
+  <aside class="docs-toc">…</aside>       <!-- right in-page TOC (optional) -->
+</div>
+<div class="spectrum-rule"></div>
+<script>/* IntersectionObserver TOC spy — copy verbatim from any existing page */</script>
+```
+
+### Adding a new page
+
+1. Copy the nearest existing page as a starting point.
+2. Set `class="active"` on the correct top-nav link and the correct sidebar link.
+3. Add the new page's sidebar link to **every** existing page's sidebar — the sidebar is duplicated across all files.
+4. Update the preceding page's `page-nav` next link to point to the new page.
+5. Update `README.md`'s project structure listing.
+
+### Shared CSS conventions
+
+Key custom properties defined in `styles.css`:
+
+| Property | Role |
+|---|---|
+| `--mono` | IBM Plex Mono |
+| `--display` | Bricolage Grotesque |
+| `--text`, `--muted`, `--faint` | Text hierarchy |
+| `--green`, `--amber`, `--magenta`, `--cyan` | Semantic accent colors |
+| `--border`, `--border-2`, `--bg-2` | Surfaces and borders |
+
+Reusable component classes for developer pages: `.def` (finding/deficiency cards with `dcode`+`dname`+`rec`), `.prio` (severity badges high/med/low), `.arch-meta` / `.rev-meta` (metadata strips), `.diagram-ph` (diagram placeholders).
+
+### Dead artifacts — do not restore
+
+`mkdocs.yml` and `docs/user-guide/*.md` were MkDocs source files removed when the site was replaced with `pages/`. The CI workflow has never referenced `mkdocs.yml`. The content from `docs/user-guide/` now lives in the corresponding `pages/*.html` files. Do not add these files back.
