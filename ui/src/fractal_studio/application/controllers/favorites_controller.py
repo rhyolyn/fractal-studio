@@ -4,9 +4,7 @@ import datetime
 import uuid
 from collections.abc import Callable
 
-from fractal_studio.editor import ColorCubeEditor, PalettePreviewWidget
 from fractal_studio.state import FavoriteSnapshot, ParamsState, ViewportState
-from fractal_studio.viewport import FractalParamsPanel, FractalViewportWidget
 
 
 class FavoritesController:
@@ -22,7 +20,6 @@ class FavoritesController:
         )
         if base_name not in existing_names:
             return base_name
-
         suffix = 2
         while f"{base_name} ({suffix})" in existing_names:
             suffix += 1
@@ -30,28 +27,29 @@ class FavoritesController:
 
     def build_snapshot(
         self,
-        viewport: FractalViewportWidget,
+        viewport_state: ViewportState,
+        palette: list[tuple[int, int, int]],
+        control_points: list[tuple[int, int, int]],
         aspect_ratio_mode: str,
         name: str,
-        control_points: list[tuple[int, int, int]],
         thumbnail: str,
     ) -> FavoriteSnapshot:
-        state = viewport.to_state()
         return FavoriteSnapshot(
             favorite_id=str(uuid.uuid4()),
             saved_at=datetime.datetime.now().isoformat(timespec="seconds"),
             aspect_ratio_mode=aspect_ratio_mode,
             name=name,
-            viewport=state,
+            viewport=viewport_state,
             control_points=[(int(p[0]), int(p[1]), int(p[2])) for p in control_points],
-            palette=[(int(c[0]), int(c[1]), int(c[2])) for c in viewport.palette()],
+            palette=[(int(c[0]), int(c[1]), int(c[2])) for c in palette],
             thumbnail=thumbnail,
         )
 
     def save_favorite(
         self,
-        viewport: FractalViewportWidget,
-        editor: ColorCubeEditor | None,
+        viewport_state: ViewportState,
+        palette: list[tuple[int, int, int]],
+        control_points: list[tuple[int, int, int]],
         aspect_ratio_mode: str,
         favorites: list[FavoriteSnapshot],
         build_name: Callable[[ViewportState], str],
@@ -61,13 +59,12 @@ class FavoritesController:
         persist: Callable[[], None],
         show_status: Callable[[str], None],
     ) -> FavoriteSnapshot:
-        state = viewport.to_state()
-        control_points = editor.control_points if editor is not None else []
         snapshot = self.build_snapshot(
-            viewport=viewport,
-            aspect_ratio_mode=aspect_ratio_mode,
-            name=build_name(state),
+            viewport_state=viewport_state,
+            palette=palette,
             control_points=control_points,
+            aspect_ratio_mode=aspect_ratio_mode,
+            name=build_name(viewport_state),
             thumbnail=capture_thumbnail(),
         )
         add_favorite(snapshot)
@@ -97,90 +94,64 @@ class FavoritesController:
         row: object,
         favorites: list[FavoriteSnapshot],
         rows: list[object],
-        viewport: FractalViewportWidget | None,
-        params_panel: FractalParamsPanel | None,
-        editor: ColorCubeEditor | None,
-        preview_palette: PalettePreviewWidget | None,
-        apply_aspect_ratio_mode: Callable[[str], None],
+        restore_snapshot: Callable[[FavoriteSnapshot], None],
         select_row: Callable[[object], None],
         show_status: Callable[[str], None],
     ) -> None:
-        if viewport is None or params_panel is None:
-            return
         idx = rows.index(row)
         snapshot = favorites[idx]
-        self.restore_snapshot(
-            snapshot=snapshot,
-            viewport=viewport,
-            params_panel=params_panel,
-            editor=editor,
-            preview_palette=preview_palette,
-            apply_aspect_ratio_mode=apply_aspect_ratio_mode,
-        )
+        restore_snapshot(snapshot)
         select_row(row)
         show_status(f"Restored: {snapshot.name}")
 
     def update_palette_previews(
         self,
         palette: list[tuple[int, int, int]],
-        editor: ColorCubeEditor | None,
+        get_control_points: Callable[[], list[tuple[int, int, int]]],
         backend,
         legacy_palette_size: int,
-        preview_palette: PalettePreviewWidget | None,
-        preview_legacy: PalettePreviewWidget | None,
-        palette_summary,
+        set_preview_palette: Callable[[list[tuple[int, int, int]]], None],
+        set_legacy_palette: Callable[[list[tuple[int, int, int]]], None],
+        set_summary_text: Callable[[str], None],
     ) -> None:
-        if preview_palette is None or preview_legacy is None or palette_summary is None:
-            return
-
-        preview_palette.set_palette(palette)
+        set_preview_palette(palette)
+        control_points = get_control_points()
         legacy_palette = (
-            backend.generate_palette(editor.control_points, legacy_palette_size)
-            if editor is not None
-            and len(editor.control_points) >= 4
-            and backend.available
+            backend.generate_palette(control_points, legacy_palette_size)
+            if len(control_points) >= 4
             else []
         )
-        preview_legacy.set_palette(legacy_palette)
-
+        set_legacy_palette(legacy_palette)
         if palette:
-            palette_summary.setText(
-                f"Generated {len(palette)} internal colors and {len(legacy_palette)} legacy export colors."
+            set_summary_text(
+                f"Generated {len(palette)} internal colors and "
+                f"{len(legacy_palette)} legacy export colors."
             )
         else:
-            palette_summary.setText("Add four control points to generate a palette.")
+            set_summary_text("Add four control points to generate a palette.")
 
     def restore_snapshot(
         self,
         snapshot: FavoriteSnapshot,
-        viewport: FractalViewportWidget,
-        params_panel: FractalParamsPanel,
-        editor: ColorCubeEditor | None,
-        preview_palette: PalettePreviewWidget | None,
+        apply_viewport_state: Callable[[ViewportState, bool], None],
+        apply_control_points: Callable[[list[tuple[int, int, int]]], None],
+        apply_palette: Callable[[list[tuple[int, int, int]]], None],
+        apply_params: Callable[[ParamsState], None],
+        set_cycle_active: Callable[[bool], None],
         apply_aspect_ratio_mode: Callable[[str], None],
     ) -> None:
-        viewport.apply_state(snapshot.viewport, rerender=False)
+        apply_viewport_state(snapshot.viewport, False)
         apply_aspect_ratio_mode(snapshot.aspect_ratio_mode)
 
-        restored_points = snapshot.control_points
-        if editor is not None and restored_points:
-            # Restore editor state first; this also updates preview/viewport palette.
-            editor.set_control_points(restored_points)
+        if snapshot.control_points:
+            apply_control_points(snapshot.control_points)
 
-        if snapshot.palette and len(restored_points) < 4:
-            # If control points are insufficient to regenerate a palette, restore exact saved colors.
-            viewport.set_palette(snapshot.palette)
-            if preview_palette is not None:
-                preview_palette.set_palette(snapshot.palette)
+        if snapshot.palette and len(snapshot.control_points) < 4:
+            apply_palette(snapshot.palette)
 
-        self.sync_params_panel(snapshot, params_panel)
-        viewport.set_cycle_active(False)
-        viewport.apply_state(snapshot.viewport, rerender=True)
-
-    def sync_params_panel(
-        self, snapshot: FavoriteSnapshot, params_panel: FractalParamsPanel
-    ) -> None:
         params_state = ParamsState.from_viewport_state(
             snapshot.viewport, cycle_active=False
         )
-        params_panel.apply_state(params_state)
+        apply_params(params_state)
+        set_cycle_active(False)
+        apply_viewport_state(snapshot.viewport, True)

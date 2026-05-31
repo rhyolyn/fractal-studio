@@ -32,10 +32,18 @@ class PalettePreviewCoordinator:
     ) -> None:
         self._favorites_controller.update_palette_previews(
             palette=palette,
-            editor=editor,
+            get_control_points=lambda: (
+                list(editor.control_points) if editor is not None else []
+            ),
             backend=backend,
             legacy_palette_size=legacy_palette_size,
-            preview_palette=preview_palette,
-            preview_legacy=preview_legacy,
-            palette_summary=palette_summary,
+            set_preview_palette=lambda pal: (
+                preview_palette.set_palette(pal) if preview_palette is not None else None
+            ),
+            set_legacy_palette=lambda pal: (
+                preview_legacy.set_palette(pal) if preview_legacy is not None else None
+            ),
+            set_summary_text=lambda txt: (
+                palette_summary.setText(txt) if palette_summary is not None else None
+            ),
         )

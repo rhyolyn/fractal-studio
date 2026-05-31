@@ -5,6 +5,7 @@ from collections.abc import Callable
 from PySide6.QtWidgets import QComboBox, QSpinBox, QWidget
 
 from fractal_studio.services.export_service import ExportService
+from fractal_studio.state import ViewportState
 from fractal_studio.viewport import FractalViewportWidget
 
 
@@ -114,13 +115,15 @@ class ExportController:
 
     def export_render(
         self,
-        parent: QWidget,
-        viewport: FractalViewportWidget | None,
+        viewport_state: ViewportState | None,
+        palette: list[tuple[int, int, int]],
         width: int,
         height: int,
         set_status: Callable[[str], None],
-    ) -> bool:
+    ) -> bytes | None:
+        if viewport_state is None:
+            return None
         return self._export_service.export_render(
-            parent, viewport, width, height, set_status
+            viewport_state, palette, width, height, set_status
         )
 

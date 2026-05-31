@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Callable
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QComboBox, QLabel, QSpinBox, QVBoxLayout, QWidget
+from PySide6.QtGui import QImage
+from PySide6.QtWidgets import QComboBox, QFileDialog, QLabel, QSpinBox, QVBoxLayout, QWidget
 
 from fractal_studio.editor import ColorCubeEditor, PalettePreviewWidget
 from fractal_studio.state import FavoriteSnapshot
@@ -30,12 +32,8 @@ if TYPE_CHECKING:
     from fractal_studio.application.coordinators.favorites_panel_coordinator import (
         FavoritesPanelCoordinator,
     )
-    from fractal_studio.main_window import MainWindow
     from fractal_studio.application.controllers.export_controller import (
         ExportController,
-    )
-    from fractal_studio.ui.sections.state import (
-        MainWindowSectionsState,
     )
     from fractal_studio.application.coordinators.palette_panel_coordinator import (
         PalettePanelCoordinator,
@@ -53,13 +51,11 @@ if TYPE_CHECKING:
 class MainWindowViewportState:
     def __init__(
         self,
-        sections_state: MainWindowSectionsState,
         *,
         controller: ExportController | None = None,
         export_panel: ExportPanelCoordinator | None = None,
         refresh_export_presets: Callable[[], None] | None = None,
     ) -> None:
-        self._sections_state = sections_state
         self._controller: ExportController | None = controller
         self._export_panel: ExportPanelCoordinator | None = export_panel
         self._refresh_export_presets: Callable[[], None] | None = refresh_export_presets
@@ -102,7 +98,6 @@ class MainWindowViewportState:
 class MainWindowSidebarState:
     def __init__(
         self,
-        sections_state: MainWindowSectionsState,
         *,
         sidebar_wiring: SidebarWiringCoordinator | None = None,
         viewport_getter: Callable[[], FractalViewportWidget | None] | None = None,
@@ -110,7 +105,6 @@ class MainWindowSidebarState:
         backend_loaded_getter: Callable[[], bool] | None = None,
         backend_available_getter: Callable[[], bool] | None = None,
     ) -> None:
-        self._sections_state = sections_state
         self._sidebar_wiring: SidebarWiringCoordinator | None = sidebar_wiring
         self._viewport_getter: Callable[[], FractalViewportWidget | None] | None = (
             viewport_getter
@@ -152,14 +146,12 @@ class MainWindowSidebarState:
 class MainWindowPaletteState:
     def __init__(
         self,
-        sections_state: MainWindowSectionsState,
         *,
         palette_preview: PalettePreviewCoordinator | None = None,
         backend: CoreBackend | None = None,
         legacy_palette_size_getter: Callable[[], int | None] | None = None,
         editor_getter: Callable[[], ColorCubeEditor | None] | None = None,
     ) -> None:
-        self._sections_state = sections_state
         self._palette_preview: PalettePreviewCoordinator | None = palette_preview
         self._backend: CoreBackend | None = backend
         self._legacy_palette_size_getter: Callable[[], int | None] | None = (
@@ -215,17 +207,15 @@ class MainWindowPaletteState:
 class MainWindowColormapState:
     def __init__(
         self,
-        sections_state: MainWindowSectionsState,
         *,
         palette_panel: PalettePanelCoordinator | None = None,
         backend: CoreBackend | None = None,
-        owner: MainWindow | None = None,
+        on_status: Callable[[str], None] | None = None,
         legacy_palette_size_getter: Callable[[], int | None] | None = None,
     ) -> None:
-        self._sections_state = sections_state
         self._palette_panel: PalettePanelCoordinator | None = palette_panel
         self._backend: CoreBackend | None = backend
-        self._owner: MainWindow | None = owner
+        self._on_status: Callable[[str], None] | None = on_status
         self._legacy_palette_size_getter: Callable[[], int | None] | None = (
             legacy_palette_size_getter
         )
@@ -235,45 +225,57 @@ class MainWindowColormapState:
         self.editor = editor
 
     def load_palette_json(self) -> None:
-        if self._palette_panel is None or self._backend is None or self._owner is None:
+        if self._palette_panel is None or self._backend is None:
             return
+        path_str, _ = QFileDialog.getOpenFileName(
+            None,
+            "Load palette",
+            str(Path.cwd()),
+            "Fractal Studio Palette (*.json)",
+        )
+        path = Path(path_str) if path_str else None
         self._palette_panel.load_palette_json(
-            parent=self._owner,
+            path=path,
             editor=self.editor,
             backend=self._backend,
-            set_status=self._owner.statusBar().showMessage,
+            set_status=self._on_status if self._on_status is not None else lambda _: None,
         )
 
     def export_legacy_map(self) -> None:
         if (
             self._palette_panel is None
             or self._backend is None
-            or self._owner is None
             or self._legacy_palette_size_getter is None
         ):
             return
         legacy_palette_size = self._legacy_palette_size_getter()
         if legacy_palette_size is None:
             return
+        path_str, _ = QFileDialog.getSaveFileName(
+            None,
+            "Export legacy palette",
+            str(Path.cwd() / "palette.map"),
+            "Legacy Palette (*.map)",
+        )
+        path = Path(path_str) if path_str else None
         self._palette_panel.export_legacy_map(
-            parent=self._owner,
+            path=path,
             editor=self.editor,
             backend=self._backend,
             legacy_palette_size=legacy_palette_size,
-            set_status=self._owner.statusBar().showMessage,
+            set_status=self._on_status if self._on_status is not None else lambda _: None,
         )
 
 
 class MainWindowFavoritesState:
     def __init__(
         self,
-        sections_state: MainWindowSectionsState,
         *,
         favorites_controller: FavoritesController | None = None,
         favorites_panel: FavoritesPanelCoordinator | None = None,
         favorites_workflow: FavoritesWorkflowCoordinator | None = None,
         favorites_repo: FavoritesRepository | None = None,
-        owner: MainWindow | None = None,
+        on_status: Callable[[str], None] | None = None,
         hover_panel_getter: Callable[[], QLabel | None] | None = None,
         viewport_getter: Callable[[], FractalViewportWidget | None] | None = None,
         params_panel_getter: Callable[[], FractalParamsPanel | None] | None = None,
@@ -284,14 +286,13 @@ class MainWindowFavoritesState:
         apply_aspect_ratio_mode: Callable[[str, bool], str] | None = None,
         aspect_ratio_mode_getter: Callable[[], str] | None = None,
     ) -> None:
-        self._sections_state = sections_state
         self._favorites_controller: FavoritesController | None = favorites_controller
         self._favorites_panel: FavoritesPanelCoordinator | None = favorites_panel
         self._favorites_workflow: FavoritesWorkflowCoordinator | None = (
             favorites_workflow
         )
         self._favorites_repo: FavoritesRepository | None = favorites_repo
-        self._owner: MainWindow | None = owner
+        self._on_status: Callable[[str], None] | None = on_status
         self._hover_panel_getter: Callable[[], QLabel | None] | None = (
             hover_panel_getter
         )
@@ -338,13 +339,12 @@ class MainWindowFavoritesState:
         if (
             self._favorites_panel is None
             or self.fav_scroll_layout is None
-            or self._owner is None
             or hover_panel is None
         ):
             return
         row = self._favorites_panel.build_row_with_callbacks(
             favorite=favorite.to_dict(),
-            owner=self._owner,
+            owner=None,
             hover_panel=hover_panel,
             on_select_row=lambda mw, row: self.select_favorite_row(row),
             on_activate_row=lambda mw, row: self.activate_favorite_row(row),
@@ -377,7 +377,6 @@ class MainWindowFavoritesState:
             self._favorites_workflow is None
             or self._favorites_controller is None
             or self._favorites_repo is None
-            or self._owner is None
             or self._viewport_getter is None
             or self._editor_getter is None
             or self._aspect_ratio_mode_getter is None
@@ -405,7 +404,7 @@ class MainWindowFavoritesState:
                 self.favorites,
                 self._favorites_repo.save,
             ),
-            show_status=self._owner.statusBar().showMessage,
+            show_status=self._on_status if self._on_status is not None else lambda _: None,
         )
 
     def select_favorite_row(self, row: FavoriteThumbnailRow) -> None:
@@ -416,7 +415,6 @@ class MainWindowFavoritesState:
     def activate_favorite_row(self, row: FavoriteThumbnailRow) -> None:
         if (
             self._favorites_workflow is None
-            or self._owner is None
             or self._viewport_getter is None
             or self._params_panel_getter is None
             or self._editor_getter is None
@@ -434,25 +432,23 @@ class MainWindowFavoritesState:
             preview_palette=self._preview_palette_getter(),
             apply_aspect_ratio_mode=self._apply_aspect_ratio_mode,
             select_row=self.select_favorite_row,
-            show_status=self._owner.statusBar().showMessage,
+            show_status=self._on_status if self._on_status is not None else lambda _: None,
         )
 
 
 class MainWindowExportState:
     def __init__(
         self,
-        sections_state: MainWindowSectionsState,
         *,
         export_panel: ExportPanelCoordinator | None = None,
         controller: ExportController | None = None,
-        owner: MainWindow | None = None,
+        on_status: Callable[[str], None] | None = None,
         viewport_getter: Callable[[], FractalViewportWidget | None] | None = None,
         aspect_ratio_mode_getter: Callable[[], str] | None = None,
     ) -> None:
-        self._sections_state = sections_state
         self._export_panel: ExportPanelCoordinator | None = export_panel
         self._controller: ExportController | None = controller
-        self._owner: MainWindow | None = owner
+        self._on_status: Callable[[str], None] | None = on_status
         self._viewport_getter: Callable[[], FractalViewportWidget | None] | None = (
             viewport_getter
         )
@@ -465,6 +461,12 @@ class MainWindowExportState:
         self.custom_height: int = 1080
         self.custom_width_box: QSpinBox | None = None
         self.custom_height_box: QSpinBox | None = None
+
+    def set_viewport_getter(self, getter: Callable[[], FractalViewportWidget | None]) -> None:
+        self._viewport_getter = getter
+
+    def set_aspect_ratio_mode_getter(self, getter: Callable[[], str]) -> None:
+        self._aspect_ratio_mode_getter = getter
 
     def refresh_export_presets(self) -> None:
         if self._export_panel is None or self._aspect_ratio_mode_getter is None:
@@ -508,10 +510,13 @@ class MainWindowExportState:
         if (
             self._export_panel is None
             or self._controller is None
-            or self._owner is None
             or self._viewport_getter is None
         ):
             return
+        viewport = self._viewport_getter()
+        viewport_state = viewport.to_state() if viewport is not None else None
+        palette = list(viewport.palette()) if viewport is not None else []
+        on_status = self._on_status if self._on_status is not None else lambda _: None
         self._export_panel.on_export_clicked(
             export_presets=self.export_presets,
             export_combo=self.export_combo,
@@ -521,11 +526,35 @@ class MainWindowExportState:
                 setattr(self, "custom_width", width)
                 or setattr(self, "custom_height", height)
             ),
-            export_callback=lambda width, height: self._controller.export_render(
-                self._owner,
-                self._viewport_getter(),
-                width,
-                height,
-                self._owner.statusBar().showMessage,
+            export_callback=lambda width, height: self._do_export(
+                viewport_state, palette, width, height, on_status
             ),
         )
+
+    def _do_export(
+        self,
+        viewport_state: object,
+        palette: list[tuple[int, int, int]],
+        width: int,
+        height: int,
+        on_status: Callable[[str], None],
+    ) -> None:
+        if self._controller is None:
+            return
+
+        path_str, _ = QFileDialog.getSaveFileName(
+            None,
+            f"Export {width}×{height} render",
+            str(Path.cwd() / f"fractal_{width}x{height}.png"),
+            "PNG Image (*.png)",
+        )
+        if not path_str:
+            return
+
+        raw = self._controller.export_render(viewport_state, palette, width, height, on_status)
+        if raw is None:
+            return
+
+        image = QImage(raw, width, height, width * 4, QImage.Format.Format_RGBA8888).copy()
+        image.save(path_str)
+        on_status(f"Saved {width}×{height} render to {path_str}")

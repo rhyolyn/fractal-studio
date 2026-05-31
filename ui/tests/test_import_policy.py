@@ -96,3 +96,36 @@ def test_no_legacy_root_shim_imports_in_source_or_tests() -> None:
         "Legacy root-shim imports are disallowed. Use canonical package paths instead.\n"
         + "\n".join(all_violations)
     )
+
+
+_SERVICES_ROOTS = ("services",)
+_QT_IMPORT_PATTERN = re.compile(
+    r"^\s*(?:from|import)\s+PySide6\b"
+)
+_WIDGET_IMPORT_PATTERN = re.compile(
+    r"^\s*from\s+fractal_studio\.ui\.widgets\b"
+)
+
+
+@pytest.mark.unit
+def test_no_qt_imports_in_services() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    ui_root = repo_root / "ui"
+    src_root = ui_root / "src" / "fractal_studio"
+
+    violations: list[str] = []
+    for layer in _SERVICES_ROOTS:
+        layer_root = src_root / layer
+        if not layer_root.exists():
+            continue
+        for file_path in _iter_python_files(layer_root):
+            lines = file_path.read_text(encoding="utf-8").splitlines()
+            for line_no, line in enumerate(lines, start=1):
+                if _QT_IMPORT_PATTERN.match(line) or _WIDGET_IMPORT_PATTERN.match(line):
+                    rel = file_path.relative_to(repo_root)
+                    violations.append(f"{rel}:{line_no}: {line.strip()}")
+
+    assert not violations, (
+        "PySide6 and ui.widgets imports are forbidden in services/.\n"
+        + "\n".join(violations)
+    )

@@ -3028,37 +3028,27 @@ class TestFavoritesController(unittest.TestCase):
         from fractal_studio.application.controllers.favorites_controller import (
             FavoritesController,
         )
-        from fractal_studio.state import ViewportState
-
-        class ViewportStub:
-            def __init__(self) -> None:
-                self._palette = [(9, 8, 7)]
-
-            def to_state(self) -> ViewportState:
-                from fractal_studio.state import StandardParams
-                return ViewportState(
-                    formula="Mandelbrot",
-                    center_x=-0.75,
-                    center_y=0.1,
-                    scale=0.003,
-                    max_iterations=256,
-                    is_julia=False,
-                    formula_params=StandardParams(),
-                    power=2,
-                    coloring_mode=default_profile().coloring_model,
-                    palette_offset=0.0,
-                )
-
-            def palette(self) -> list[tuple[int, int, int]]:
-                return list(self._palette)
+        from fractal_studio.state import StandardParams, ViewportState
 
         controller = FavoritesController()
-        viewport = ViewportStub()
         calls: list[object] = []
+        viewport_state = ViewportState(
+            formula="Mandelbrot",
+            center_x=-0.75,
+            center_y=0.1,
+            scale=0.003,
+            max_iterations=256,
+            is_julia=False,
+            formula_params=StandardParams(),
+            power=2,
+            coloring_mode=default_profile().coloring_model,
+            palette_offset=0.0,
+        )
 
         snapshot = controller.save_favorite(
-            viewport=viewport,
-            editor=None,
+            viewport_state=viewport_state,
+            palette=[(9, 8, 7)],
+            control_points=[],
             aspect_ratio_mode="square",
             favorites=[],
             build_name=lambda state: f"{state.formula} saved",
@@ -3082,27 +3072,6 @@ class TestFavoritesController(unittest.TestCase):
         )
         from fractal_studio.state import FavoriteSnapshot, ViewportState
 
-        class ViewportStub:
-            def __init__(self) -> None:
-                self.applied: list[tuple[bool, str]] = []
-                self.palette: list[tuple[int, int, int]] = []
-
-            def apply_state(self, state, rerender: bool = True) -> None:
-                self.applied.append((rerender, state.formula))
-
-            def set_cycle_active(self, active: bool) -> None:
-                self.applied.append((active, "cycle"))
-
-            def set_palette(self, palette) -> None:
-                self.palette = list(palette)
-
-        class ParamsStub:
-            def __init__(self) -> None:
-                self.applied = []
-
-            def apply_state(self, state) -> None:
-                self.applied.append(state.formula)
-
         class EditorStub:
             def __init__(self) -> None:
                 self.points = []
@@ -3119,8 +3088,6 @@ class TestFavoritesController(unittest.TestCase):
 
         from fractal_studio.state import StandardParams
         controller = FavoritesController()
-        viewport = ViewportStub()
-        params_panel = ParamsStub()
         editor = EditorStub()
         preview_palette = PreviewStub()
         state = ViewportState(
@@ -3151,15 +3118,22 @@ class TestFavoritesController(unittest.TestCase):
         messages: list[str] = []
         aspect_modes: list[str] = []
 
+        def restore_snapshot(snap: FavoriteSnapshot) -> None:
+            controller.restore_snapshot(
+                snapshot=snap,
+                apply_viewport_state=lambda state, rerender: None,
+                apply_control_points=lambda pts: editor.set_control_points(pts),
+                apply_palette=lambda pal: preview_palette.set_palette(pal),
+                apply_params=lambda params: None,
+                set_cycle_active=lambda active: None,
+                apply_aspect_ratio_mode=aspect_modes.append,
+            )
+
         controller.load_favorite_row(
             row=rows[0],
             favorites=favorites,
             rows=rows,
-            viewport=viewport,
-            params_panel=params_panel,
-            editor=editor,
-            preview_palette=preview_palette,
-            apply_aspect_ratio_mode=aspect_modes.append,
+            restore_snapshot=restore_snapshot,
             select_row=selected.append,
             show_status=messages.append,
         )
@@ -3176,55 +3150,39 @@ class TestFavoritesController(unittest.TestCase):
             FavoritesController,
         )
 
-        class EditorStub:
-            def __init__(self) -> None:
-                self.control_points = [
-                    (10, 20, 30),
-                    (40, 50, 60),
-                    (70, 80, 90),
-                    (100, 110, 120),
-                ]
-
-        class PaletteStub:
-            def __init__(self) -> None:
-                self.palette = []
-
-            def set_palette(self, palette) -> None:
-                self.palette = list(palette)
-
-        class LabelStub:
-            def __init__(self) -> None:
-                self.text = ""
-
-            def setText(self, text: str) -> None:
-                self.text = text
+        control_points = [
+            (10, 20, 30),
+            (40, 50, 60),
+            (70, 80, 90),
+            (100, 110, 120),
+        ]
 
         class BackendStub:
             available = True
 
-            def generate_palette(self, control_points, palette_size):
-                return list(control_points[:palette_size])
+            def generate_palette(self, pts, palette_size):
+                return list(pts[:palette_size])
 
         controller = FavoritesController()
-        palette_preview = PaletteStub()
-        legacy_preview = PaletteStub()
-        summary = LabelStub()
-        editor = EditorStub()
+        preview_palette_result: list[list] = [[]]
+        legacy_palette_result: list[list] = [[]]
+        summary_texts: list[str] = []
         backend = BackendStub()
 
         controller.update_palette_previews(
             palette=[(1, 2, 3), (4, 5, 6)],
-            editor=editor,
+            get_control_points=lambda: control_points,
             backend=backend,
             legacy_palette_size=default_profile().legacy_palette_size,
-            preview_palette=palette_preview,
-            preview_legacy=legacy_preview,
-            palette_summary=summary,
+            set_preview_palette=lambda pal: preview_palette_result.__setitem__(0, list(pal)),
+            set_legacy_palette=lambda pal: legacy_palette_result.__setitem__(0, list(pal)),
+            set_summary_text=summary_texts.append,
         )
 
-        self.assertEqual(palette_preview.palette, [(1, 2, 3), (4, 5, 6)])
-        self.assertEqual(legacy_preview.palette, editor.control_points)
-        self.assertIn("Generated 2 internal colors", summary.text)
+        self.assertEqual(preview_palette_result[0], [(1, 2, 3), (4, 5, 6)])
+        self.assertEqual(legacy_palette_result[0], control_points)
+        self.assertTrue(summary_texts)
+        self.assertIn("Generated 2 internal colors", summary_texts[0])
 
 
 @pytest.mark.integration
