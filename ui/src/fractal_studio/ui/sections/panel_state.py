@@ -567,12 +567,14 @@ class MainWindowExportState:
             return
 
         def on_done(raw: bytes | None) -> None:
-            if raw:
-                image = QImage(
-                    raw, width, height, width * 4, QImage.Format.Format_RGBA8888
-                ).copy()
-                image.save(path_str)
-                on_status(f"Saved {width}×{height} render to {path_str}")
+            if not raw:
+                on_status("Export failed — backend not available.")
+                return
+            image = QImage(
+                raw, width, height, width * 4, QImage.Format.Format_RGBA8888
+            ).copy()
+            image.save(path_str)
+            on_status(f"Saved {width}×{height} render to {path_str}")
 
         self._controller.start_export(
             viewport_state=viewport_state,
