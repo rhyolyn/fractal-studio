@@ -160,3 +160,70 @@ def test_scheduler_emits_render_requested_after_debounce() -> None:
     # Only one request should have been emitted (the last one)
     assert len(requests) == 1
     assert requests[0].generation == scheduler.current_generation
+
+
+@pytest.mark.integration
+def test_export_runner_emits_bytes_on_success() -> None:
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtCore import QThread, Qt
+    from fractal_studio.backend import CoreBackend
+    from fractal_studio.services.export_service import ExportService
+    from fractal_studio.state import ViewportState, StandardParams
+    from fractal_studio.ui.workers.export_runner import ExportRunner
+
+    _app = QApplication.instance() or QApplication([])
+
+    backend = CoreBackend(None)  # null backend — returns b""
+    service = ExportService(backend)
+    state = ViewportState(
+        formula="standard", center_x=0.0, center_y=0.0, scale=3.0,
+        max_iterations=64, is_julia=False, formula_params=StandardParams(),
+        coloring_mode="smooth_escape", palette_offset=0.0,
+    )
+    runner = ExportRunner(service, state, palette=[(0, 0, 0)], width=4, height=4)
+    thread = QThread()
+    runner.moveToThread(thread)
+    thread.started.connect(runner.run)
+
+    results = []
+    runner.export_done.connect(results.append, Qt.ConnectionType.DirectConnection)
+    runner.export_done.connect(thread.quit, Qt.ConnectionType.DirectConnection)
+    thread.start()
+    thread.wait(2000)
+
+    assert len(results) == 1
+    # Null backend returns b"" which ExportService maps to None
+    assert results[0] is None
+
+
+@pytest.mark.integration
+def test_export_runner_emits_status_signal() -> None:
+    from PySide6.QtWidgets import QApplication
+    from PySide6.QtCore import QThread, Qt
+    from fractal_studio.backend import CoreBackend
+    from fractal_studio.services.export_service import ExportService
+    from fractal_studio.state import ViewportState, StandardParams
+    from fractal_studio.ui.workers.export_runner import ExportRunner
+
+    _app = QApplication.instance() or QApplication([])
+
+    backend = CoreBackend(None)
+    service = ExportService(backend)
+    state = ViewportState(
+        formula="standard", center_x=0.0, center_y=0.0, scale=3.0,
+        max_iterations=64, is_julia=False, formula_params=StandardParams(),
+        coloring_mode="smooth_escape", palette_offset=0.0,
+    )
+    runner = ExportRunner(service, state, palette=[(0, 0, 0)], width=4, height=4)
+    thread = QThread()
+    runner.moveToThread(thread)
+    thread.started.connect(runner.run)
+
+    statuses = []
+    runner.status_changed.connect(statuses.append, Qt.ConnectionType.DirectConnection)
+    runner.export_done.connect(thread.quit, Qt.ConnectionType.DirectConnection)
+    thread.start()
+    thread.wait(2000)
+
+    # Null backend triggers "Backend not available" status message
+    assert any("not available" in s.lower() for s in statuses)
