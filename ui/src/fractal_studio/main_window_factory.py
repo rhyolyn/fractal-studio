@@ -205,11 +205,12 @@ def create_main_window():
 
     def _stop_render_thread() -> None:
         render_thread.quit()
-        render_thread.wait()
+        render_thread.wait(2000)
 
     app = QApplication.instance()
     if app is not None:
         app.aboutToQuit.connect(_stop_render_thread)
-    atexit.register(_stop_render_thread)
+    else:
+        atexit.register(_stop_render_thread)
 
     return window
