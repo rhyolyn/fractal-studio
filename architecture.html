@@ -106,11 +106,11 @@
 
     <h2 data-n="01" id="summary">Executive summary</h2>
     <div class="grade">
-      <span class="letter">A−</span>
-      <span class="gt"><strong>Boundaries are real now.</strong> The major structural debts — god-object sections state, deferred construction wiring, inconsistent backend contract, Qt coupling in services — have all been resolved. The one remaining architectural risk is synchronous rendering on the UI thread.</span>
+      <span class="letter">A</span>
+      <span class="gt"><strong>Boundaries are real and rendering is async.</strong> All major structural debts are resolved and rendering no longer blocks the UI thread — viewport renders and PNG exports run on a background <code>QThread</code> via <code>RenderWorker</code> and <code>ExportRunner</code>.</span>
     </div>
     <p>Fractal Studio is a <strong>PySide6/Qt</strong> desktop application for interactive fractal rendering and palette editing. It wraps a <strong>Rust rendering engine</strong> (<code>fractal_core</code>) with a lazy-loading Python bridge and presents a seven-panel workspace: fractal viewport, palette editor, colormap editor, parameter controls, export controls, favorites gallery, and sidebar.</p>
-    <p>Two rounds of layering work have cleaned the architecture substantially. The first round split <code>MainWindowController</code>, reorganised adapters, introduced the discriminated union for formula parameters, and added constructor injection for panel states. The second round made all four key boundaries real: a single aggregate settings write path, Qt-free services and application controllers, a single-pass composition root replacing the old deferred <code>bind()</code>/<code>attach_context()</code> wiring, and a consistent <code>CoreBackend</code> null-object contract with an explicit <code>BackendCapabilities</code> type.</p>
+    <p>Three rounds of layering work have cleaned the architecture substantially. The first round split <code>MainWindowController</code>, reorganised adapters, introduced the discriminated union for formula parameters, and added constructor injection for panel states. The second round made all four key boundaries real: a single aggregate settings write path, Qt-free services and application controllers, a single-pass composition root, and a consistent <code>CoreBackend</code> null-object contract with an explicit <code>BackendCapabilities</code> type. The third round moved rendering off the UI thread: <code>RenderWorker</code> + <code>RenderScheduler</code> handle viewport renders via a 50 ms debounce and generation-counter stale-drop; <code>ExportRunner</code> handles PNG exports without blocking the event loop.</p>
 
     <h2 data-n="02" id="stack">Technology stack</h2>
     <table>
@@ -159,7 +159,11 @@
     ├── controllers/            <span class="cm">Widget-level event logic</span>
     ├── dialogs/                <span class="cm">Modal dialogs</span>
     ├── presenters/             <span class="cm">CSS/tooltip formatting</span>
-    └── widgets/                <span class="cm">Custom QWidget subclasses</span></code></pre>
+    ├── widgets/                <span class="cm">Custom QWidget subclasses</span>
+    └── workers/                <span class="cm">Background QThread workers</span>
+        ├── render_worker.py    <span class="cm">RenderWorker + RenderResult</span>
+        ├── render_scheduler.py <span class="cm">RenderScheduler (debounce + stale-drop)</span>
+        └── export_runner.py    <span class="cm">ExportRunner (single-shot export job)</span></code></pre>
 
     <h2 data-n="04" id="layers">Layered architecture</h2>
     <p>The architecture follows a strict unidirectional dependency rule enforced by <code>test_import_policy.py</code>: lower layers do not know about higher layers.</p>
@@ -320,9 +324,8 @@
       <p><code>CoreBackend</code> is now a pure null object — <code>_require()</code> deleted, all operational methods return safe defaults when Rust is absent. <code>BackendCapabilities</code> frozen dataclass exposes explicit capability flags; UI reads capabilities, application/services layers make no availability checks.</p>
     </div>
     <div class="def">
-      <div class="dc"><span class="dcode">D6</span><span class="dname">Render timer has no teardown guard</span></div>
-      <p>The viewport's <code>QTimer</code> can fire after the widget is destroyed during teardown or a fast close.</p>
-      <div class="rec"><strong>Fix</strong> &nbsp;Stop the timer on the <code>destroyed</code> signal, or check <code>isVisible()</code> before scheduling. Closely related to the async rendering work (F1).</div>
+      <div class="dc"><span class="dcode">D6</span><span class="dname">Render timer has no teardown guard <span style="font-family:var(--mono);font-size:11px;color:var(--green);margin-left:8px;">✓ FIXED</span></span></div>
+      <p>The async rendering work resolved this. The viewport's <code>QTimer</code> now only calls <code>RenderScheduler.schedule()</code> (instant, non-blocking). The worker thread is stopped via <code>render_thread.quit(); render_thread.wait(2000)</code> on app exit. Stale in-flight renders are dropped by the generation counter.</p>
     </div>
     <div class="def">
       <div class="dc"><span class="dcode">D7</span><span class="dname"><code>ThemeWorkflowCoordinator</code> persist side effect <span style="font-family:var(--mono);font-size:11px;color:var(--green);margin-left:8px;">✓ FIXED</span></span></div>
@@ -333,21 +336,21 @@
     <table>
       <thead><tr><th>Item</th><th>Priority</th><th>Effort</th><th>Description</th></tr></thead>
       <tbody>
-        <tr><td><strong>F1 — Async rendering</strong></td><td><span class="prio high">High</span></td><td>Large</td><td>Move <code>render_fractal()</code> off the UI thread. Components: <code>RenderRequest</code>, <code>RenderResult</code>, <code>RenderWorker</code>, <code>RenderScheduler</code>, <code>ExportJob</code>. The debounce timer is the right dispatch boundary. Also resolves D6.</td></tr>
-        <tr><td><strong>F2 — Typed event bus</strong></td><td><span class="prio med">Medium</span></td><td>Medium</td><td>Replace the cross-panel lambda closures wired in the factory with typed in-process events. Reduces coupling between panel states.</td></tr>
-        <tr><td><strong>F3 — <code>fractal_core.pyi</code> stub</strong></td><td><span class="prio med">Medium</span></td><td>Small</td><td>Type stub so mypy/pyright verify Python calls against Rust exports.</td></tr>
-        <tr><td><strong>F4 — Undo / redo</strong></td><td><span class="prio med">Medium</span></td><td>Medium</td><td>Bounded deque of immutable <code>ViewportState</code> snapshots in the controller.</td></tr>
-        <tr><td><strong>F5 — Settings schema migration</strong></td><td><span class="prio med">Medium</span></td><td>Small</td><td>Add <code>migrate(raw, from_ver, to_ver)</code> in <code>persistence.py</code>, called by <code>from_dict()</code>.</td></tr>
+        <tr><td><strong>F1 — Typed event bus</strong></td><td><span class="prio med">Medium</span></td><td>Medium</td><td>Replace the cross-panel lambda closures wired in the factory with typed in-process events. Reduces coupling between panel states.</td></tr>
+        <tr><td><strong>F2 — <code>fractal_core.pyi</code> stub</strong></td><td><span class="prio med">Medium</span></td><td>Small</td><td>Type stub so mypy/pyright verify Python calls against Rust exports.</td></tr>
+        <tr><td><strong>F3 — Undo / redo</strong></td><td><span class="prio med">Medium</span></td><td>Medium</td><td>Bounded deque of immutable <code>ViewportState</code> snapshots in the controller.</td></tr>
+        <tr><td><strong>F4 — Settings schema migration</strong></td><td><span class="prio med">Medium</span></td><td>Small</td><td>Add <code>migrate(raw, from_ver, to_ver)</code> in <code>persistence.py</code>, called by <code>from_dict()</code>.</td></tr>
+        <tr><td><strong>F5 — Render cancellation</strong></td><td><span class="prio med">Medium</span></td><td>Medium</td><td>Expose a cancellation token from the Rust core so in-flight renders can be interrupted before the worker finishes them.</td></tr>
         <tr><td><strong>F6 — Property-based tests</strong></td><td><span class="prio low">Low</span></td><td>Small</td><td>Hypothesis round-trip tests for the frozen domain types — pure Python, no Qt.</td></tr>
       </tbody>
     </table>
     <div class="diagram-ph">
       <div class="dh"><span class="badge">Diagram 6 · roadmap</span></div>
       <div class="dt">Architecture Evolution</div>
-      <div class="dd">Done (single-pass factory · Qt-free services · pure null-object backend · plain sections container) → next (async render + RenderScheduler · typed event bus) → later (undo/redo · type stub · property tests)</div>
+      <div class="dd">Done (single-pass factory · Qt-free services · null-object backend · async render + export · plain sections container) → next (typed event bus · type stub) → later (undo/redo · render cancellation · property tests)</div>
     </div>
 
-    <p style="font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:40px;border-top:1px solid var(--border);padding-top:18px;">Updated 2026-05-31 · reflects the post-arch-cleanup codebase.</p>
+    <p style="font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:40px;border-top:1px solid var(--border);padding-top:18px;">Updated 2026-05-31 · reflects the fully async rendering codebase.</p>
 
     <div class="page-nav">
       <a href="changelog.html"><div class="dir">← Previous</div><div class="ttl">Changelog</div></a>

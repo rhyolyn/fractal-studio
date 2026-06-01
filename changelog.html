@@ -77,6 +77,8 @@
           <li>Live documentation site (<code>pages/</code>) with user guide, changelog, and developer architecture pages</li>
           <li>Independent Codex architectural review with prioritised findings and resolution status</li>
           <li><code>BackendCapabilities</code> frozen dataclass — explicit capability flags replace scattered <code>backend.available</code> checks</li>
+          <li>Async rendering — <code>RenderWorker</code> runs Rust renders on a background <code>QThread</code>; <code>RenderScheduler</code> debounces requests and drops stale results via a generation counter; the UI stays fully responsive during pan, zoom, and parameter changes</li>
+          <li>Async export — <code>ExportRunner</code> handles PNG export on a background thread; the window remains interactive during large 4K / 8K renders</li>
           <li>Startup smoke tests catch factory wiring regressions without needing a full GUI</li>
           <li>Favourite thumbnails now 48×48 with aspect-ratio fill</li>
           <li>Backend profile exposed in Settings dialog — Environment tab shows Rust core details</li>

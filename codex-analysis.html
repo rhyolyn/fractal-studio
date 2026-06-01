@@ -88,7 +88,7 @@
     <h2 data-n="01" id="summary">Executive summary</h2>
     <div class="assessment">
       <span class="icon">RESOLVED</span>
-      <span class="at"><strong>Six of the seven findings from this review have been resolved.</strong> The boundaries are now real: settings have a single aggregate write path, services are Qt-free, the composition root is a single construction pass, and the backend is a consistent null object. The one remaining architectural risk is synchronous rendering on the UI thread (F2).</span>
+      <span class="at"><strong>All seven findings from this review have been resolved.</strong> The boundaries are real: settings have a single aggregate write path, services are Qt-free, the composition root is a single construction pass, the backend is a consistent null object, and rendering no longer blocks the UI thread.</span>
     </div>
     <p>This document is an independent, source-code-only review conducted on 2026-05-30. The findings drove a four-plan architecture cleanup (arch-01 through arch-04) completed on 2026-05-31. Status annotations have been added to each finding below.</p>
     <p><em>Original assessment:</em> The codebase was partway through a refactor. Key dependencies still flowed through concrete Qt widgets, private <code>MainWindow</code> state, and synchronous backend calls. The highest-risk issues were settings persistence overwriting sibling fields, rendering/export work blocking the UI thread, and the section ports layer depending on a half-wired <code>MainWindow</code>.</p>
@@ -118,7 +118,7 @@
     </div>
 
     <div class="def">
-      <div class="dc"><span class="dcode">F2</span><span class="dname">Rendering and export block the UI thread<span class="sev high">HIGH</span><span class="status deferred">DEFERRED</span></span></div>
+      <div class="dc"><span class="dcode">F2</span><span class="dname">Rendering and export block the UI thread<span class="sev high">HIGH</span><span class="status resolved">RESOLVED</span></span></div>
       <p>Viewport rendering calls the Rust backend synchronously from the Qt event path. Export calls <code>QApplication.processEvents()</code> as a workaround. There is no Python-side worker abstraction, no cancellation, no progress reporting, and no render generation token.</p>
       <div class="rec"><strong>Fix</strong> &nbsp;Introduce a render job boundary. Components: <code>RenderRequest</code> (formula, bounds, dimensions, palette), <code>RenderResult</code> (request id, bytes, status), <code>RenderWorker</code> (off-thread Rust calls), <code>RenderScheduler</code> (coalesces viewport requests, drops stale results), <code>ExportJob</code> (long-running workflow with progress and cancellation). The existing debounce timer dispatches work rather than rendering directly.</div>
     </div>
@@ -179,7 +179,7 @@
 
     <h2 data-n="06" id="bottom-line">Bottom line</h2>
     <p><em>At review time:</em> The app was not badly architected; it was mid-refactor. The main risk was that architectural names were cleaner than the actual dependency flow. The recommended next steps were: one settings aggregate owner, one composition root, application services that operate on data rather than widgets, and a consistent backend contract.</p>
-    <p><em>Current status:</em> All four of those steps are done. The one remaining item from this review — async rendering (F2) — is a separate planned effort. The codebase is no longer mid-refactor.</p>
+    <p><em>Current status:</em> All seven findings are now resolved. Async rendering (F2) was completed in a separate effort: <code>RenderWorker</code> runs Rust renders on a background <code>QThread</code>, <code>RenderScheduler</code> debounces requests and drops stale results via a generation counter, and <code>ExportRunner</code> handles PNG exports without blocking the event loop. The codebase is no longer mid-refactor.</p>
 
     <p style="font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:40px;border-top:1px solid var(--border);padding-top:18px;">Codex code-only review · 2026-05-30 · Updated with resolution status 2026-05-31.</p>
 
