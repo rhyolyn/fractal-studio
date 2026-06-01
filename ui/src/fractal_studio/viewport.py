@@ -16,6 +16,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from typing import TYPE_CHECKING
+
 from fractal_studio.backend import Color, CoreBackend
 from fractal_studio.ui.controllers.params_panel_controller import ParamsPanelController
 from fractal_studio.state import (
@@ -28,6 +30,9 @@ from fractal_studio.state import (
     ViewportState,
 )
 from fractal_studio.ui.controllers.viewport_controller import ViewportController
+
+if TYPE_CHECKING:
+    from fractal_studio.ui.workers.render_scheduler import RenderScheduler
 
 
 class FractalViewportWidget(QWidget):
@@ -54,10 +59,15 @@ class FractalViewportWidget(QWidget):
 
     _NEWTON_SCALE = 2.0
 
-    def __init__(self, backend: CoreBackend, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        backend: CoreBackend,
+        scheduler: RenderScheduler | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self._backend = backend
-        self._controller = ViewportController(backend)
+        self._controller = ViewportController(backend, scheduler=scheduler)
         self._palette: list[Color] = []
         self._image: QImage | None = None
         self._formula = "standard"

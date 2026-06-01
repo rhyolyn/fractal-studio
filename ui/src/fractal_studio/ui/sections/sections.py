@@ -101,7 +101,7 @@ class MainWindowSections:
         aspect_row.setLayout(aspect_layout)
         panel.set_header_widget(aspect_row)
 
-        viewport = FractalViewportWidget(ports.backend)
+        viewport = FractalViewportWidget(ports.backend, scheduler=ports.render_scheduler)
         viewport.setMinimumWidth(520)
         viewport.status_changed.connect(ports.show_status)
         ports.set_viewport(viewport)

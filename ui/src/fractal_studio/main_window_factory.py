@@ -4,7 +4,10 @@ from pathlib import Path
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+from PySide6.QtCore import QThread
 from fractal_studio.backend import CoreBackend, load_backend
+from fractal_studio.ui.workers.render_worker import RenderWorker
+from fractal_studio.ui.workers.render_scheduler import RenderScheduler
 from fractal_studio.application.workflows.favorites_workflow_coordinator import (
     FavoritesWorkflowCoordinator,
 )
@@ -94,6 +97,15 @@ def create_main_window():
     backend_loaded = backend.available
     backend_profile = backend.profile()
 
+    # ── Async render thread ──
+    render_scheduler = RenderScheduler()
+    render_worker = RenderWorker(backend)
+    render_thread = QThread()
+    render_worker.moveToThread(render_thread)
+    render_scheduler.render_requested.connect(render_worker.do_render)
+    render_worker.render_complete.connect(render_scheduler._on_result)
+    render_thread.start()
+
     # ── 2. Create MainWindow shell so status bar exists ──
     window = MainWindow()
     on_status: Callable[[str], None] = window.statusBar().showMessage
@@ -163,9 +175,10 @@ def create_main_window():
         export=export_state,
     )
     sections_state.validate()
+    render_scheduler.render_ready.connect(viewport_state._on_render_ready)
 
     # ── 5. Build section adapters and sections ──
-    sections_ports = build_sections_ports(sections_state, on_status, backend, backend_profile)
+    sections_ports = build_sections_ports(sections_state, on_status, backend, backend_profile, render_scheduler)
     sections = MainWindowSections(sections_ports)
 
     # ── 6. Initialize window ──
@@ -186,5 +199,17 @@ def create_main_window():
         backend_profile=backend_profile,
         theme_workflow=theme_workflow,
     )
+
+    import atexit
+    from PySide6.QtWidgets import QApplication
+
+    def _stop_render_thread() -> None:
+        render_thread.quit()
+        render_thread.wait()
+
+    app = QApplication.instance()
+    if app is not None:
+        app.aboutToQuit.connect(_stop_render_thread)
+    atexit.register(_stop_render_thread)
 
     return window

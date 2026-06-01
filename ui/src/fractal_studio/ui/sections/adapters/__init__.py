@@ -15,6 +15,7 @@ from fractal_studio.ui.sections.ports import MainWindowSectionsPorts
 if TYPE_CHECKING:
     from fractal_studio.backend import BackendProfile, CoreBackend
     from fractal_studio.ui.sections.state import MainWindowSectionsState
+    from fractal_studio.ui.workers.render_scheduler import RenderScheduler
 
 
 def build_sections_ports(
@@ -22,8 +23,9 @@ def build_sections_ports(
     on_status: Callable[[str], None],
     backend: CoreBackend,
     backend_profile: BackendProfile,
+    render_scheduler: RenderScheduler | None = None,
 ) -> MainWindowSectionsPorts:
-    args = (sections_state, on_status, backend, backend_profile)
+    args = (sections_state, on_status, backend, backend_profile, render_scheduler)
     return MainWindowSectionsPorts(
         viewport=ViewportPanelPortsAdapter(*args),
         palette=PalettePanelPortsAdapter(*args),

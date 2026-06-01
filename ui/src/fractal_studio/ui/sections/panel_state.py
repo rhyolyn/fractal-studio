@@ -70,6 +70,18 @@ class MainWindowViewportState:
     def set_viewport(self, viewport: FractalViewportWidget) -> None:
         self.viewport = viewport
 
+    def _on_render_ready(self, result: object) -> None:
+        from fractal_studio.ui.workers.render_worker import RenderResult
+        if not isinstance(result, RenderResult):
+            return
+        viewport = self.viewport
+        if viewport is None or result.image is None:
+            return
+        viewport.store_rendered_image(result.image)
+        viewport.update()
+        if result.status:
+            viewport.status_changed.emit(result.status)
+
     def set_viewport_hint_label(self, label: QLabel) -> None:
         self.viewport_hint_label = label
 

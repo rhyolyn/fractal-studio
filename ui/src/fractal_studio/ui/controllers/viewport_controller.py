@@ -14,7 +14,7 @@ from fractal_studio.state import (
 )
 
 if TYPE_CHECKING:
-    pass
+    from fractal_studio.ui.workers.render_scheduler import RenderScheduler
 
 
 class _ViewportAdapter(Protocol):
@@ -55,8 +55,9 @@ class ViewportRenderResult:
 
 
 class ViewportController:
-    def __init__(self, backend: CoreBackend) -> None:
+    def __init__(self, backend: CoreBackend, scheduler: RenderScheduler | None = None) -> None:
         self._backend = backend
+        self._scheduler = scheduler
 
     def apply_aspect_ratio_mode(self, widget: _ViewportAdapter, mode: str) -> str:
         if mode not in widget.supported_aspect_ratio_modes():
@@ -253,6 +254,18 @@ class ViewportController:
         widget.clear_pan_anchor()
 
     def render(self, widget: _ViewportAdapter) -> ViewportRenderResult:
+        if self._scheduler is not None:
+            palette = widget.palette()
+            if self._backend.capabilities.can_render and palette:
+                self._scheduler.schedule(
+                    viewport_state=widget.to_state(),
+                    palette=palette,
+                    width=max(1, widget.width()),
+                    height=max(1, widget.height()),
+                )
+            return ViewportRenderResult(image=None, status=None)
+
+        # Fallback: synchronous render when no scheduler is wired (used in tests)
         palette = widget.palette()
         if not self._backend.capabilities.can_render or not palette:
             return ViewportRenderResult(image=None, status=None)
@@ -262,9 +275,7 @@ class ViewportController:
         state = widget.to_state()
         kwargs = state.to_render_kwargs()
         raw = self._backend.render_fractal(
-            state.formula,
-            width,
-            height,
+            state.formula, width, height,
             is_julia=state.is_julia,
             julia_real=kwargs["julia_real"],
             julia_imag=kwargs["julia_imag"],
@@ -281,9 +292,7 @@ class ViewportController:
             trap_y=kwargs["trap_y"],
             palette_offset=state.palette_offset,
         )
-        image = QImage(
-            raw, width, height, width * 4, QImage.Format.Format_RGBA8888
-        ).copy()
+        image = QImage(raw, width, height, width * 4, QImage.Format.Format_RGBA8888).copy()
         label = state.formula.replace("_", " ").title()
         mode = "Julia" if state.is_julia else "Mandelbrot"
         extra = f" (n={state.power})" if state.formula == "multibrot" else ""
