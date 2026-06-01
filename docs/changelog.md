@@ -11,6 +11,8 @@ Notable changes to Fractal Studio, mostly so future me does not have to reconstr
 - Live documentation site (`pages/`) with user guide, changelog, and developer architecture pages
 - Independent Codex architectural review with prioritised findings and resolution status
 - `BackendCapabilities` frozen dataclass — explicit capability flags replace scattered `backend.available` checks
+- Async rendering — `RenderWorker` runs Rust renders on a background `QThread`; `RenderScheduler` debounces requests and drops stale results via a generation counter; the UI stays fully responsive during pan, zoom, and parameter changes
+- Async export — `ExportRunner` handles PNG export on a background thread; the window remains interactive during large 4K / 8K renders
 - Startup smoke tests catch factory wiring regressions without needing a full GUI
 - Favourite thumbnails now 48×48 with aspect-ratio fill
 - Backend profile exposed in Settings dialog — Environment tab shows Rust core details

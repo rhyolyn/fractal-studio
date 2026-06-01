@@ -73,7 +73,7 @@ Then theme and sidebar persistence become field replacements on the same aggrega
 
 ---
 
-### 2. Rendering And Export Block The UI Thread
+### 2. Rendering And Export Block The UI Thread — **RESOLVED**
 
 **Severity:** High  
 **Files:**
@@ -298,4 +298,4 @@ Impact:
 
 ## Bottom Line
 
-The app is not badly architected; it is mid-refactor. The main risk is that architectural names are currently cleaner than the actual dependency flow. The next step should be to make the existing boundaries honest: one settings aggregate owner, one render job boundary, one composition root, and application services that operate on data rather than widgets.
+All seven findings from this review are now resolved. Async rendering (F2) was completed separately: `RenderWorker` runs Rust renders on a background `QThread`, `RenderScheduler` debounces requests and drops stale results via a generation counter, and `ExportRunner` handles PNG exports without blocking the event loop. The codebase is no longer mid-refactor.
