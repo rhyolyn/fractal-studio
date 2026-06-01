@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from PySide6.QtCore import QThread, Slot
 from PySide6.QtWidgets import QComboBox, QSpinBox, QWidget
 
 from fractal_studio.services.export_service import ExportService
@@ -17,6 +18,8 @@ class ExportController:
 
     def __init__(self, export_service: ExportService) -> None:
         self._export_service = export_service
+        self._export_thread: QThread | None = None
+        self._export_runner = None
 
     def on_export_clicked(
         self,
@@ -126,4 +129,40 @@ class ExportController:
         return self._export_service.export_render(
             viewport_state, palette, width, height, set_status
         )
+
+    def start_export(
+        self,
+        viewport_state: ViewportState | None,
+        palette: list[tuple[int, int, int]],
+        width: int,
+        height: int,
+        on_done: Callable[[bytes | None], None],
+        on_status: Callable[[str], None],
+    ) -> bool:
+        """Start a background export. Returns False if an export is already running or viewport_state is None."""
+        if viewport_state is None:
+            return False
+        if self._export_thread is not None and self._export_thread.isRunning():
+            on_status("Export already in progress.")
+            return False
+
+        from fractal_studio.ui.workers.export_runner import ExportRunner
+
+        self._export_runner = ExportRunner(
+            self._export_service, viewport_state, palette, width, height
+        )
+        self._export_thread = QThread()
+        self._export_runner.moveToThread(self._export_thread)
+        self._export_thread.started.connect(self._export_runner.run)
+        self._export_runner.export_done.connect(on_done)
+        self._export_runner.status_changed.connect(on_status)
+        self._export_runner.export_done.connect(self._export_thread.quit)
+        self._export_thread.finished.connect(self._cleanup_export_thread)
+        self._export_thread.start()
+        return True
+
+    @Slot()
+    def _cleanup_export_thread(self) -> None:
+        self._export_runner = None
+        self._export_thread = None
 

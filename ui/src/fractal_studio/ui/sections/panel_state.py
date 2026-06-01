@@ -551,7 +551,10 @@ class MainWindowExportState:
         height: int,
         on_status: Callable[[str], None],
     ) -> None:
-        if self._controller is None:
+        from fractal_studio.state import ViewportState
+        from PySide6.QtGui import QImage
+
+        if self._controller is None or not isinstance(viewport_state, ViewportState):
             return
 
         path_str, _ = QFileDialog.getSaveFileName(
@@ -563,10 +566,19 @@ class MainWindowExportState:
         if not path_str:
             return
 
-        raw = self._controller.export_render(viewport_state, palette, width, height, on_status)
-        if raw is None:
-            return
+        def on_done(raw: bytes | None) -> None:
+            if raw:
+                image = QImage(
+                    raw, width, height, width * 4, QImage.Format.Format_RGBA8888
+                ).copy()
+                image.save(path_str)
+                on_status(f"Saved {width}×{height} render to {path_str}")
 
-        image = QImage(raw, width, height, width * 4, QImage.Format.Format_RGBA8888).copy()
-        image.save(path_str)
-        on_status(f"Saved {width}×{height} render to {path_str}")
+        self._controller.start_export(
+            viewport_state=viewport_state,
+            palette=palette,
+            width=width,
+            height=height,
+            on_done=on_done,
+            on_status=on_status,
+        )
