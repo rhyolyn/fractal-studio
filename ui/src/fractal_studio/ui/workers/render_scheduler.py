@@ -9,8 +9,8 @@ _DEBOUNCE_MS = 50
 
 
 class RenderScheduler(QObject):
-    render_requested = Signal(RenderRequest)
-    render_ready = Signal(RenderResult)
+    render_requested = Signal(object)   # RenderRequest — object type required for cross-thread queued delivery
+    render_ready = Signal(object)       # RenderResult
 
     def __init__(self) -> None:
         super().__init__()
@@ -47,7 +47,7 @@ class RenderScheduler(QObject):
             self.render_requested.emit(self._pending)
             self._pending = None
 
-    @Slot(RenderResult)
+    @Slot(object)
     def accept_result(self, result: RenderResult) -> None:
         if result.generation == self._generation:
             self.render_ready.emit(result)

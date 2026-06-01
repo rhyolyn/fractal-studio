@@ -20,13 +20,13 @@ class RenderResult:
 
 
 class RenderWorker(QObject):
-    render_complete = Signal(RenderResult)
+    render_complete = Signal(object)  # RenderResult — object type required for cross-thread queued delivery
 
     def __init__(self, backend: CoreBackend) -> None:
         super().__init__()
         self._backend = backend
 
-    @Slot(RenderRequest)
+    @Slot(object)  # RenderRequest — object type matches the Signal(object) on RenderScheduler
     def do_render(self, request: RenderRequest) -> None:
         state = request.viewport_state
         kwargs = state.to_render_kwargs()
