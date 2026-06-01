@@ -204,6 +204,7 @@ def create_main_window():
     from PySide6.QtWidgets import QApplication
 
     def _stop_render_thread() -> None:
+        _ = render_worker  # keep strong ref in closure — PySide6 uses weak refs for signal connections
         render_thread.quit()
         render_thread.wait(2000)
         export_controller.stop()
