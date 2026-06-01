@@ -170,6 +170,15 @@ class ViewportState:
 
 
 @dataclass(frozen=True)
+class RenderRequest:
+    generation: int
+    viewport_state: ViewportState
+    palette: list[tuple[int, int, int]]
+    width: int
+    height: int
+
+
+@dataclass(frozen=True)
 class ParamsState:
     formula: str
     is_julia: bool
