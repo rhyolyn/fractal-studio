@@ -16,6 +16,21 @@ sys.path.insert(0, str(SOURCE_ROOT))
 from PySide6.QtGui import QPaintEvent
 from PySide6.QtWidgets import QApplication, QComboBox, QSpinBox
 
+from fractal_studio.backend import BackendCapabilities
+
+_FULL_CAPS = BackendCapabilities(
+    can_render=True,
+    can_generate_palette=True,
+    can_import_palette=True,
+    can_export_palette=True,
+)
+_NO_CAPS = BackendCapabilities(
+    can_render=False,
+    can_generate_palette=False,
+    can_import_palette=False,
+    can_export_palette=False,
+)
+
 _APP: QApplication | None = None
 
 
@@ -41,6 +56,7 @@ class QtWindowTestCase(unittest.TestCase):
 
 class DummyEditorBackend:
     available = True
+    capabilities = _FULL_CAPS
 
     def color_from_face(
         self, face: int, position: tuple[float, float]
@@ -70,10 +86,12 @@ class DummyEditorBackend:
 
 class DummyUnavailableBackend(DummyEditorBackend):
     available = False
+    capabilities = _NO_CAPS
 
 
 class DummyPaletteBackend:
     available = True
+    capabilities = _FULL_CAPS
 
     def __init__(self) -> None:
         self.saved: list[tuple[str, list[tuple[int, int, int]], int]] = []
@@ -518,11 +536,10 @@ class TestPaletteWorkflowService(unittest.TestCase):
         target = Path(tempfile.mkdtemp(prefix="fs_palette_save_")) / "palette.json"
 
         result = service.save_palette_json(
-            parent=None,
+            path=target,
             backend=backend,
             control_points=[(10, 20, 30)],
             palette_size=2048,
-            get_save_file_name=lambda *args, **kwargs: (str(target), "PNG"),
             set_status=messages.append,
         )
 
@@ -540,10 +557,9 @@ class TestPaletteWorkflowService(unittest.TestCase):
         target = Path(tempfile.mkdtemp(prefix="fs_palette_load_")) / "palette.json"
 
         result = service.load_palette_json(
-            parent=None,
+            path=target,
             backend=backend,
             set_control_points=control_points.extend,
-            get_open_file_name=lambda *args, **kwargs: (str(target), "PNG"),
             set_status=messages.append,
         )
 
@@ -566,7 +582,7 @@ class TestPalettePanelCoordinator(unittest.TestCase):
         coordinator = PalettePanelCoordinator(WorkflowStub())
 
         result = coordinator.save_palette_json(
-            parent=None,
+            path=None,
             editor=None,
             backend=object(),
             palette_size=256,
@@ -596,9 +612,9 @@ class TestPalettePanelCoordinator(unittest.TestCase):
         coordinator = PalettePanelCoordinator(workflow)
 
         result = coordinator.load_palette_json(
-            parent=None,
+            path=Path(tempfile.mkdtemp()) / "p.json",
             editor=EditorStub(),
-            backend=object(),
+            backend=DummyPaletteBackend(),
             set_status=lambda _: None,
         )
 
@@ -625,9 +641,9 @@ class TestPalettePanelCoordinator(unittest.TestCase):
         coordinator = PalettePanelCoordinator(workflow)
 
         result = coordinator.export_legacy_map(
-            parent=None,
+            path=Path(tempfile.mkdtemp()) / "palette.map",
             editor=EditorStub(),
-            backend=object(),
+            backend=DummyPaletteBackend(),
             legacy_palette_size=256,
             set_status=lambda _: None,
         )
@@ -773,11 +789,10 @@ class TestSidebarWiringCoordinator(unittest.TestCase):
         messages: list[str] = []
 
         result = service.export_legacy_map(
-            parent=None,
+            path=None,
             backend=backend,
             control_points=[(1, 2, 3), (4, 5, 6), (7, 8, 9)],
             legacy_palette_size=256,
-            get_save_file_name=lambda *args, **kwargs: ("unused", "PNG"),
             set_status=messages.append,
         )
 
@@ -1263,6 +1278,7 @@ class TestViewportController(unittest.TestCase):
 
         class DummyBackend:
             available = True
+            capabilities = _FULL_CAPS
 
             def render_fractal(self, formula: str, width: int, height: int, **kwargs):
                 self.last_call = {
@@ -1340,7 +1356,7 @@ class TestViewportController(unittest.TestCase):
 @pytest.mark.integration
 class TestAppearanceSettings(QtWindowTestCase):
     def setUp(self) -> None:
-        import fractal_studio.main_window as mwmod
+        import fractal_studio.main_window_factory as mwmod
 
         self._mwmod = mwmod
         self._original_settings_path = mwmod._SETTINGS_PATH
@@ -1575,7 +1591,7 @@ class TestWindowStartupCoordinator(unittest.TestCase):
         _get_app()
 
     def setUp(self) -> None:
-        import fractal_studio.main_window as mwmod
+        import fractal_studio.main_window_factory as mwmod
 
         self._mwmod = mwmod
         self._original_settings_path = mwmod._SETTINGS_PATH
@@ -1745,10 +1761,16 @@ class TestThemeWorkflowCoordinator(unittest.TestCase):
 
         class SettingsRepoStub:
             def __init__(self) -> None:
-                self.saved: list[UiSettings] = []
+                self.updated_themes: list[str] = []
 
-            def save(self, settings: UiSettings) -> None:
-                self.saved.append(settings)
+            def load(self):
+                from fractal_studio.persistence import SettingsLoadResult
+                return SettingsLoadResult(settings=UiSettings(), source="default")
+
+            def update(self, transform) -> UiSettings:
+                result = transform(UiSettings())
+                self.updated_themes.append(result.theme)
+                return result
 
         refreshed: list[bool] = []
         settings_repo = SettingsRepoStub()
@@ -1769,7 +1791,7 @@ class TestThemeWorkflowCoordinator(unittest.TestCase):
 
         self.assertEqual(theme_name, "sepia")
         self.assertEqual(theme_spec, "spec-sepia")
-        self.assertEqual([setting.theme for setting in settings_repo.saved], ["sepia"])
+        self.assertEqual(settings_repo.updated_themes, ["sepia"])
         self.assertEqual(refreshed, [True])
 
     def test_apply_theme_name_keeps_current_spec_when_theme_unchanged(self) -> None:
@@ -1797,10 +1819,16 @@ class TestThemeWorkflowCoordinator(unittest.TestCase):
 
         class SettingsRepoStub:
             def __init__(self) -> None:
-                self.saved: list[UiSettings] = []
+                self.updated_themes: list[str] = []
 
-            def save(self, settings: UiSettings) -> None:
-                self.saved.append(settings)
+            def load(self):
+                from fractal_studio.persistence import SettingsLoadResult
+                return SettingsLoadResult(settings=UiSettings(), source="default")
+
+            def update(self, transform) -> UiSettings:
+                result = transform(UiSettings())
+                self.updated_themes.append(result.theme)
+                return result
 
         refreshed: list[bool] = []
         theme_controller = ThemeControllerStub()
@@ -1823,7 +1851,7 @@ class TestThemeWorkflowCoordinator(unittest.TestCase):
         self.assertEqual(theme_name, "light")
         self.assertEqual(theme_spec, "spec-light")
         self.assertEqual(theme_controller.calls, [])
-        self.assertEqual(settings_repo.saved, [])
+        self.assertEqual(settings_repo.updated_themes, [])
         self.assertEqual(refreshed, [True])
 
     def test_open_settings_returns_updated_theme_and_spec(self) -> None:
@@ -1850,10 +1878,16 @@ class TestThemeWorkflowCoordinator(unittest.TestCase):
 
         class SettingsRepoStub:
             def __init__(self) -> None:
-                self.saved: list[UiSettings] = []
+                self.updated_themes: list[str] = []
 
-            def save(self, settings: UiSettings) -> None:
-                self.saved.append(settings)
+            def load(self):
+                from fractal_studio.persistence import SettingsLoadResult
+                return SettingsLoadResult(settings=UiSettings(), source="default")
+
+            def update(self, transform) -> UiSettings:
+                result = transform(UiSettings())
+                self.updated_themes.append(result.theme)
+                return result
 
         refreshed: list[bool] = []
         settings_repo = SettingsRepoStub()
@@ -1874,7 +1908,7 @@ class TestThemeWorkflowCoordinator(unittest.TestCase):
 
         self.assertEqual(theme_name, "sepia")
         self.assertEqual(theme_spec, "spec-sepia")
-        self.assertEqual([setting.theme for setting in settings_repo.saved], ["sepia"])
+        self.assertEqual(settings_repo.updated_themes, ["sepia"])
         self.assertEqual(refreshed, [True])
 
     def test_open_settings_keeps_current_state_when_no_changes(self) -> None:
@@ -2662,7 +2696,7 @@ class TestFavoritePersistence(QtWindowTestCase):
         raise AssertionError("Export combo not found")
 
     def setUp(self) -> None:
-        import fractal_studio.main_window as mwmod
+        import fractal_studio.main_window_factory as mwmod
 
         self._mwmod = mwmod
         self._original_path = mwmod._FAVORITES_PATH
@@ -2839,11 +2873,11 @@ class TestFavoritePersistence(QtWindowTestCase):
         self._save_favorite_via_ui(w)
         rows = w.findChildren(FavoriteThumbnailRow)
         self.assertEqual(len(rows), 2)
-        w._sections_state._favorites_state.selected_row = rows[-1]
+        w._sections_state.favorites.selected_row = rows[-1]
         self._delete_favorite_via_ui(w)
 
-        self.assertEqual(len(w._sections_state._favorites_state.fav_rows), 1)
-        self.assertIsNone(w._sections_state._favorites_state.selected_row)
+        self.assertEqual(len(w._sections_state.favorites.fav_rows), 1)
+        self.assertIsNone(w._sections_state.favorites.selected_row)
         raw = json.loads(self._mwmod._FAVORITES_PATH.read_text())
         self.assertEqual(raw.get("version"), 1)
         self.assertEqual(len(raw.get("favorites", [])), 1)

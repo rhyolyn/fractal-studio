@@ -316,7 +316,7 @@ class TestMainWindowSectionPanelStates(unittest.TestCase):
         state.delete_selected_favorite()
 
         self.assertEqual(loaded, [snapshot])
-        self.assertEqual(panel.build_calls[0]["owner"], None)
+        self.assertIsNotNone(panel.build_calls[0]["owner"])
         self.assertEqual(panel.build_calls[0]["hover_panel"], "hover")
         self.assertEqual(state.selected_row, None)
         self.assertEqual(workflow.loaded[0]["viewport"], "viewport")
