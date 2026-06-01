@@ -19,7 +19,7 @@ def test_render_request_is_frozen() -> None:
         max_iterations=256, is_julia=False, formula_params=StandardParams(),
         coloring_mode="smooth_escape", palette_offset=0.0,
     )
-    req = RenderRequest(generation=1, viewport_state=state, palette=[], width=4, height=4)
+    req = RenderRequest(generation=1, viewport_state=state, palette=(), width=4, height=4)
     assert dataclasses.is_dataclass(req)
     with pytest.raises(Exception):
         req.generation = 2  # type: ignore[misc]
@@ -34,7 +34,7 @@ def test_render_request_carries_all_fields() -> None:
         max_iterations=128, is_julia=False, formula_params=StandardParams(),
         coloring_mode="smooth_escape", palette_offset=0.0,
     )
-    palette = [(255, 0, 0), (0, 255, 0)]
+    palette = ((255, 0, 0), (0, 255, 0))
     req = RenderRequest(generation=7, viewport_state=state, palette=palette, width=100, height=80)
     assert req.generation == 7
     assert req.viewport_state is state
@@ -78,7 +78,7 @@ def test_render_worker_emits_result_on_do_render() -> None:
         max_iterations=64, is_julia=False, formula_params=StandardParams(),
         coloring_mode="smooth_escape", palette_offset=0.0,
     )
-    req = RenderRequest(generation=1, viewport_state=state, palette=[(0,0,0)], width=4, height=4)
+    req = RenderRequest(generation=1, viewport_state=state, palette=((0,0,0),), width=4, height=4)
     worker.do_render(req)
 
     import time
@@ -120,12 +120,12 @@ def test_scheduler_drops_stale_results() -> None:
 
     # Deliver a stale result (generation = current_gen - 1)
     stale = RenderResult(generation=current_gen - 1, image=None, status=None)
-    scheduler._on_result(stale)
+    scheduler.accept_result(stale)
     assert ready == []
 
     # Deliver the current result
     current = RenderResult(generation=current_gen, image=None, status=None)
-    scheduler._on_result(current)
+    scheduler.accept_result(current)
     assert len(ready) == 1
     assert ready[0].generation == current_gen
 

@@ -103,7 +103,7 @@ def create_main_window():
     render_thread = QThread()
     render_worker.moveToThread(render_thread)
     render_scheduler.render_requested.connect(render_worker.do_render)
-    render_worker.render_complete.connect(render_scheduler._on_result)
+    render_worker.render_complete.connect(render_scheduler.accept_result)
     render_thread.start()
 
     # ── 2. Create MainWindow shell so status bar exists ──
@@ -206,6 +206,7 @@ def create_main_window():
     def _stop_render_thread() -> None:
         render_thread.quit()
         render_thread.wait(2000)
+        export_controller.stop()
 
     app = QApplication.instance()
     if app is not None:

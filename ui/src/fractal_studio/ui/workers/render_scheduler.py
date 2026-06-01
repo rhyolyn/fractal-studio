@@ -36,7 +36,7 @@ class RenderScheduler(QObject):
         self._pending = RenderRequest(
             generation=self._generation,
             viewport_state=viewport_state,
-            palette=list(palette),
+            palette=tuple(palette),
             width=width,
             height=height,
         )
@@ -48,6 +48,6 @@ class RenderScheduler(QObject):
             self._pending = None
 
     @Slot(RenderResult)
-    def _on_result(self, result: RenderResult) -> None:
+    def accept_result(self, result: RenderResult) -> None:
         if result.generation == self._generation:
             self.render_ready.emit(result)

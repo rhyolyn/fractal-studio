@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QThread, Slot
+from PySide6.QtCore import QObject, QThread, Qt, Signal, Slot
 from PySide6.QtWidgets import QComboBox, QSpinBox, QWidget
 
 from fractal_studio.services.export_service import ExportService
@@ -10,16 +10,22 @@ from fractal_studio.state import ViewportState
 from fractal_studio.viewport import FractalViewportWidget
 
 
-class ExportController:
+class ExportController(QObject):
     """Controller for export and aspect ratio logic.
 
     Owns preset math, aspect ratio application, and export execution.
     """
 
+    _export_result_signal = Signal(object)   # bytes | None
+    _export_status_signal = Signal(str)
+
     def __init__(self, export_service: ExportService) -> None:
+        super().__init__()
         self._export_service = export_service
         self._export_thread: QThread | None = None
         self._export_runner = None
+        self._pending_on_done: Callable[[bytes | None], None] | None = None
+        self._pending_on_status: Callable[[str], None] | None = None
 
     def on_export_clicked(
         self,
@@ -148,21 +154,54 @@ class ExportController:
 
         from fractal_studio.ui.workers.export_runner import ExportRunner
 
+        self._pending_on_done = on_done
+        self._pending_on_status = on_status
+
         self._export_runner = ExportRunner(
             self._export_service, viewport_state, palette, width, height
         )
         self._export_thread = QThread()
         self._export_runner.moveToThread(self._export_thread)
         self._export_thread.started.connect(self._export_runner.run)
-        self._export_runner.export_done.connect(on_done)
-        self._export_runner.status_changed.connect(on_status)
+        # Cross-thread: QObject→QObject connections auto-use QueuedConnection
+        self._export_runner.export_done.connect(self._export_result_signal)
+        self._export_runner.status_changed.connect(self._export_status_signal)
+        # These run on main thread (self is ExportController, lives on main thread)
+        self._export_result_signal.connect(self._on_export_result)
+        self._export_status_signal.connect(self._on_export_status)
         self._export_runner.export_done.connect(self._export_thread.quit)
-        self._export_thread.finished.connect(self._cleanup_export_thread)
+        self._export_thread.finished.connect(
+            self._cleanup_export_thread, Qt.ConnectionType.QueuedConnection
+        )
         self._export_thread.start()
         return True
 
+    @Slot(object)
+    def _on_export_result(self, raw: object) -> None:
+        if self._pending_on_done is not None:
+            self._pending_on_done(raw)  # type: ignore[arg-type]
+            self._pending_on_done = None
+
+    @Slot(str)
+    def _on_export_status(self, message: str) -> None:
+        if self._pending_on_status is not None:
+            self._pending_on_status(message)
+
     @Slot()
     def _cleanup_export_thread(self) -> None:
+        # Disconnect internal signals to avoid duplicate callbacks on re-use
+        try:
+            self._export_result_signal.disconnect(self._on_export_result)
+            self._export_status_signal.disconnect(self._on_export_status)
+        except RuntimeError:
+            pass
+        self._pending_on_status = None
         self._export_runner = None
         self._export_thread = None
+
+    def stop(self) -> None:
+        """Gracefully stop any in-progress export thread."""
+        if self._export_thread is not None and self._export_thread.isRunning():
+            self._export_thread.quit()
+            self._export_thread.wait(2000)
 

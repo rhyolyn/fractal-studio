@@ -173,7 +173,7 @@ class ViewportState:
 class RenderRequest:
     generation: int
     viewport_state: ViewportState
-    palette: list[tuple[int, int, int]]
+    palette: tuple[tuple[int, int, int], ...]
     width: int
     height: int
 

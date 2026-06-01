@@ -259,7 +259,7 @@ class ViewportController:
             if self._backend.capabilities.can_render and palette:
                 self._scheduler.schedule(
                     viewport_state=widget.to_state(),
-                    palette=palette,
+                    palette=tuple(palette),
                     width=max(1, widget.width()),
                     height=max(1, widget.height()),
                 )
