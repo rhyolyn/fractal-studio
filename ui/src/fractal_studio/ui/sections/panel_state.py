@@ -224,6 +224,7 @@ class MainWindowColormapState:
         backend: CoreBackend | None = None,
         on_status: Callable[[str], None] | None = None,
         legacy_palette_size_getter: Callable[[], int | None] | None = None,
+        palette_size_getter: Callable[[], int | None] | None = None,
     ) -> None:
         self._palette_panel: PalettePanelCoordinator | None = palette_panel
         self._backend: CoreBackend | None = backend
@@ -231,10 +232,38 @@ class MainWindowColormapState:
         self._legacy_palette_size_getter: Callable[[], int | None] | None = (
             legacy_palette_size_getter
         )
+        self._palette_size_getter: Callable[[], int | None] | None = (
+            palette_size_getter
+        )
         self.editor: ColorCubeEditor | None = None
 
     def set_editor(self, editor: ColorCubeEditor) -> None:
         self.editor = editor
+
+    def save_palette_json(self) -> None:
+        if (
+            self._palette_panel is None
+            or self._backend is None
+            or self._palette_size_getter is None
+        ):
+            return
+        palette_size = self._palette_size_getter()
+        if palette_size is None:
+            return
+        path_str, _ = QFileDialog.getSaveFileName(
+            None,
+            "Save palette",
+            str(Path.cwd() / "palette.json"),
+            "Fractal Studio Palette (*.json)",
+        )
+        path = Path(path_str) if path_str else None
+        self._palette_panel.save_palette_json(
+            path=path,
+            editor=self.editor,
+            backend=self._backend,
+            palette_size=palette_size,
+            set_status=self._on_status if self._on_status is not None else lambda _: None,
+        )
 
     def load_palette_json(self) -> None:
         if self._palette_panel is None or self._backend is None:

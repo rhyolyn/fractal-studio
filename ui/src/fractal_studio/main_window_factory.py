@@ -136,6 +136,7 @@ def create_main_window():
         backend=backend,
         on_status=on_status,
         legacy_palette_size_getter=legacy_size,
+        palette_size_getter=lambda: backend_profile.palette_size,
     )
     palette_state = MainWindowPaletteState(
         palette_preview=palette_preview,

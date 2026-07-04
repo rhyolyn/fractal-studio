@@ -1,3 +1,5 @@
+> **Status: COMPLETED — historical record (executed 2026-05/06, verified in-tree 2026-07-03). Do not execute.** Live work is tracked in [2026-07-03-review-00-master.md](2026-07-03-review-00-master.md).
+
 # Architecture Cleanup 03 — Composition Root Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

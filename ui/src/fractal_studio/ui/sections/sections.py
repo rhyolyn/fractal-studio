@@ -162,7 +162,7 @@ class MainWindowSections:
         seed_button = QPushButton("Seed Sample")
         seed_button.clicked.connect(editor.seed_points)
         save_button = QPushButton("Save JSON")
-        save_button.clicked.connect(ports.save_favorite)
+        save_button.clicked.connect(ports.save_palette_json)
         load_button = QPushButton("Load JSON")
         load_button.clicked.connect(ports.load_palette_json)
         export_button = QPushButton("Export .map")
