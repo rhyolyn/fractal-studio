@@ -408,7 +408,7 @@ Rationale (leave this reasoning in the commit message): `RenderScheduler` alread
 
 and rename it to `test_mouse_move_delegates_each_render_request` (delete the `processEvents()` call — no event-loop dependency remains). `test_mouse_move_without_pan_does_not_schedule_render` needs no change: `handle_mouse_move` returning `False` still means `request_render` is never called. Apply the same delegation treatment to any resize-based coalescing test in the class.
 
-**The render-bridge test with a `render_fractal`-only fake:** `TestViewportController`'s sync-render test stubs a backend that implements only `render_fractal`. After this task `ViewportController.render` calls `self._backend.render(request)`, so that fake breaks. Replace it with `CoreBackend(RecordingRenderModule())` (the recording module from Task 1's `test_backend.py` — move `RecordingRenderModule` into `tests/support.py` if importing across test modules is awkward), so the real `CoreBackend.render` unpacking stays under test rather than being stubbed away.
+**The render-bridge test with a `render_fractal`-only fake:** `TestViewportController`'s sync-render test stubs a backend that implements only `render_fractal`. After this task `ViewportController.render` calls `self._backend.render(request)`, so that fake breaks. Replace it with `CoreBackend(RecordingRenderModule())` (the recording module from Task 1's `test_backend.py` — move `RecordingRenderModule` into `ui/tests/support.py`, the shared helper module created by review-04, if importing across test modules is awkward; the import form is `from tests.support import RecordingRenderModule`), so the real `CoreBackend.render` unpacking stays under test rather than being stubbed away.
 
 Then sweep for any remaining coupling:
 
