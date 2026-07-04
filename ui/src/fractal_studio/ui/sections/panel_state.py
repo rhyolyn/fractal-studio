@@ -232,7 +232,9 @@ class MainWindowColormapState:
         self._legacy_palette_size_getter: Callable[[], int | None] | None = (
             legacy_palette_size_getter
         )
-        self._palette_size_getter: Callable[[], int | None] | None = palette_size_getter
+        self._palette_size_getter: Callable[[], int | None] | None = (
+            palette_size_getter
+        )
         self.editor: ColorCubeEditor | None = None
 
     def set_editor(self, editor: ColorCubeEditor) -> None:
