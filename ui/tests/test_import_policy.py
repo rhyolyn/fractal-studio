@@ -112,6 +112,10 @@ _QT_IMPORT_PATTERN = re.compile(
 _WIDGET_IMPORT_PATTERN = re.compile(
     r"^\s*from\s+fractal_studio\.ui\.widgets\b"
 )
+_DOMAIN_LAYER_FILES = ("state.py", "persistence.py")
+_UPWARD_OR_QT_IMPORT_PATTERN = re.compile(
+    r"^\s*(?:from|import)\s+(?:PySide6\b|fractal_studio\.(?:application|services|ui)\b)"
+)
 
 
 @pytest.mark.unit
@@ -137,4 +141,23 @@ def test_no_qt_imports_in_services() -> None:
     assert not violations, (
         "PySide6 and ui.widgets imports are forbidden in services/.\n"
         + "\n".join(violations)
+    )
+
+
+@pytest.mark.unit
+def test_domain_layer_does_not_import_upward_or_qt() -> None:
+    src_root = UI_PACKAGE_ROOT / "src" / "fractal_studio"
+    violations: list[str] = []
+
+    for name in _DOMAIN_LAYER_FILES:
+        file_path = src_root / name
+        assert file_path.exists(), f"expected domain module missing: {file_path}"
+        lines = file_path.read_text(encoding="utf-8").splitlines()
+        for line_no, line in enumerate(lines, start=1):
+            if _UPWARD_OR_QT_IMPORT_PATTERN.match(line):
+                violations.append(f"{name}:{line_no}: {line.strip()}")
+
+    assert not violations, (
+        "Domain layer must not import PySide6 or upper layers "
+        "(application/services/ui).\n" + "\n".join(violations)
     )
