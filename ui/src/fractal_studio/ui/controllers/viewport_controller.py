@@ -10,7 +10,9 @@ from fractal_studio.state import (
     JuliaParams,
     NewtonParams,
     PhoenixParams,
+    RenderRequest,
     ViewportState,
+    format_render_status,
 )
 
 if TYPE_CHECKING:
@@ -254,18 +256,6 @@ class ViewportController:
         widget.clear_pan_anchor()
 
     def render(self, widget: _ViewportAdapter) -> ViewportRenderResult:
-        if self._scheduler is not None:
-            palette = widget.palette()
-            if self._backend.capabilities.can_render and palette:
-                self._scheduler.schedule(
-                    viewport_state=widget.to_state(),
-                    palette=tuple(palette),
-                    width=max(1, widget.width()),
-                    height=max(1, widget.height()),
-                )
-            return ViewportRenderResult(image=None, status=None)
-
-        # Fallback: synchronous render when no scheduler is wired (used in tests)
         palette = widget.palette()
         if not self._backend.capabilities.can_render or not palette:
             return ViewportRenderResult(image=None, status=None)
@@ -273,35 +263,24 @@ class ViewportController:
         width = max(1, widget.width())
         height = max(1, widget.height())
         state = widget.to_state()
-        kwargs = state.to_render_kwargs()
-        raw = self._backend.render_fractal(
-            state.formula, width, height,
-            is_julia=state.is_julia,
-            julia_real=kwargs["julia_real"],
-            julia_imag=kwargs["julia_imag"],
-            power=state.power,
-            phoenix_real=kwargs["phoenix_real"],
-            phoenix_imag=kwargs["phoenix_imag"],
-            center_x=state.center_x,
-            center_y=state.center_y,
-            scale=state.scale,
-            max_iterations=state.max_iterations,
-            palette=palette,
-            coloring_mode=state.coloring_mode,
-            trap_x=kwargs["trap_x"],
-            trap_y=kwargs["trap_y"],
-            palette_offset=state.palette_offset,
+
+        if self._scheduler is not None:
+            self._scheduler.schedule(
+                viewport_state=state,
+                palette=tuple(palette),
+                width=width,
+                height=height,
+            )
+            return ViewportRenderResult(image=None, status=None)
+
+        # Fallback: synchronous render when no scheduler is wired (used in tests)
+        request = RenderRequest(
+            generation=0, viewport_state=state, palette=tuple(palette),
+            width=width, height=height,
         )
+        raw = self._backend.render(request)
         image = QImage(raw, width, height, width * 4, QImage.Format.Format_RGBA8888).copy()
-        label = state.formula.replace("_", " ").title()
-        mode = "Julia" if state.is_julia else "Mandelbrot"
-        extra = f" (n={state.power})" if state.formula == "multibrot" else ""
-        status = (
-            f"{label}{extra} · {mode} | "
-            f"center ({state.center_x:.4f}, {state.center_y:.4f}) | "
-            f"scale {state.scale:.4g} | "
-            f"{state.max_iterations} iters"
-        )
+        status = format_render_status(state)
         widget.store_rendered_image(image)
         widget.update()
         widget.status_changed.emit(status)

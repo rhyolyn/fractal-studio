@@ -92,10 +92,6 @@ class FractalViewportWidget(QWidget):
         self._cycle_timer = QTimer(self)
         self._cycle_timer.setInterval(50)  # 20 fps
         self._cycle_timer.timeout.connect(self._advance_cycle)
-        self._render_pending = False
-        self._render_timer = QTimer(self)
-        self._render_timer.setSingleShot(True)
-        self._render_timer.timeout.connect(self._flush_scheduled_render)
         self.setMinimumSize(320, 320)
         size_policy = QSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
@@ -264,15 +260,8 @@ class FractalViewportWidget(QWidget):
     def _advance_cycle(self) -> None:
         self._controller.advance_cycle(self)
 
-    def _flush_scheduled_render(self) -> None:
-        self._render_pending = False
-        self._controller.render(self)
-
     def request_render(self) -> None:
-        if self._render_pending:
-            return
-        self._render_pending = True
-        self._render_timer.start(0)
+        self._controller.render(self)
 
     def resizeEvent(self, event) -> None:  # type: ignore[override]
         super().resizeEvent(event)
