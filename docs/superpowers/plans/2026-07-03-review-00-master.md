@@ -11,6 +11,7 @@
 3. **Never claim done without running the verification commands** in the plan (superpowers:verification-before-completion). Baseline before any plan: Python `177 passed, 11 subtests` for `pytest -m "unit or integration"` from `ui/`; Rust `24 passed` for `cargo test` from `core/`. Review-04 records the authoritative collected count and later plans add tests — update the baseline column when you merge.
 4. **Environment:** Windows, venv at `.venv/` (repo root). Python suite: `cd ui; ..\.venv\Scripts\python.exe -m pytest -m "unit or integration" -q`. Rust: `cd core; cargo test -q`. Rust core is optional for UI work; plans state when a maturin build is needed.
 5. **Update this file** (status + notes column + baseline if it changed) in the same commit that completes a plan, or in the merge commit.
+6. **Execute the plan as it exists on current `main`, not as it existed when you started.** At execution start — and again if `main` moves while you work — re-read your plan file from up-to-date `main`; plans receive review amendments after they are written (e.g. PR #4 amended review-04). Do not work from a copy cut with your branch or from conversation memory. PR #5 executed a stale pre-amendment plan this way and missed two amendments; the gap was only caught in review.
 
 ## Status board
 
@@ -74,3 +75,4 @@ Every plan in this directory dated **before 2026-07-03** (`2026-05-29-ui-polish`
 |---|---|
 | 2026-07-03 | Master plan and plans 01-07 created from the architectural review. |
 | 2026-07-03 | Codex re-review of arch-01: bannered all seven pre-2026-07-03 plans as COMPLETED; added review-07 Task 6 (workflow-level settings-write regression tests + Rust fixture-test rename). |
+| 2026-07-03 | Added ground rule 6 (execute plans from current `main`) after PR #5 executed the pre-PR-#4 version of the review-04 plan and missed two amendments. |
