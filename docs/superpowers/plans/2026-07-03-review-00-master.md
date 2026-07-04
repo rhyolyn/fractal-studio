@@ -17,8 +17,8 @@
 | # | Plan file | Scope (one line) | Status | Depends on | Recommended model | Risk | Notes |
 |---|---|---|---|---|---|---|---|
 | 01 | `2026-07-03-review-01-save-json-wiring.md` | Colormap "Save JSON" button saves a favorite instead of palette JSON — rewire to the existing (dead) save pipeline | Done | — | Sonnet 4.6 | Low | PR branch `review-01-save-json-wiring`; UI suite now prints `180 passed, 11 subtests passed` |
-| 02 | `2026-07-03-review-02-rust-gil-parallel-render.md` | Release the GIL during renders; rayon row-parallel `render_image`; makes `"multithreaded_cpu"` honest | Not started | — | **Opus 4.8** | Medium | Pure Rust; needs maturin build for the GIL smoke check |
-| 03 | `2026-07-03-review-03-import-policy-guard.md` | Shim-import guard scans nonexistent dirs (vacuous); fix paths, add domain layer-direction test, fix README claim | Not started | — | Sonnet 4.6 | Low | Restores the safety net that polices plans 05/06 |
+| 02 | `2026-07-03-review-02-rust-gil-parallel-render.md` | Release the GIL during renders; rayon row-parallel `render_image`; makes `"multithreaded_cpu"` honest | Done | — | **Opus 4.8** | Medium | Merged in PR #2; Rust baseline now `26 passed` |
+| 03 | `2026-07-03-review-03-import-policy-guard.md` | Shim-import guard scans nonexistent dirs (vacuous); fix paths, add domain layer-direction test, fix README claim | Done | — | Sonnet 4.6 | Low | PR branch `review-03-import-policy-guard`; import-policy tests now `3 passed` |
 | 04 | `2026-07-03-review-04-split-test-ui.md` | Split the 2,988-line `test_ui.py` into ~10 per-area modules + `tests/support.py`; zero behavior change | Not started | — | Sonnet 4.6 | Low | Must precede 05/06 so their test diffs are reviewable |
 | 05 | `2026-07-03-review-05-unify-render-invocation.md` | Single `CoreBackend.render(RenderRequest)` + single status formatter; remove redundant widget debounce | Not started | 03, 04 | Sonnet 4.6 | Medium | Touches worker/export/controller call sites |
 | 06 | `2026-07-03-review-06-wiring-hardening.md` | Required panel-state collaborators (no silent no-ops); delete two pass-through coordinators; `FavoriteRestoreTarget` protocol | Not started | 01, 03, 04 (05 recommended) | **Fable 5** (Opus 4.8 ok) | High | Largest refactor; reviewer must reject any reintroduced `\| None = None` wiring param |
@@ -62,6 +62,7 @@ From the 2026-07-03 review (conversation record; severity in parentheses):
 2. **Rust core module split + iteration/coloring separation** — split `core/src/lib.rs` into `formulas` / `coloring` / `palette` / `io` / bindings, and separate the escape-iteration pass (buffer of escape values) from the coloring pass (palette mapping). The second half makes 20 fps palette cycling nearly free (re-map instead of re-render). Do this the next time `lib.rs` is touched for a feature; plan then.
 3. **Full composition-root construction-order inversion** — eliminate the remaining getter indirection by building widgets before panel states (sections builders return widgets; states constructed after). Deferred from plan 06 as its own design exercise; re-evaluate after 06 lands, since 06 removes most of the pressure.
 4. **Test-suite runtime** — full suite is ~6.6 minutes. After plan 04, profile the slowest modules (`pytest --durations=20`) and decide whether anything warrants optimization.
+5. **Qt teardown exit code** — on Windows the full UI suite prints all tests passing, then the Python process exits `-1073740791` (`0xC0000409`) during Qt teardown. This predates review-01 and still occurs after review-03 (`181 passed, 11 subtests passed` printed). Investigate separately so future feature branches do not misattribute the nonzero process exit.
 
 ## Historical plans (do not execute)
 

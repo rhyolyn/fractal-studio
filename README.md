@@ -244,6 +244,6 @@ Both files use versioned JSON. The app loads gracefully if either file is missin
 
 - **Architecture:** The Python UI follows a layered Ports & Adapters architecture with a single-pass composition root. See the [architecture page](pages/architecture.html) for the full design and SOLID analysis.
 
-- **Import policy test:** `tests/test_import_policy.py` enforces that lower layers (`state.py`, `persistence.py`) do not import from application or UI layers. Run it as part of the unit suite.
+- **Import policy tests:** `tests/test_import_policy.py` enforces three rules as part of the unit suite: no imports of legacy root-shim module names, no PySide6/widget imports inside `services/`, and no upward (`application`/`services`/`ui`) or Qt imports inside the domain layer (`state.py`, `persistence.py`).
 
 - **State storage:** All domain state is immutable (`@dataclass(frozen=True)`). Mutating a viewport state means constructing a new `ViewportState` with `dataclasses.replace(...)`.
