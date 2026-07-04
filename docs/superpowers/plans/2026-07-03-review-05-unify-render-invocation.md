@@ -10,7 +10,9 @@
 
 **Recommended model:** Claude Sonnet 4.6. *Reasoning:* the design is fully pinned here and the change is mostly mechanical consolidation; the threading-adjacent parts (worker, scheduler) are not restructured, only re-routed. Escalate to Opus 4.8 only if the executor must diverge from the code below (e.g., unforeseen test coupling).
 
-**Dependencies:** Do review-03 (import guards) and review-04 (test split) first. The tests touched here (`TestViewportController`, `TestViewportRenderScheduling`, worker/export tests) will live in their post-split files; if review-04 has not run, the same class names are in `test_ui.py`.
+**Dependencies:** Do review-03 (import guards) and review-04 (test split) first — **do not start until the review-04 PR is merged into `main`** (master-plan ground rule 6: execute against current `main`, never a stale branch). The tests touched here (`TestViewportController`, `TestViewportRenderScheduling`) live in `ui/tests/test_viewport_widget.py` after the split.
+
+> **Amended 2026-07-03 after Codex plan review:** Task 3's test-home pointer corrected (`ExportService`/`ExportRunner` tests live in the pre-existing `ui/tests/test_render_workers.py`, not the split's `test_export_panel.py`), and Task 4 now specifies the exact rewrite of the widget-coalescing tests and the render-bridge fake instead of a generic "grep and fix".
 
 ## Required Reading (before any code)
 
@@ -244,7 +246,7 @@ git commit -m "feat: extract format_render_status as single render status format
 **Files:**
 - Modify: `ui/src/fractal_studio/ui/workers/render_worker.py` (`do_render`)
 - Modify: `ui/src/fractal_studio/services/export_service.py` (`export_render`)
-- Modify tests: `ui/tests/test_render_workers.py` and the export-service tests (post-review-04: `ui/tests/test_export_panel.py`; pre-split: `test_ui.py`) — only if they stub `render_fractal` directly; behavior is unchanged.
+- Modify tests: `ui/tests/test_render_workers.py` only — this pre-existing file holds both the `RenderWorker`/`RenderScheduler` tests **and** the `ExportService`/`ExportRunner` tests (~lines 170-217); update its fakes only if they stub `render_fractal` directly (behavior is unchanged). The split's `ui/tests/test_export_panel.py` holds panel/coordinator-level tests that do not stub the service render path — confirm with `grep -n "render_fractal\|ExportService" ui/tests/test_export_panel.py` and expect no changes there.
 
 - [ ] **Step 1: Rewrite `RenderWorker.do_render`**
 
@@ -392,13 +394,29 @@ Delete `_flush_scheduled_render` and replace `request_render` with:
 
 Rationale (leave this reasoning in the commit message): `RenderScheduler` already debounces at 50 ms with generation-based staleness; a second zero-delay coalescing layer in the widget adds state and no protection. In the scheduler-less sync fallback (tests only), per-event rendering is acceptable.
 
-- [ ] **Step 3: Grep for test coupling to the removed members and fix**
+- [ ] **Step 3: Rewrite the widget-coalescing tests to assert delegation, not coalescing**
+
+`TestViewportRenderScheduling` in `ui/tests/test_viewport_widget.py` currently pins the *old* widget-level debounce: `test_mouse_move_coalesces_render_requests` sends 5 mouse-move events, asserts `render_calls == 0`, then `processEvents()`, then `render_calls == 1`. After this task the widget delegates synchronously, so that test must change — do not "fix" it by reintroducing the timer. Replace its tail (keep the setup and the `ControllerStub` unchanged) with:
+
+```python
+        self.assertEqual(stub.move_calls, 5)
+        # request_render delegates synchronously now; coalescing is owned by
+        # RenderScheduler (50 ms debounce + generation counter — covered in
+        # test_render_workers.py), not by the widget.
+        self.assertEqual(stub.render_calls, 5)
+```
+
+and rename it to `test_mouse_move_delegates_each_render_request` (delete the `processEvents()` call — no event-loop dependency remains). `test_mouse_move_without_pan_does_not_schedule_render` needs no change: `handle_mouse_move` returning `False` still means `request_render` is never called. Apply the same delegation treatment to any resize-based coalescing test in the class.
+
+**The render-bridge test with a `render_fractal`-only fake:** `TestViewportController`'s sync-render test stubs a backend that implements only `render_fractal`. After this task `ViewportController.render` calls `self._backend.render(request)`, so that fake breaks. Replace it with `CoreBackend(RecordingRenderModule())` (the recording module from Task 1's `test_backend.py` — move `RecordingRenderModule` into `tests/support.py` if importing across test modules is awkward), so the real `CoreBackend.render` unpacking stays under test rather than being stubbed away.
+
+Then sweep for any remaining coupling:
 
 ```powershell
 grep -rn "_render_timer\|_render_pending\|_flush_scheduled_render" ui/
 ```
 
-Update any test that manipulated these to call `request_render()` / assert on scheduler interactions instead. Do not reintroduce the timer.
+Expected: zero matches in `ui/src`; any test match must be rewritten per the above patterns.
 
 - [ ] **Step 4: Full suite, then commit**
 
