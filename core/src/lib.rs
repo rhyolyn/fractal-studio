@@ -372,6 +372,7 @@ fn export_palette_json(
     palette = Vec::new()
 ))]
 fn render_mandelbrot(
+    py: Python<'_>,
     width: usize,
     height: usize,
     center_x: f64,
@@ -383,7 +384,9 @@ fn render_mandelbrot(
     let params = FractalParams::new(width, height, center_x, center_y, scale, max_iterations)
         .map_err(PyValueError::new_err)?;
     let palette = resolve_palette(palette);
-    Ok(render_image(params, FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0_f64))
+    Ok(py.detach(move || {
+        render_image(params, FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0_f64)
+    }))
 }
 
 #[pyfunction]
@@ -399,6 +402,7 @@ fn render_mandelbrot(
     palette = Vec::new()
 ))]
 fn render_julia(
+    py: Python<'_>,
     width: usize,
     height: usize,
     constant_real: f64,
@@ -412,17 +416,19 @@ fn render_julia(
     let params = FractalParams::new(width, height, center_x, center_y, scale, max_iterations)
         .map_err(PyValueError::new_err)?;
     let palette = resolve_palette(palette);
-    Ok(render_image(
-        params,
-        FractalMode::Julia(JuliaParams {
-            constant_real,
-            constant_imaginary,
-        }),
-        Formula::Standard,
-        &palette,
-        ColoringMode::SmoothEscape,
-        0.0_f64,
-    ))
+    Ok(py.detach(move || {
+        render_image(
+            params,
+            FractalMode::Julia(JuliaParams {
+                constant_real,
+                constant_imaginary,
+            }),
+            Formula::Standard,
+            &palette,
+            ColoringMode::SmoothEscape,
+            0.0_f64,
+        )
+    }))
 }
 
 #[pyfunction]
@@ -448,6 +454,7 @@ fn render_julia(
 ))]
 #[allow(clippy::too_many_arguments)]
 fn render_fractal(
+    py: Python<'_>,
     formula: &str,
     width: usize,
     height: usize,
@@ -469,6 +476,8 @@ fn render_fractal(
 ) -> PyResult<ImageBuffer> {
     let params = FractalParams::new(width, height, center_x, center_y, scale, max_iterations)
         .map_err(PyValueError::new_err)?;
+    // Parse the &str arguments before allow_threads: the closure must not
+    // capture anything borrowed from Python.
     let formula = Formula::parse(formula, power, phoenix_real, phoenix_imag).map_err(PyValueError::new_err)?;
     let coloring = ColoringMode::parse(coloring_mode, trap_x, trap_y).map_err(PyValueError::new_err)?;
     let mode = if is_julia {
@@ -477,7 +486,7 @@ fn render_fractal(
         FractalMode::Mandelbrot
     };
     let palette = resolve_palette(palette);
-    Ok(render_image(params, mode, formula, &palette, coloring, palette_offset))
+    Ok(py.detach(move || render_image(params, mode, formula, &palette, coloring, palette_offset)))
 }
 
 #[pymodule]
@@ -1102,7 +1111,7 @@ mod tests {
     #[test]
     fn mandelbrot_renderer_returns_rgba_buffer() {
         let palette = generate_palette(default_render_control_points(), 64);
-        let image = render_mandelbrot(32, 24, -0.5, 0.0, 3.0, 128, palette).unwrap();
+        let image = render_image(FractalParams::new(32, 24, -0.5, 0.0, 3.0, 128).unwrap(), FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
         assert_eq!(image.len(), 32 * 24 * 4);
         assert!(image.chunks_exact(4).all(|pixel| pixel[3] == 255));
     }
@@ -1110,7 +1119,7 @@ mod tests {
     #[test]
     fn julia_renderer_returns_rgba_buffer() {
         let palette = generate_palette(default_render_control_points(), 64);
-        let image = render_julia(16, 16, -0.8, 0.156, 0.0, 0.0, 3.0, 128, palette).unwrap();
+        let image = render_image(FractalParams::new(16, 16, 0.0, 0.0, 3.0, 128).unwrap(), FractalMode::Julia(JuliaParams { constant_real: -0.8, constant_imaginary: 0.156 }), Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
         assert_eq!(image.len(), 16 * 16 * 4);
         assert!(image.chunks_exact(4).all(|pixel| pixel[3] == 255));
     }
@@ -1118,8 +1127,8 @@ mod tests {
     #[test]
     fn mandelbrot_and_julia_images_differ() {
         let palette = generate_palette(default_render_control_points(), 128);
-        let mandelbrot = render_mandelbrot(24, 24, -0.5, 0.0, 3.0, 128, palette.clone()).unwrap();
-        let julia = render_julia(24, 24, -0.8, 0.156, 0.0, 0.0, 3.0, 128, palette).unwrap();
+        let mandelbrot = render_image(FractalParams::new(24, 24, -0.5, 0.0, 3.0, 128).unwrap(), FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
+        let julia = render_image(FractalParams::new(24, 24, 0.0, 0.0, 3.0, 128).unwrap(), FractalMode::Julia(JuliaParams { constant_real: -0.8, constant_imaginary: 0.156 }), Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
         assert_ne!(mandelbrot, julia);
     }
 
