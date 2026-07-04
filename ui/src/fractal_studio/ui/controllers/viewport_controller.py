@@ -267,7 +267,7 @@ class ViewportController:
         if self._scheduler is not None:
             self._scheduler.schedule(
                 viewport_state=state,
-                palette=tuple(palette),
+                palette=palette,
                 width=width,
                 height=height,
             )
