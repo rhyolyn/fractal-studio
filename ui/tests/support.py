@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-import sys
 import unittest
-from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
-
-SOURCE_ROOT = Path(__file__).resolve().parents[1] / "src"
-sys.path.insert(0, str(SOURCE_ROOT))
 
 from fractal_studio.backend import BackendCapabilities
 
