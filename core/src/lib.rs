@@ -476,7 +476,7 @@ fn render_fractal(
 ) -> PyResult<ImageBuffer> {
     let params = FractalParams::new(width, height, center_x, center_y, scale, max_iterations)
         .map_err(PyValueError::new_err)?;
-    // Parse the &str arguments before allow_threads: the closure must not
+    // Parse the &str arguments before py.detach: the detached closure must not
     // capture anything borrowed from Python.
     let formula = Formula::parse(formula, power, phoenix_real, phoenix_imag).map_err(PyValueError::new_err)?;
     let coloring = ColoringMode::parse(coloring_mode, trap_x, trap_y).map_err(PyValueError::new_err)?;
@@ -1204,13 +1204,43 @@ mod tests {
     }
 
     #[test]
-    fn render_matches_reference_row_order() {
-        // Guards against row-index bugs in the parallel refactor: pixel (x=0, y=0)
-        // must map to buffer offset 0 and the top row must use max imaginary.
+    fn render_matches_sequential_reference() {
+        // Guards against row-index bugs in the parallel refactor: every pixel is
+        // compared against an independent sequential loop using the same
+        // coordinate math. The view is deliberately off-center vertically
+        // (center_y != 0) so the image has no vertical mirror symmetry — a
+        // reversed or swapped row cannot masquerade as correct.
         let palette = generate_palette(default_render_control_points(), 64);
-        let params = FractalParams::new(8, 8, -0.5, 0.0, 3.0, 64).unwrap();
+        let params = FractalParams::new(8, 8, -0.5, 0.37, 2.5, 64).unwrap();
         let image = render_image(params, FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
         assert_eq!(image.len(), 8 * 8 * 4);
-        assert!(image.chunks_exact(4).all(|pixel| pixel[3] == 255));
+
+        let aspect = params.width as f64 / params.height as f64;
+        let horizontal_span = params.scale * aspect;
+        let min_x = params.center_x - horizontal_span / 2.0;
+        let max_y = params.center_y + params.scale / 2.0;
+        let dx = horizontal_span / params.width as f64;
+        let dy = params.scale / params.height as f64;
+
+        for y in 0..params.height {
+            let imaginary = max_y - y as f64 * dy;
+            for x in 0..params.width {
+                let real = min_x + x as f64 * dx;
+                let expected = sample_pixel(real, imaginary, params, FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
+                let offset = (y * params.width + x) * 4;
+                assert_eq!(
+                    (image[offset], image[offset + 1], image[offset + 2], image[offset + 3]),
+                    (expected.0, expected.1, expected.2, 255),
+                    "pixel mismatch at ({x}, {y})"
+                );
+            }
+        }
+
+        // Sanity: the asymmetric view must actually produce differing rows,
+        // otherwise the per-pixel comparison above could not detect row swaps.
+        let row_len = params.width * 4;
+        let first_row = &image[..row_len];
+        let last_row = &image[image.len() - row_len..];
+        assert_ne!(first_row, last_row, "test view is degenerate: top and bottom rows are identical");
     }
 }
