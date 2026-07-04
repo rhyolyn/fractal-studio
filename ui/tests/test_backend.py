@@ -232,5 +232,75 @@ def test_available_property_false_when_no_module() -> None:
     assert backend.available is False
 
 
+class RecordingRenderModule:
+    """Stands in for the fractal_core module; records render_fractal kwargs."""
+
+    def __init__(self) -> None:
+        self.args: tuple | None = None
+        self.kwargs: dict | None = None
+
+    def render_fractal(self, *args, **kwargs) -> bytes:
+        self.args = args
+        self.kwargs = kwargs
+        return b"\x01\x02\x03\x04"
+
+
+@pytest.mark.unit
+def test_backend_render_unpacks_request_fields() -> None:
+    from fractal_studio.state import JuliaParams, RenderRequest, ViewportState
+
+    module = RecordingRenderModule()
+    backend = CoreBackend(module)
+    state = ViewportState(
+        formula="standard",
+        center_x=-0.5,
+        center_y=0.25,
+        scale=1.5,
+        max_iterations=333,
+        is_julia=True,
+        formula_params=JuliaParams(cx=-0.7, cy=0.2),
+        coloring_mode="orbit_trap_circle",
+        palette_offset=0.125,
+        power=4,
+    )
+    request = RenderRequest(
+        generation=7,
+        viewport_state=state,
+        palette=((1, 2, 3), (4, 5, 6)),
+        width=64,
+        height=48,
+    )
+
+    raw = backend.render(request)
+
+    assert raw == b"\x01\x02\x03\x04"
+    assert module.args == ("standard", 64, 48)
+    assert module.kwargs is not None
+    assert module.kwargs["is_julia"] is True
+    assert module.kwargs["julia_real"] == -0.7
+    assert module.kwargs["julia_imag"] == 0.2
+    assert module.kwargs["power"] == 4
+    assert module.kwargs["center_x"] == -0.5
+    assert module.kwargs["center_y"] == 0.25
+    assert module.kwargs["scale"] == 1.5
+    assert module.kwargs["max_iterations"] == 333
+    assert module.kwargs["palette"] == [(1, 2, 3), (4, 5, 6)]
+    assert module.kwargs["coloring_mode"] == "orbit_trap_circle"
+    assert module.kwargs["palette_offset"] == 0.125
+
+
+@pytest.mark.unit
+def test_backend_render_returns_empty_without_module() -> None:
+    from fractal_studio.state import RenderRequest, StandardParams, ViewportState
+
+    state = ViewportState(
+        formula="standard", center_x=-0.5, center_y=0.0, scale=3.0,
+        max_iterations=64, is_julia=False, formula_params=StandardParams(),
+        coloring_mode="smooth_escape", palette_offset=0.0,
+    )
+    request = RenderRequest(generation=1, viewport_state=state, palette=(), width=8, height=8)
+    assert CoreBackend(None).render(request) == b""
+
+
 if __name__ == "__main__":
     unittest.main()

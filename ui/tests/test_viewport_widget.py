@@ -23,7 +23,7 @@ from tests.support import (
 
 @pytest.mark.integration
 class TestViewportRenderScheduling(QtWindowTestCase):
-    def test_mouse_move_coalesces_render_requests(self) -> None:
+    def test_mouse_move_delegates_each_render_request(self) -> None:
         from PySide6.QtCore import QEvent, QPointF, Qt
         from PySide6.QtGui import QMouseEvent
         from fractal_studio.backend import CoreBackend
@@ -59,10 +59,10 @@ class TestViewportRenderScheduling(QtWindowTestCase):
             widget.mouseMoveEvent(event)
 
         self.assertEqual(stub.move_calls, 5)
-        self.assertEqual(stub.render_calls, 0)
-
-        get_app().processEvents()
-        self.assertEqual(stub.render_calls, 1)
+        # request_render delegates synchronously now; coalescing is owned by
+        # RenderScheduler (50 ms debounce + generation counter — covered in
+        # test_render_workers.py), not by the widget.
+        self.assertEqual(stub.render_calls, 5)
 
     def test_mouse_move_without_pan_does_not_schedule_render(self) -> None:
         from PySide6.QtCore import QEvent, QPointF, Qt
@@ -102,7 +102,7 @@ class TestViewportRenderScheduling(QtWindowTestCase):
         self.assertEqual(stub.move_calls, 1)
         self.assertEqual(stub.render_calls, 0)
 
-    def test_resize_coalesces_render_requests(self) -> None:
+    def test_resize_delegates_each_render_request(self) -> None:
         from PySide6.QtCore import QSize
         from PySide6.QtGui import QResizeEvent
         from fractal_studio.backend import CoreBackend
@@ -129,10 +129,8 @@ class TestViewportRenderScheduling(QtWindowTestCase):
             widget.resizeEvent(QResizeEvent(QSize(420, 300), QSize(320, 320)))
 
         self.assertEqual(stub.resize_calls, 5)
-        self.assertEqual(stub.render_calls, 0)
-
-        get_app().processEvents()
-        self.assertEqual(stub.render_calls, 1)
+        # Synchronous delegation per event; scheduler owns coalescing.
+        self.assertEqual(stub.render_calls, 5)
 
     def test_resize_without_render_request_does_not_schedule_render(self) -> None:
         from PySide6.QtCore import QSize
@@ -367,13 +365,13 @@ class TestViewportController(unittest.TestCase):
         self.assertGreater(controller.render_count, 0)
 
     def test_controller_render_bridge_uses_viewport_adapter_surface(self) -> None:
+        from fractal_studio.backend import CoreBackend
         from fractal_studio.state import ViewportState
         from fractal_studio.ui.controllers.viewport_controller import ViewportController
 
-        class DummyBackend:
-            available = True
-            capabilities = _FULL_CAPS
-
+        class RecordingRenderModule:
+            # Fakes the fractal_core module so the real CoreBackend.render
+            # unpacking stays under test (render() consumes RenderRequest now).
             def render_fractal(self, formula: str, width: int, height: int, **kwargs):
                 self.last_call = {
                     "formula": formula,
@@ -431,7 +429,8 @@ class TestViewportController(unittest.TestCase):
             def update(self) -> None:
                 self.updates += 1
 
-        backend = DummyBackend()
+        module = RecordingRenderModule()
+        backend = CoreBackend(module)
         controller = ViewportController(backend)
         viewport = ViewportRenderStub()
 
@@ -444,7 +443,7 @@ class TestViewportController(unittest.TestCase):
         self.assertEqual(viewport.updates, 2)
         self.assertEqual(len(viewport.status_changed.emitted), 2)
         self.assertIn("Multibrot", viewport.status_changed.emitted[-1])
-        self.assertEqual(backend.last_call["palette"], [(9, 8, 7)])
+        self.assertEqual(module.last_call["palette"], [(9, 8, 7)])
 
 
 @pytest.mark.integration

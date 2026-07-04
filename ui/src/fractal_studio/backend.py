@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from importlib import import_module
 from types import ModuleType
 
+from fractal_studio.state import RenderRequest
+
 Color = tuple[int, int, int]
 
 
@@ -100,6 +102,30 @@ class CoreBackend:
         if self._module is None:
             return []
         return list(self._module.generate_palette(control_points, palette_size))
+
+    def render(self, request: RenderRequest) -> bytes:
+        state = request.viewport_state
+        kwargs = state.to_render_kwargs()
+        return self.render_fractal(
+            state.formula,
+            request.width,
+            request.height,
+            is_julia=state.is_julia,
+            julia_real=kwargs["julia_real"],
+            julia_imag=kwargs["julia_imag"],
+            power=state.power,
+            phoenix_real=kwargs["phoenix_real"],
+            phoenix_imag=kwargs["phoenix_imag"],
+            center_x=state.center_x,
+            center_y=state.center_y,
+            scale=state.scale,
+            max_iterations=state.max_iterations,
+            palette=list(request.palette),
+            coloring_mode=state.coloring_mode,
+            trap_x=kwargs["trap_x"],
+            trap_y=kwargs["trap_y"],
+            palette_offset=state.palette_offset,
+        )
 
     def render_fractal(
         self,
