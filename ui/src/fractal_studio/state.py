@@ -328,3 +328,15 @@ def deserialize_favorites_payload(raw: Any) -> list[FavoriteSnapshot]:
         except (TypeError, ValueError):
             continue
     return snapshots
+
+
+def format_render_status(state: ViewportState) -> str:
+    label = state.formula.replace("_", " ").title()
+    mode = "Julia" if state.is_julia else "Mandelbrot"
+    extra = f" (n={state.power})" if state.formula == "multibrot" else ""
+    return (
+        f"{label}{extra} · {mode} | "
+        f"center ({state.center_x:.4f}, {state.center_y:.4f}) | "
+        f"scale {state.scale:.4g} | "
+        f"{state.max_iterations} iters"
+    )
