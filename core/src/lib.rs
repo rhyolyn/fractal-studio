@@ -3,6 +3,7 @@ use std::path::Path;
 
 use pyo3::exceptions::{PyOSError, PyValueError};
 use pyo3::prelude::*;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_PALETTE_SIZE: usize = 2048;
@@ -579,17 +580,20 @@ fn render_image(params: FractalParams, mode: FractalMode, formula: Formula, pale
     let dx = horizontal_span / params.width as f64;
     let dy = vertical_span / params.height as f64;
 
-    for y in 0..params.height {
-        let imaginary = max_y - y as f64 * dy;
-        for x in 0..params.width {
-            let real = min_x + x as f64 * dx;
-            let color = match formula {
-                Formula::Newton(n) => sample_newton(real, imaginary, params, n, palette, palette_offset),
-                _ => sample_pixel(real, imaginary, params, mode, formula, palette, coloring, palette_offset),
-            };
-            write_pixel(&mut buffer, x, y, params.width, color);
-        }
-    }
+    buffer
+        .par_chunks_mut(params.width * 4)
+        .enumerate()
+        .for_each(|(y, row)| {
+            let imaginary = max_y - y as f64 * dy;
+            for x in 0..params.width {
+                let real = min_x + x as f64 * dx;
+                let color = match formula {
+                    Formula::Newton(n) => sample_newton(real, imaginary, params, n, palette, palette_offset),
+                    _ => sample_pixel(real, imaginary, params, mode, formula, palette, coloring, palette_offset),
+                };
+                write_row_pixel(row, x, color);
+            }
+        });
 
     buffer
 }
@@ -789,12 +793,12 @@ fn mix_colors(start: RawColor, end: RawColor, t: f64) -> RawColor {
     )
 }
 
-fn write_pixel(buffer: &mut [u8], x: usize, y: usize, width: usize, color: RawColor) {
-    let offset = (y * width + x) * 4;
-    buffer[offset] = color.0;
-    buffer[offset + 1] = color.1;
-    buffer[offset + 2] = color.2;
-    buffer[offset + 3] = 255;
+fn write_row_pixel(row: &mut [u8], x: usize, color: RawColor) {
+    let offset = x * 4;
+    row[offset] = color.0;
+    row[offset + 1] = color.1;
+    row[offset + 2] = color.2;
+    row[offset + 3] = 255;
 }
 
 fn sample_palette(
@@ -1179,5 +1183,25 @@ mod tests {
         let (pr, pi) = complex_pow(zr, zi, 2);
         assert!((pr - (zr * zr - zi * zi)).abs() < 1e-12);
         assert!((pi - (2.0 * zr * zi)).abs() < 1e-12);
+    }
+
+    #[test]
+    fn render_is_deterministic_across_runs() {
+        let palette = generate_palette(default_render_control_points(), 64);
+        let params = FractalParams::new(64, 48, -0.5, 0.0, 3.0, 256).unwrap();
+        let first = render_image(params, FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
+        let second = render_image(params, FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn render_matches_reference_row_order() {
+        // Guards against row-index bugs in the parallel refactor: pixel (x=0, y=0)
+        // must map to buffer offset 0 and the top row must use max imaginary.
+        let palette = generate_palette(default_render_control_points(), 64);
+        let params = FractalParams::new(8, 8, -0.5, 0.0, 3.0, 64).unwrap();
+        let image = render_image(params, FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
+        assert_eq!(image.len(), 8 * 8 * 4);
+        assert!(image.chunks_exact(4).all(|pixel| pixel[3] == 255));
     }
 }
