@@ -3,6 +3,7 @@ use std::path::Path;
 
 use pyo3::exceptions::{PyOSError, PyValueError};
 use pyo3::prelude::*;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 const DEFAULT_PALETTE_SIZE: usize = 2048;
@@ -371,6 +372,7 @@ fn export_palette_json(
     palette = Vec::new()
 ))]
 fn render_mandelbrot(
+    py: Python<'_>,
     width: usize,
     height: usize,
     center_x: f64,
@@ -382,7 +384,9 @@ fn render_mandelbrot(
     let params = FractalParams::new(width, height, center_x, center_y, scale, max_iterations)
         .map_err(PyValueError::new_err)?;
     let palette = resolve_palette(palette);
-    Ok(render_image(params, FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0_f64))
+    Ok(py.detach(move || {
+        render_image(params, FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0_f64)
+    }))
 }
 
 #[pyfunction]
@@ -398,6 +402,7 @@ fn render_mandelbrot(
     palette = Vec::new()
 ))]
 fn render_julia(
+    py: Python<'_>,
     width: usize,
     height: usize,
     constant_real: f64,
@@ -411,17 +416,19 @@ fn render_julia(
     let params = FractalParams::new(width, height, center_x, center_y, scale, max_iterations)
         .map_err(PyValueError::new_err)?;
     let palette = resolve_palette(palette);
-    Ok(render_image(
-        params,
-        FractalMode::Julia(JuliaParams {
-            constant_real,
-            constant_imaginary,
-        }),
-        Formula::Standard,
-        &palette,
-        ColoringMode::SmoothEscape,
-        0.0_f64,
-    ))
+    Ok(py.detach(move || {
+        render_image(
+            params,
+            FractalMode::Julia(JuliaParams {
+                constant_real,
+                constant_imaginary,
+            }),
+            Formula::Standard,
+            &palette,
+            ColoringMode::SmoothEscape,
+            0.0_f64,
+        )
+    }))
 }
 
 #[pyfunction]
@@ -447,6 +454,7 @@ fn render_julia(
 ))]
 #[allow(clippy::too_many_arguments)]
 fn render_fractal(
+    py: Python<'_>,
     formula: &str,
     width: usize,
     height: usize,
@@ -468,6 +476,8 @@ fn render_fractal(
 ) -> PyResult<ImageBuffer> {
     let params = FractalParams::new(width, height, center_x, center_y, scale, max_iterations)
         .map_err(PyValueError::new_err)?;
+    // Parse the &str arguments before py.detach: the detached closure must not
+    // capture anything borrowed from Python.
     let formula = Formula::parse(formula, power, phoenix_real, phoenix_imag).map_err(PyValueError::new_err)?;
     let coloring = ColoringMode::parse(coloring_mode, trap_x, trap_y).map_err(PyValueError::new_err)?;
     let mode = if is_julia {
@@ -476,7 +486,7 @@ fn render_fractal(
         FractalMode::Mandelbrot
     };
     let palette = resolve_palette(palette);
-    Ok(render_image(params, mode, formula, &palette, coloring, palette_offset))
+    Ok(py.detach(move || render_image(params, mode, formula, &palette, coloring, palette_offset)))
 }
 
 #[pymodule]
@@ -579,17 +589,20 @@ fn render_image(params: FractalParams, mode: FractalMode, formula: Formula, pale
     let dx = horizontal_span / params.width as f64;
     let dy = vertical_span / params.height as f64;
 
-    for y in 0..params.height {
-        let imaginary = max_y - y as f64 * dy;
-        for x in 0..params.width {
-            let real = min_x + x as f64 * dx;
-            let color = match formula {
-                Formula::Newton(n) => sample_newton(real, imaginary, params, n, palette, palette_offset),
-                _ => sample_pixel(real, imaginary, params, mode, formula, palette, coloring, palette_offset),
-            };
-            write_pixel(&mut buffer, x, y, params.width, color);
-        }
-    }
+    buffer
+        .par_chunks_mut(params.width * 4)
+        .enumerate()
+        .for_each(|(y, row)| {
+            let imaginary = max_y - y as f64 * dy;
+            for x in 0..params.width {
+                let real = min_x + x as f64 * dx;
+                let color = match formula {
+                    Formula::Newton(n) => sample_newton(real, imaginary, params, n, palette, palette_offset),
+                    _ => sample_pixel(real, imaginary, params, mode, formula, palette, coloring, palette_offset),
+                };
+                write_row_pixel(row, x, color);
+            }
+        });
 
     buffer
 }
@@ -789,12 +802,12 @@ fn mix_colors(start: RawColor, end: RawColor, t: f64) -> RawColor {
     )
 }
 
-fn write_pixel(buffer: &mut [u8], x: usize, y: usize, width: usize, color: RawColor) {
-    let offset = (y * width + x) * 4;
-    buffer[offset] = color.0;
-    buffer[offset + 1] = color.1;
-    buffer[offset + 2] = color.2;
-    buffer[offset + 3] = 255;
+fn write_row_pixel(row: &mut [u8], x: usize, color: RawColor) {
+    let offset = x * 4;
+    row[offset] = color.0;
+    row[offset + 1] = color.1;
+    row[offset + 2] = color.2;
+    row[offset + 3] = 255;
 }
 
 fn sample_palette(
@@ -1098,7 +1111,7 @@ mod tests {
     #[test]
     fn mandelbrot_renderer_returns_rgba_buffer() {
         let palette = generate_palette(default_render_control_points(), 64);
-        let image = render_mandelbrot(32, 24, -0.5, 0.0, 3.0, 128, palette).unwrap();
+        let image = render_image(FractalParams::new(32, 24, -0.5, 0.0, 3.0, 128).unwrap(), FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
         assert_eq!(image.len(), 32 * 24 * 4);
         assert!(image.chunks_exact(4).all(|pixel| pixel[3] == 255));
     }
@@ -1106,7 +1119,7 @@ mod tests {
     #[test]
     fn julia_renderer_returns_rgba_buffer() {
         let palette = generate_palette(default_render_control_points(), 64);
-        let image = render_julia(16, 16, -0.8, 0.156, 0.0, 0.0, 3.0, 128, palette).unwrap();
+        let image = render_image(FractalParams::new(16, 16, 0.0, 0.0, 3.0, 128).unwrap(), FractalMode::Julia(JuliaParams { constant_real: -0.8, constant_imaginary: 0.156 }), Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
         assert_eq!(image.len(), 16 * 16 * 4);
         assert!(image.chunks_exact(4).all(|pixel| pixel[3] == 255));
     }
@@ -1114,8 +1127,8 @@ mod tests {
     #[test]
     fn mandelbrot_and_julia_images_differ() {
         let palette = generate_palette(default_render_control_points(), 128);
-        let mandelbrot = render_mandelbrot(24, 24, -0.5, 0.0, 3.0, 128, palette.clone()).unwrap();
-        let julia = render_julia(24, 24, -0.8, 0.156, 0.0, 0.0, 3.0, 128, palette).unwrap();
+        let mandelbrot = render_image(FractalParams::new(24, 24, -0.5, 0.0, 3.0, 128).unwrap(), FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
+        let julia = render_image(FractalParams::new(24, 24, 0.0, 0.0, 3.0, 128).unwrap(), FractalMode::Julia(JuliaParams { constant_real: -0.8, constant_imaginary: 0.156 }), Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
         assert_ne!(mandelbrot, julia);
     }
 
@@ -1179,5 +1192,55 @@ mod tests {
         let (pr, pi) = complex_pow(zr, zi, 2);
         assert!((pr - (zr * zr - zi * zi)).abs() < 1e-12);
         assert!((pi - (2.0 * zr * zi)).abs() < 1e-12);
+    }
+
+    #[test]
+    fn render_is_deterministic_across_runs() {
+        let palette = generate_palette(default_render_control_points(), 64);
+        let params = FractalParams::new(64, 48, -0.5, 0.0, 3.0, 256).unwrap();
+        let first = render_image(params, FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
+        let second = render_image(params, FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn render_matches_sequential_reference() {
+        // Guards against row-index bugs in the parallel refactor: every pixel is
+        // compared against an independent sequential loop using the same
+        // coordinate math. The view is deliberately off-center vertically
+        // (center_y != 0) so the image has no vertical mirror symmetry — a
+        // reversed or swapped row cannot masquerade as correct.
+        let palette = generate_palette(default_render_control_points(), 64);
+        let params = FractalParams::new(8, 8, -0.5, 0.37, 2.5, 64).unwrap();
+        let image = render_image(params, FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
+        assert_eq!(image.len(), 8 * 8 * 4);
+
+        let aspect = params.width as f64 / params.height as f64;
+        let horizontal_span = params.scale * aspect;
+        let min_x = params.center_x - horizontal_span / 2.0;
+        let max_y = params.center_y + params.scale / 2.0;
+        let dx = horizontal_span / params.width as f64;
+        let dy = params.scale / params.height as f64;
+
+        for y in 0..params.height {
+            let imaginary = max_y - y as f64 * dy;
+            for x in 0..params.width {
+                let real = min_x + x as f64 * dx;
+                let expected = sample_pixel(real, imaginary, params, FractalMode::Mandelbrot, Formula::Standard, &palette, ColoringMode::SmoothEscape, 0.0);
+                let offset = (y * params.width + x) * 4;
+                assert_eq!(
+                    (image[offset], image[offset + 1], image[offset + 2], image[offset + 3]),
+                    (expected.0, expected.1, expected.2, 255),
+                    "pixel mismatch at ({x}, {y})"
+                );
+            }
+        }
+
+        // Sanity: the asymmetric view must actually produce differing rows,
+        // otherwise the per-pixel comparison above could not detect row swaps.
+        let row_len = params.width * 4;
+        let first_row = &image[..row_len];
+        let last_row = &image[image.len() - row_len..];
+        assert_ne!(first_row, last_row, "test view is degenerate: top and bottom rows are identical");
     }
 }
